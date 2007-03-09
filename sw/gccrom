@@ -1,0 +1,9 @@
+#!/bin/sh
+# $Id: gccrom,v 1.1 2007-03-09 17:41:56 sybreon Exp $
+# $Log: not supported by cvs2svn $
+mb-gcc -mxl-soft-div -mxl-soft-mul -msoft-float -o rom.o $@ && \
+mb-objcopy -O binary rom.o rom.bin && \
+hexdump -v -e'1/4 "%.8X\n"' rom.bin > ../sim/aeMB.rom && \
+mb-objdump -D rom.o > rom.dump && \
+rm rom.bin && \
+mb-run -tv rom.o 2> rom.run 
