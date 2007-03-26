@@ -9,7 +9,7 @@
 // Status          : Unknown, Use with caution!
 
 /*
- * $Id: aeMB_regfile.v,v 1.1 2007-03-09 17:52:17 sybreon Exp $
+ * $Id: aeMB_regfile.v,v 1.2 2007-03-26 12:21:31 sybreon Exp $
  * 
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
  *  
@@ -34,6 +34,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.1  2007/03/09 17:52:17  sybreon
+ * initial import
+ *
  *
  */
 
@@ -68,10 +71,10 @@ module aeMB_regfile(/*AUTOARG*/
    reg [31:0] 	 r18,r19,r1A,r1B,r1C,r1D,r1E,r1F; 		 
 
    // FLAGS
-   wire fWE = rRWE;
+   wire fWE = rRWE & ~rDWBWE;
    wire fLNK = rLNK;
    wire fLD = rDWBSTB ^ rDWBWE;   
-   
+
    // PC Latch
    reg [31:0] 	 rPC_;
    always @(negedge nclk or negedge nrst)
@@ -131,13 +134,13 @@ module aeMB_regfile(/*AUTOARG*/
 	  5'h1D: rDWBDAT <= #1 (fDFWD) ? rRESULT : r1D;
 	  5'h1E: rDWBDAT <= #1 (fDFWD) ? rRESULT : r1E;
 	  5'h1F: rDWBDAT <= #1 (fDFWD) ? rRESULT : r1F;
-	endcase // case(rRD)
+	endcase // case (rRD)
      end else begin // if (drun)
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	rDWBDAT <= 32'h0;
 	// End of automatics
-     end
+     end // else: !if(drun)
    
    // Load Registers
    reg [31:0] 	     rREGA, rREGB;
@@ -182,7 +185,7 @@ module aeMB_regfile(/*AUTOARG*/
 	  5'h02: rREGA <= #1 r02;	  
 	  5'h01: rREGA <= #1 r01;	  
 	  5'h00: rREGA <= #1 r00;	  
-	endcase // case(rRA)
+	endcase // case (rRA)
 
 	case (rRB)
 	  5'h1F: rREGB <= #1 r1F;	  
@@ -217,14 +220,14 @@ module aeMB_regfile(/*AUTOARG*/
 	  5'h02: rREGB <= #1 r02;	  
 	  5'h01: rREGB <= #1 r01;	  
 	  5'h00: rREGB <= #1 r00;	  
-	endcase // case(rRB)
+	endcase // case (rRB)
      end else begin // if (drun)
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	rREGA <= 32'h0;
 	rREGB <= 32'h0;
 	// End of automatics
-     end
+     end // else: !if(drun)
    
    
    // Normal Registers
@@ -363,7 +366,7 @@ module aeMB_regfile(/*AUTOARG*/
 	r1E <= #1 (fR1E & fLD) ? wDWBDAT : (fR1E & fLNK) ? rPC_ : (fR1E & fWE) ? rRESULT : r1E;
 	r1F <= #1 (fR1F & fLD) ? wDWBDAT : (fR1F & fLNK) ? rPC_ : (fR1F & fWE) ? rRESULT : r1F;
 	 */
-     end // if (drun)
+     end // else: !if(!nrst)
 
    // Special Registers
    always @(negedge nclk or negedge nrst)
@@ -383,7 +386,7 @@ module aeMB_regfile(/*AUTOARG*/
 	// R11 - Exception
 	r11 <= #1 (rFSM == 2'b10) ? rPC : // Needs verification
 	       (!fR11) ? r11 : (fLD) ? wDWBDAT : (fLNK) ? rPC_ : (fWE) ? rRESULT : r11;	
-     end
+     end // else: !if(!nrst)
    
       
 endmodule // aeMB_regfile
