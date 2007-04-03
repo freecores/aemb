@@ -9,7 +9,7 @@
 // Status          : Unknown, Use with caution!
 
 /*
- * $Id: aeMB_decode.v,v 1.1 2007-03-09 17:52:17 sybreon Exp $
+ * $Id: aeMB_decode.v,v 1.2 2007-04-03 14:46:26 sybreon Exp $
  * 
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
  *  
@@ -32,6 +32,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.1  2007/03/09 17:52:17  sybreon
+ * initial import
+ *
  * 
  */
 
@@ -65,7 +68,8 @@ module aeMB_decode (/*AUTOARG*/
    input 	 nclk, nrst, drun, frun, frst, drst;
 
    // Endian Correction
-   wire [31:0] 	 wWBDAT = dwb_dat_i;   
+   //wire [31:0] 	 wWBDAT = dwb_dat_i; 	 
+   wire [31:0] 	 wWBDAT = {dwb_dat_i[7:0],dwb_dat_i[15:8],dwb_dat_i[23:16],dwb_dat_i[31:24]}; 	 
    wire [31:0] 	 wIREG = {iwb_dat_i[7:0],iwb_dat_i[15:8],iwb_dat_i[23:16],iwb_dat_i[31:24]};
 
    // Decode
