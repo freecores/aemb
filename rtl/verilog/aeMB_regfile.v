@@ -3,14 +3,15 @@
 // Description     : AEMB Register File
 // Author          : Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
 // Created On      : Fri Dec 29 16:17:31 2006
-// Last Modified By: Shawn Tan
-// Last Modified On: 2006-12-29
-// Update Count    : 0
-// Status          : Unknown, Use with caution!
+// Last Modified By: $Author: sybreon $
+// Last Modified On: $Date: 2007-04-04 06:11:47 $
+// Update Count    : $Revision: 1.4 $
+// Status          : $State: Exp $
 
 /*
- * $Id: aeMB_regfile.v,v 1.3 2007-04-03 14:46:26 sybreon Exp $
+ * $Id: aeMB_regfile.v,v 1.4 2007-04-04 06:11:47 sybreon Exp $
  * 
+ * AEMB Register File
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
  *  
  * This library is free software; you can redistribute it and/or modify it 
@@ -34,12 +35,14 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.3  2007/04/03 14:46:26  sybreon
+ * Fixed endian correction issues on data bus.
+ *
  * Revision 1.2  2007/03/26 12:21:31  sybreon
  * Fixed a minor bug where RD is trashed by a STORE instruction. Spotted by Joon Lee.
  *
  * Revision 1.1  2007/03/09 17:52:17  sybreon
  * initial import
- *
  *
  */
 
@@ -92,12 +95,17 @@ module aeMB_regfile(/*AUTOARG*/
    
    // DWB data - Endian Correction
    reg [31:0] 	 rDWBDAT;
-   wire 	 fDFWD = (rRD == rRD_) & fWE;
    //assign 	 dwb_dat_o = rDWBDAT;
    //wire [31:0] 	 wDWBDAT = dwb_dat_i;
    assign 	 dwb_dat_o = {rDWBDAT[7:0],rDWBDAT[15:8],rDWBDAT[23:16],rDWBDAT[31:24]};   
    wire [31:0] 	 wDWBDAT = {dwb_dat_i[7:0],dwb_dat_i[15:8],dwb_dat_i[23:16],dwb_dat_i[31:24]};   
-   
+
+   // Forwarding Control
+   wire 	 fDFWD = (rRD == rRD_) & fWE;
+   wire 	 fMFWD = rDWBSTB & ~rDWBWE;   
+   wire [31:0] 	 wRESULT = (fMFWD) ? wDWBDAT : rRESULT;   
+
+   // Register Load
    always @(negedge nclk or negedge nrst)
      if (!nrst) begin
 	/*AUTORESET*/
@@ -106,38 +114,38 @@ module aeMB_regfile(/*AUTOARG*/
 	// End of automatics
      end else if (drun) begin
 	case (rRD)
-	  5'h00: rDWBDAT <= #1 (fDFWD) ? rRESULT : r00;
-	  5'h01: rDWBDAT <= #1 (fDFWD) ? rRESULT : r01;
-	  5'h02: rDWBDAT <= #1 (fDFWD) ? rRESULT : r02;
-	  5'h03: rDWBDAT <= #1 (fDFWD) ? rRESULT : r03;
-	  5'h04: rDWBDAT <= #1 (fDFWD) ? rRESULT : r04;
-	  5'h05: rDWBDAT <= #1 (fDFWD) ? rRESULT : r05;
-	  5'h06: rDWBDAT <= #1 (fDFWD) ? rRESULT : r06;
-	  5'h07: rDWBDAT <= #1 (fDFWD) ? rRESULT : r07;
-	  5'h08: rDWBDAT <= #1 (fDFWD) ? rRESULT : r08;
-	  5'h09: rDWBDAT <= #1 (fDFWD) ? rRESULT : r09;
-	  5'h0A: rDWBDAT <= #1 (fDFWD) ? rRESULT : r0A;
-	  5'h0B: rDWBDAT <= #1 (fDFWD) ? rRESULT : r0B;
-	  5'h0C: rDWBDAT <= #1 (fDFWD) ? rRESULT : r0C;
-	  5'h0D: rDWBDAT <= #1 (fDFWD) ? rRESULT : r0D;
-	  5'h0E: rDWBDAT <= #1 (fDFWD) ? rRESULT : r0E;
-	  5'h0F: rDWBDAT <= #1 (fDFWD) ? rRESULT : r0F;
-	  5'h10: rDWBDAT <= #1 (fDFWD) ? rRESULT : r10;
-	  5'h11: rDWBDAT <= #1 (fDFWD) ? rRESULT : r11;
-	  5'h12: rDWBDAT <= #1 (fDFWD) ? rRESULT : r12;
-	  5'h13: rDWBDAT <= #1 (fDFWD) ? rRESULT : r13;
-	  5'h14: rDWBDAT <= #1 (fDFWD) ? rRESULT : r14;
-	  5'h15: rDWBDAT <= #1 (fDFWD) ? rRESULT : r15;
-	  5'h16: rDWBDAT <= #1 (fDFWD) ? rRESULT : r16;
-	  5'h17: rDWBDAT <= #1 (fDFWD) ? rRESULT : r17;
-	  5'h18: rDWBDAT <= #1 (fDFWD) ? rRESULT : r18;
-	  5'h19: rDWBDAT <= #1 (fDFWD) ? rRESULT : r19;
-	  5'h1A: rDWBDAT <= #1 (fDFWD) ? rRESULT : r1A;
-	  5'h1B: rDWBDAT <= #1 (fDFWD) ? rRESULT : r1B;
-	  5'h1C: rDWBDAT <= #1 (fDFWD) ? rRESULT : r1C;
-	  5'h1D: rDWBDAT <= #1 (fDFWD) ? rRESULT : r1D;
-	  5'h1E: rDWBDAT <= #1 (fDFWD) ? rRESULT : r1E;
-	  5'h1F: rDWBDAT <= #1 (fDFWD) ? rRESULT : r1F;
+	  5'h00: rDWBDAT <= #1 (fDFWD) ? wRESULT : r00;
+	  5'h01: rDWBDAT <= #1 (fDFWD) ? wRESULT : r01;
+	  5'h02: rDWBDAT <= #1 (fDFWD) ? wRESULT : r02;
+	  5'h03: rDWBDAT <= #1 (fDFWD) ? wRESULT : r03;
+	  5'h04: rDWBDAT <= #1 (fDFWD) ? wRESULT : r04;
+	  5'h05: rDWBDAT <= #1 (fDFWD) ? wRESULT : r05;
+	  5'h06: rDWBDAT <= #1 (fDFWD) ? wRESULT : r06;
+	  5'h07: rDWBDAT <= #1 (fDFWD) ? wRESULT : r07;
+	  5'h08: rDWBDAT <= #1 (fDFWD) ? wRESULT : r08;
+	  5'h09: rDWBDAT <= #1 (fDFWD) ? wRESULT : r09;
+	  5'h0A: rDWBDAT <= #1 (fDFWD) ? wRESULT : r0A;
+	  5'h0B: rDWBDAT <= #1 (fDFWD) ? wRESULT : r0B;
+	  5'h0C: rDWBDAT <= #1 (fDFWD) ? wRESULT : r0C;
+	  5'h0D: rDWBDAT <= #1 (fDFWD) ? wRESULT : r0D;
+	  5'h0E: rDWBDAT <= #1 (fDFWD) ? wRESULT : r0E;
+	  5'h0F: rDWBDAT <= #1 (fDFWD) ? wRESULT : r0F;
+	  5'h10: rDWBDAT <= #1 (fDFWD) ? wRESULT : r10;
+	  5'h11: rDWBDAT <= #1 (fDFWD) ? wRESULT : r11;
+	  5'h12: rDWBDAT <= #1 (fDFWD) ? wRESULT : r12;
+	  5'h13: rDWBDAT <= #1 (fDFWD) ? wRESULT : r13;
+	  5'h14: rDWBDAT <= #1 (fDFWD) ? wRESULT : r14;
+	  5'h15: rDWBDAT <= #1 (fDFWD) ? wRESULT : r15;
+	  5'h16: rDWBDAT <= #1 (fDFWD) ? wRESULT : r16;
+	  5'h17: rDWBDAT <= #1 (fDFWD) ? wRESULT : r17;
+	  5'h18: rDWBDAT <= #1 (fDFWD) ? wRESULT : r18;
+	  5'h19: rDWBDAT <= #1 (fDFWD) ? wRESULT : r19;
+	  5'h1A: rDWBDAT <= #1 (fDFWD) ? wRESULT : r1A;
+	  5'h1B: rDWBDAT <= #1 (fDFWD) ? wRESULT : r1B;
+	  5'h1C: rDWBDAT <= #1 (fDFWD) ? wRESULT : r1C;
+	  5'h1D: rDWBDAT <= #1 (fDFWD) ? wRESULT : r1D;
+	  5'h1E: rDWBDAT <= #1 (fDFWD) ? wRESULT : r1E;
+	  5'h1F: rDWBDAT <= #1 (fDFWD) ? wRESULT : r1F;
 	endcase // case (rRD)
      end else begin // if (drun)
 	/*AUTORESET*/
