@@ -4,12 +4,12 @@
 // Author          : Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
 // Created On      : Sun Dec 31 17:07:54 2006
 // Last Modified By: $Author: sybreon $
-// Last Modified On: $Date: 2007-04-04 06:11:59 $
-// Update Count    : $Revision: 1.2 $
+// Last Modified On: $Date: 2007-04-04 14:08:34 $
+// Update Count    : $Revision: 1.3 $
 // Status          : $State: Exp $
 
 /*
- * $Id: aeMB_testbench.v,v 1.2 2007-04-04 06:11:59 sybreon Exp $
+ * $Id: aeMB_testbench.v,v 1.3 2007-04-04 14:08:34 sybreon Exp $
  * 
  * AEMB Generic Testbench
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -33,6 +33,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.2  2007/04/04 06:11:59  sybreon
+ * Extended testbench code
+ *
  * Revision 1.1  2007/03/09 17:52:17  sybreon
  * initial import
  *
@@ -42,8 +45,7 @@ module testbench ();
    parameter ISIZ = 16;
    parameter DSIZ = 16;   
    
-   reg sys_clk_i, sys_rst_i;
-
+   reg sys_clk_i, sys_rst_i, sys_int_i, sys_exc_i;
 
    initial begin
       $dumpfile("aeMB_core.vcd");
@@ -53,17 +55,21 @@ module testbench ();
    initial begin
       sys_clk_i = 1;
       sys_rst_i = 0;
+      sys_int_i = 0;
+      sys_exc_i = 0;      
       #10 sys_rst_i = 1;
+      #10000 sys_int_i = 1;
+      #100 sys_int_i = 0;      
    end
    
-   initial fork
+   initial fork	
       #100000 $displayh("\nTest Completed."); 
       #100000 $finish;
    join   
    
    always #5 sys_clk_i = ~sys_clk_i;   
 
-      // FAKE ROM
+   // FAKE ROM
    reg [31:0] rom [0:65535];
    reg [31:0] iwb_dat_i;
    reg 	      iwb_ack_i, dwb_ack_i;
@@ -77,7 +83,7 @@ module testbench ();
       iwb_dat_i <= #1 rom[iwb_adr_o[ISIZ-1:2]];
    end
    
-      // FAKE RAM
+   // FAKE RAM
    reg [31:0] ram [0:65535];
    reg [31:0] dwb_dat_i;
    reg [31:0] dwblat;
@@ -111,12 +117,17 @@ module testbench ();
       #1
       if (dwb_stb_o & ~dwb_we_o)
 	$writeh("; LD: 0x",dwb_adr_o,"=0x",dwb_dat_i);
+
+      if ((dwb_adr_o == 16'h8888) && (dwb_dat_o == 32'h7a55ed00))
+	$write("; *** INTERRUPT ***");      
+      
+      #1
       $write("\n");      
    end
    
    aeMB_core #(ISIZ,DSIZ)
      dut (
-	  .sys_int_i(1'b0),.sys_exc_i(1'b0),
+	  .sys_int_i(sys_int_i),.sys_exc_i(sys_exc_i),
 	  .dwb_ack_i(dwb_ack_i),.dwb_stb_o(dwb_stb_o),.dwb_adr_o(dwb_adr_o),
 	  .dwb_dat_o(dwb_dat_o),.dwb_dat_i(dwb_dat_i),.dwb_we_o(dwb_we_o),
 	  .iwb_adr_o(iwb_adr_o),.iwb_dat_i(iwb_dat_i),.iwb_stb_o(iwb_stb_o),

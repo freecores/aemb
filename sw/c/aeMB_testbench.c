@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_testbench.c,v 1.2 2007-04-04 06:07:45 sybreon Exp $
+ * $Id: aeMB_testbench.c,v 1.3 2007-04-04 14:09:04 sybreon Exp $
  * 
  * AEMB Function Verification C Testbench
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -28,13 +28,16 @@
  * 
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.2  2007/04/04 06:07:45  sybreon
+ * Fixed C code bug which passes the test
+ *
  * Revision 1.1  2007/03/09 17:41:57  sybreon
  * initial import
  *
  */
 
 /* Special Prototypes */
-void int_call_func () __attribute__((save_volatiles));
+void int_call_func (); // __attribute__((save_volatiles));
 void int_handler_func () __attribute__ ((interrupt_handler));
 
 /* Interrupt Handler */
@@ -43,7 +46,9 @@ void int_handler_func () {
 }
 
 void int_call_func () {
-  while (1) {}
+  int *p;
+  p = 0x88888888;
+  *p = 0x00ED557A; // Write a value to a IO port.
 }
 
 /* Recursive Version */

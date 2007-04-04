@@ -3,14 +3,15 @@
 // Description     : AEMB Programme Counter
 // Author          : Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
 // Created On      : Sat Dec 30 04:34:44 2006
-// Last Modified By: Shawn Tan
-// Last Modified On: 2006-12-30
-// Update Count    : 0
-// Status          : Unknown, Use with caution!
+// Last Modified By: $Author: sybreon $
+// Last Modified On: $Date: 2007-04-04 14:08:34 $
+// Update Count    : $Revision: 1.2 $
+// Status          : $State: Exp $
 
 /*
- * $Id: aeMB_fetch.v,v 1.1 2007-03-09 17:52:17 sybreon Exp $
+ * $Id: aeMB_fetch.v,v 1.2 2007-04-04 14:08:34 sybreon Exp $
  * 
+ * AEMB Instruction Fetch
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
  *  
  * This library is free software; you can redistribute it and/or modify it 
@@ -32,7 +33,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
- * 
+ * Revision 1.1  2007/03/09 17:52:17  sybreon
+ * initial import
+ *
  */
 
 module aeMB_fetch (/*AUTOARG*/

@@ -3,14 +3,15 @@
 // Description     : AEMB MCU Control Unit
 // Author          : Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
 // Created On      : Fri Dec 29 18:21:27 2006
-// Last Modified By: Shawn Tan
-// Last Modified On: 2006-12-29
-// Update Count    : 0
-// Status          : Unknown, Use with caution!
+// Last Modified By: $Author: sybreon $
+// Last Modified On: $Date: 2007-04-04 14:08:34 $
+// Update Count    : $Revision: 1.2 $
+// Status          : $State: Exp $
 
 /*
- * $Id: aeMB_control.v,v 1.1 2007-03-09 17:52:17 sybreon Exp $
+ * $Id: aeMB_control.v,v 1.2 2007-04-04 14:08:34 sybreon Exp $
  * 
+ * AE68 System Control Unit
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
  *  
  * This library is free software; you can redistribute it and/or modify it 
@@ -32,7 +33,9 @@
  * 
  * HISTORY
  * $Log: not supported by cvs2svn $
- * 
+ * Revision 1.1  2007/03/09 17:52:17  sybreon
+ * initial import
+ *
  */
 
 module aeMB_control (/*AUTOARG*/
@@ -81,20 +84,8 @@ module aeMB_control (/*AUTOARG*/
 	rRST <= {rRST[0],sys_rst_i};
      end
 
-   // Pause/Bubble
-   reg [1:0]    rRUN;   
+   // Quiet RUN signal
    wire 	qrun = ~((rDWBSTB ^ dwb_ack_i) | ((rIWBSTB ^ iwb_ack_i)));
-   assign 	{drun,frun} = rRUN;
-   assign 	drst = nrst;
-   assign 	frst = nrst;   
-   
-   always @(posedge nclk or negedge nrst)
-     if (!nrst) begin
-	rRUN <= 2'h3;	
-	/*AUTORESET*/
-     end else begin
-	rRUN <= #1 {~(rBRA ^ rDLY), ~rBRA};	
-     end
 
    // Debounce Interrupt/Exception Signals
    reg [2:0] rEXC, rINT;
@@ -140,4 +131,18 @@ module aeMB_control (/*AUTOARG*/
        end
      endcase // case(rFSM)
       
+   // Pause/Bubble
+   reg [1:0]    rRUN;   
+   assign 	{drun,frun} = rRUN;
+   assign 	drst = nrst;
+   assign 	frst = nrst;   
+   
+   always @(posedge nclk or negedge nrst)
+     if (!nrst) begin
+	rRUN <= 2'h3;	
+	/*AUTORESET*/
+     end else begin
+	rRUN <= #1 {~(rBRA ^ rDLY), ~rBRA};	
+     end
+   
 endmodule // aeMB_control

@@ -4,12 +4,12 @@
 // Author          : Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
 // Created On      : Fri Dec 29 16:17:31 2006
 // Last Modified By: $Author: sybreon $
-// Last Modified On: $Date: 2007-04-04 06:11:47 $
-// Update Count    : $Revision: 1.4 $
+// Last Modified On: $Date: 2007-04-04 14:08:34 $
+// Update Count    : $Revision: 1.5 $
 // Status          : $State: Exp $
 
 /*
- * $Id: aeMB_regfile.v,v 1.4 2007-04-04 06:11:47 sybreon Exp $
+ * $Id: aeMB_regfile.v,v 1.5 2007-04-04 14:08:34 sybreon Exp $
  * 
  * AEMB Register File
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -35,6 +35,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.4  2007/04/04 06:11:47  sybreon
+ * Fixed memory read-write data hazard
+ *
  * Revision 1.3  2007/04/03 14:46:26  sybreon
  * Fixed endian correction issues on data bus.
  *
@@ -327,15 +330,11 @@ module aeMB_regfile(/*AUTOARG*/
 	r0F <= #1 (!fR0F) ? r0F : (fLD) ? wDWBDAT : (fLNK) ? rPC_ : (fWE) ? rRESULT : r0F;	
 	r10 <= #1 (!fR10) ? r10 : (fLD) ? wDWBDAT : (fLNK) ? rPC_ : (fWE) ? rRESULT : r10;	
 	r12 <= #1 (!fR12) ? r12 : (fLD) ? wDWBDAT : (fLNK) ? rPC_ : (fWE) ? rRESULT : r12;	
-	r13 <= #1 (!fR13) ? r13 : (fLD) ? wDWBDAT : (fLNK) ? rPC_ : (fWE) ? rRESULT : r13;
-	
-	r14 <= #1 (rFSM == 2'h1) ? rPCNXT : (!fR14) ? r14 : (fLD) ? wDWBDAT : (fLNK) ? rPC_ : (fWE) ? rRESULT : r14;
-	
+	r13 <= #1 (!fR13) ? r13 : (fLD) ? wDWBDAT : (fLNK) ? rPC_ : (fWE) ? rRESULT : r13;	
+	r14 <= #1 (!fR14) ? r14 : (fLD) ? wDWBDAT : (fLNK) ? rPC_ : (fWE) ? rRESULT : r14;	
 	r15 <= #1 (!fR15) ? r15 : (fLD) ? wDWBDAT : (fLNK) ? rPC_ : (fWE) ? rRESULT : r15;	
-	r16 <= #1 (!fR16) ? r16 : (fLD) ? wDWBDAT : (fLNK) ? rPC_ : (fWE) ? rRESULT : r16;
-	
-	r17 <= #1 (rFSM == 2'h2) ? rPCNXT : (!fR17) ? r17 : (fLD) ? wDWBDAT : (fLNK) ? rPC_ : (fWE) ? rRESULT : r17;
-	
+	r16 <= #1 (!fR16) ? r16 : (fLD) ? wDWBDAT : (fLNK) ? rPC_ : (fWE) ? rRESULT : r16;	
+	r17 <= #1 (!fR17) ? r17 : (fLD) ? wDWBDAT : (fLNK) ? rPC_ : (fWE) ? rRESULT : r17;	
 	r18 <= #1 (!fR18) ? r18 : (fLD) ? wDWBDAT : (fLNK) ? rPC_ : (fWE) ? rRESULT : r18;	
 	r19 <= #1 (!fR19) ? r19 : (fLD) ? wDWBDAT : (fLNK) ? rPC_ : (fWE) ? rRESULT : r19;	
 	r1A <= #1 (!fR1A) ? r1A : (fLD) ? wDWBDAT : (fLNK) ? rPC_ : (fWE) ? rRESULT : r1A;	
@@ -345,39 +344,6 @@ module aeMB_regfile(/*AUTOARG*/
 	r1E <= #1 (!fR1E) ? r1E : (fLD) ? wDWBDAT : (fLNK) ? rPC_ : (fWE) ? rRESULT : r1E;	
 	r1F <= #1 (!fR1F) ? r1F : (fLD) ? wDWBDAT : (fLNK) ? rPC_ : (fWE) ? rRESULT : r1F;	
 
-	/*
-	r01 <= #1 (!fR01) ? r01 : (fLD) ? wDWBDAT : (fLNK) ? rPC_ : (fWE) ? rRESULT : r01;	
-	r02 <= #1 (fR02 & fLD) ? wDWBDAT : (fR02 & fLNK) ? rPC_ : (fR02 & fWE) ? rRESULT : r02;
-	r03 <= #1 (fR03 & fLD) ? wDWBDAT : (fR03 & fLNK) ? rPC_ : (fR03 & fWE) ? rRESULT : r03;
-	r04 <= #1 (fR04 & fLD) ? wDWBDAT : (fR04 & fLNK) ? rPC_ : (fR04 & fWE) ? rRESULT : r04;
-	r05 <= #1 (fR05 & fLD) ? wDWBDAT : (fR05 & fLNK) ? rPC_ : (fR05 & fWE) ? rRESULT : r05;
-	r06 <= #1 (fR06 & fLD) ? wDWBDAT : (fR06 & fLNK) ? rPC_ : (fR06 & fWE) ? rRESULT : r06;
-	r07 <= #1 (fR07 & fLD) ? wDWBDAT : (fR07 & fLNK) ? rPC_ : (fR07 & fWE) ? rRESULT : r07;
-	r08 <= #1 (fR08 & fLD) ? wDWBDAT : (fR08 & fLNK) ? rPC_ : (fR08 & fWE) ? rRESULT : r08;
-	r09 <= #1 (fR09 & fLD) ? wDWBDAT : (fR09 & fLNK) ? rPC_ : (fR09 & fWE) ? rRESULT : r09;
-	r0A <= #1 (fR0A & fLD) ? wDWBDAT : (fR0A & fLNK) ? rPC_ : (fR0A & fWE) ? rRESULT : r0A;
-	r0B <= #1 (fR0B & fLD) ? wDWBDAT : (fR0B & fLNK) ? rPC_ : (fR0B & fWE) ? rRESULT : r0B;
-	r0C <= #1 (fR0C & fLD) ? wDWBDAT : (fR0C & fLNK) ? rPC_ : (fR0C & fWE) ? rRESULT : r0C;
-	r0D <= #1 (fR0D & fLD) ? wDWBDAT : (fR0D & fLNK) ? rPC_ : (fR0D & fWE) ? rRESULT : r0D;
-	//r0E <= #1 (fR0E & fLD) ? wDWBDAT : (fR0E & fLNK) ? rPC_ : (fR0E & fWE) ? rRESULT : r0E;
-	r0F <= #1 (fR0F & fLD) ? wDWBDAT : (fR0F & fLNK) ? rPC_ : (fR0F & fWE) ? rRESULT : r0F;
-	r10 <= #1 (fR10 & fLD) ? wDWBDAT : (fR10 & fLNK) ? rPC_ : (fR10 & fWE) ? rRESULT : r10;
-	//r11 <= #1 (fR11 & fLD) ? wDWBDAT : (fR11 & fLNK) ? rPC_ : (fR11 & fWE) ? rRESULT : r11;
-	r12 <= #1 (fR12 & fLD) ? wDWBDAT : (fR12 & fLNK) ? rPC_ : (fR12 & fWE) ? rRESULT : r12;
-	r13 <= #1 (fR13 & fLD) ? wDWBDAT : (fR13 & fLNK) ? rPC_ : (fR13 & fWE) ? rRESULT : r13;
-	r14 <= #1 (fR14 & fLD) ? wDWBDAT : (fR14 & fLNK) ? rPC_ : (fR14 & fWE) ? rRESULT : r14;
-	r15 <= #1 (fR15 & fLD) ? wDWBDAT : (fR15 & fLNK) ? rPC_ : (fR15 & fWE) ? rRESULT : r15;
-	r16 <= #1 (fR16 & fLD) ? wDWBDAT : (fR16 & fLNK) ? rPC_ : (fR16 & fWE) ? rRESULT : r16;
-	r17 <= #1 (fR17 & fLD) ? wDWBDAT : (fR17 & fLNK) ? rPC_ : (fR17 & fWE) ? rRESULT : r17;
-	r18 <= #1 (fR18 & fLD) ? wDWBDAT : (fR18 & fLNK) ? rPC_ : (fR18 & fWE) ? rRESULT : r18;
-	r19 <= #1 (fR19 & fLD) ? wDWBDAT : (fR19 & fLNK) ? rPC_ : (fR19 & fWE) ? rRESULT : r19;
-	r1A <= #1 (fR1A & fLD) ? wDWBDAT : (fR1A & fLNK) ? rPC_ : (fR1A & fWE) ? rRESULT : r1A;
-	r1B <= #1 (fR1B & fLD) ? wDWBDAT : (fR1B & fLNK) ? rPC_ : (fR1B & fWE) ? rRESULT : r1B;
-	r1C <= #1 (fR1C & fLD) ? wDWBDAT : (fR1C & fLNK) ? rPC_ : (fR1C & fWE) ? rRESULT : r1C;
-	r1D <= #1 (fR1D & fLD) ? wDWBDAT : (fR1D & fLNK) ? rPC_ : (fR1D & fWE) ? rRESULT : r1D;
-	r1E <= #1 (fR1E & fLD) ? wDWBDAT : (fR1E & fLNK) ? rPC_ : (fR1E & fWE) ? rRESULT : r1E;
-	r1F <= #1 (fR1F & fLD) ? wDWBDAT : (fR1F & fLNK) ? rPC_ : (fR1F & fWE) ? rRESULT : r1F;
-	 */
      end // else: !if(!nrst)
 
    // Special Registers
@@ -393,20 +359,18 @@ module aeMB_regfile(/*AUTOARG*/
 	// R00 - Zero
 	r00 <= #1 r00;	
 	// R0E - Interrupt
-	r0E <= #1 (rFSM == 2'b11) ? rPC : // Needs verification
+	r0E <= #1 (rFSM == 2'b01) ? rPCNXT :
 	       (!fR0E) ? r0E : (fLD) ? wDWBDAT : (fLNK) ? rPC_ : (fWE) ? rRESULT : r0E;
 	// R11 - Exception
-	r11 <= #1 (rFSM == 2'b10) ? rPC : // Needs verification
+	r11 <= #1 (rFSM == 2'b10) ? rPCNXT :
 	       (!fR11) ? r11 : (fLD) ? wDWBDAT : (fLNK) ? rPC_ : (fWE) ? rRESULT : r11;	
      end // else: !if(!nrst)
 
-
    // Simulation ONLY
    always @(negedge nclk) begin
-      if ((fWE & (rRD_== 5'd0)) || (fLNK & (rRD_== 5'd0)) || (fLD & (rRD_== 5'd0))) $displayh("!!! Warning: Write to R0.");
-   end	      
-      
-      
+      if ((fWE & (rRD_== 5'd0)) || (fLNK & (rRD_== 5'd0)) || (fLD & (rRD_== 5'd0))) $displayh("!!! Warning: Write to R0 !!!");
+   end
+            
 endmodule // aeMB_regfile
 
 // Local Variables:
