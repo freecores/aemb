@@ -3,14 +3,15 @@
 // Description     : AEMB Instruction Decoder
 // Author          : Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
 // Created On      : Sat Dec 30 06:19:55 2006
-// Last Modified By: Shawn Tan
-// Last Modified On: 2006-12-31
-// Update Count    : 0
-// Status          : Unknown, Use with caution!
+// Last Modified By: $Author: sybreon $
+// Last Modified On: $Date: 2007-04-04 06:12:27 $
+// Update Count    : $Revision: 1.3 $
+// Status          : $State: Exp $
 
 /*
- * $Id: aeMB_decode.v,v 1.2 2007-04-03 14:46:26 sybreon Exp $
+ * $Id: aeMB_decode.v,v 1.3 2007-04-04 06:12:27 sybreon Exp $
  * 
+ * AEMB Instruction Decoder
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
  *  
  * This library is free software; you can redistribute it and/or modify it 
@@ -32,17 +33,19 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.2  2007/04/03 14:46:26  sybreon
+ * Fixed endian correction issues on data bus.
+ *
  * Revision 1.1  2007/03/09 17:52:17  sybreon
  * initial import
  *
- * 
  */
 
 module aeMB_decode (/*AUTOARG*/
    // Outputs
    rSIMM, rMXALU, rMXSRC, rMXTGT, rRA, rRB, rRD, rRD_, rOPC, rIMM,
-   rDWBSTB, rDWBWE, rIWBSTB, rDLY, rLNK, rBRA, rRWE, iwb_sel_o,
-   iwb_stb_o, iwb_we_o, dwb_stb_o, dwb_we_o,
+   rDWBSTB, rDWBWE, rIWBSTB, rDLY, rLNK, rBRA, rRWE, rMXLDST,
+   iwb_stb_o, dwb_stb_o, dwb_we_o,
    // Inputs
    rREGA, rRESULT, iwb_dat_i, dwb_dat_i, nclk, nrst, drun, frun, frst,
    drst
@@ -55,13 +58,15 @@ module aeMB_decode (/*AUTOARG*/
    output [5:0]  rOPC;   
    output [15:0] rIMM;
    output 	 rDWBSTB, rDWBWE, rIWBSTB;
-   output 	 rDLY, rLNK, rBRA, rRWE;   
+   output 	 rDLY, rLNK, rBRA, rRWE;
+   output [1:0]  rMXLDST;   
    input [31:0]  rREGA, rRESULT;
    
    // External I/F
    input [31:0]  iwb_dat_i, dwb_dat_i;
-   output [3:0]  iwb_sel_o;
-   output 	 iwb_stb_o, iwb_we_o;
+   //output [3:0]  iwb_sel_o;
+   //output 	 iwb_stb_o, iwb_we_o;
+   output 	 iwb_stb_o;   
    output 	 dwb_stb_o, dwb_we_o;
    
    // System I/F
@@ -427,21 +432,19 @@ module aeMB_decode (/*AUTOARG*/
      end
    
    // WB STB signal
-   reg               rIWBSTB;   
-   assign 	     iwb_stb_o = rIWBSTB;
-   always @(negedge nclk or negedge nrst)
-     if (!nrst) begin
+   //reg               rIWBSTB;   
+   //assign 	     iwb_stb_o = rIWBSTB;
+   //always @(negedge nclk or negedge nrst)
+     //if (!nrst) begin
 	/*AUTORESET*/
-	// Beginning of autoreset for uninitialized flops
-	rIWBSTB <= 1'h0;
-	// End of automatics
-     end else begin
-	rIWBSTB <= #1 1'b1;
-     end
-   
+     //end else begin
+	//rIWBSTB <= #1 1'b1;
+     //end
+
    // WB other signals
-   assign 	     iwb_sel_o = 4'hF;
-   assign 	     iwb_we_o = 1'b0;
+   assign iwb_stb_o = 1'b1;   
+   //assign 	     iwb_sel_o = 4'hF;
+   //assign 	     iwb_we_o = 1'b0;
    
    
 endmodule // aeMB_decode
