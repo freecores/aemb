@@ -3,14 +3,15 @@
 // Description     : AEMB Test Bench
 // Author          : Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
 // Created On      : Sun Dec 31 17:07:54 2006
-// Last Modified By: Shawn Tan
-// Last Modified On: 2006-12-31
-// Update Count    : 0
-// Status          : Unknown, Use with caution!
+// Last Modified By: $Author: sybreon $
+// Last Modified On: $Date: 2007-04-04 06:11:59 $
+// Update Count    : $Revision: 1.2 $
+// Status          : $State: Exp $
 
 /*
- * $Id: aeMB_testbench.v,v 1.1 2007-03-09 17:52:17 sybreon Exp $
+ * $Id: aeMB_testbench.v,v 1.2 2007-04-04 06:11:59 sybreon Exp $
  * 
+ * AEMB Generic Testbench
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
  *  
  * This library is free software; you can redistribute it and/or modify it 
@@ -32,6 +33,8 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.1  2007/03/09 17:52:17  sybreon
+ * initial import
  *
  */
 
@@ -40,6 +43,7 @@ module testbench ();
    parameter DSIZ = 16;   
    
    reg sys_clk_i, sys_rst_i;
+
 
    initial begin
       $dumpfile("aeMB_core.vcd");
@@ -51,17 +55,15 @@ module testbench ();
       sys_rst_i = 0;
       #10 sys_rst_i = 1;
    end
-
+   
    initial fork
-      //#2000
-	//$displayh(iwb_adr_o);      
-      #10000
-	$finish;      
+      #100000 $displayh("\nTest Completed."); 
+      #100000 $finish;
    join   
    
    always #5 sys_clk_i = ~sys_clk_i;   
 
-   // FAKE ROM
+      // FAKE ROM
    reg [31:0] rom [0:65535];
    reg [31:0] iwb_dat_i;
    reg 	      iwb_ack_i, dwb_ack_i;
@@ -75,12 +77,7 @@ module testbench ();
       iwb_dat_i <= #1 rom[iwb_adr_o[ISIZ-1:2]];
    end
    
-   always @(negedge sys_clk_i) begin
-      $displayh(iwb_adr_o,": inst=",iwb_dat_i);
-      //," dadr:",dwb_adr_o," dato=",dwb_dat_o);      
-   end
-
-   // FAKE RAM
+      // FAKE RAM
    reg [31:0] ram [0:65535];
    reg [31:0] dwb_dat_i;
    reg [31:0] dwblat;
@@ -94,11 +91,29 @@ module testbench ();
       dwb_dat_i <= ram[dwb_adr_o[DSIZ-1:2]];      
    end
 
+   integer i;   
    initial begin
-      $readmemh("aeMB.rom",rom);
-      $readmemh("aeMB.rom",ram);      
-   end
+      for (i=0;i<65535;i=i+1) begin
+	 ram[i] <= 32'h0;
+	 rom[i] <= 32'h0;	 
+      end
       
+      #1 $readmemh("aeMB.rom",rom);
+      #1 $readmemh("aeMB.rom",ram); 
+
+   end   
+
+   always @(posedge sys_clk_i) begin
+      $write($stime);
+      $writeh(": PC=0x",iwb_adr_o,": INST=",iwb_dat_i);
+      if (dwb_stb_o & dwb_we_o) 
+	$writeh("; ST: 0x",dwb_adr_o,"=0x",dwb_dat_o);
+      #1
+      if (dwb_stb_o & ~dwb_we_o)
+	$writeh("; LD: 0x",dwb_adr_o,"=0x",dwb_dat_i);
+      $write("\n");      
+   end
+   
    aeMB_core #(ISIZ,DSIZ)
      dut (
 	  .sys_int_i(1'b0),.sys_exc_i(1'b0),
