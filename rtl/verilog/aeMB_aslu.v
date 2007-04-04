@@ -3,14 +3,15 @@
 // Description     : AEMB Arithmetic Shift Logic Unit
 // Author          : Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
 // Created On      : Sat Dec 30 06:03:24 2006
-// Last Modified By: Shawn Tan
-// Last Modified On: 2006-12-30
-// Update Count    : 0
-// Status          : Unknown, Use with caution!
+// Last Modified By: $Author: sybreon $
+// Last Modified On: $Date: 2007-04-04 06:11:05 $
+// Update Count    : $Revision
+// Status          : $State: Exp $
 
 /*
- * $Id: aeMB_aslu.v,v 1.2 2007-04-03 14:46:26 sybreon Exp $
- * 
+ * $Id: aeMB_aslu.v,v 1.3 2007-04-04 06:11:05 sybreon Exp $
+ *
+ * AEMB Arithmetic Shift Logic Unit 
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
  *  
  * This library is free software; you can redistribute it and/or modify it 
@@ -32,10 +33,12 @@
  * 
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.2  2007/04/03 14:46:26  sybreon
+ * Fixed endian correction issues on data bus.
+ *
  * Revision 1.1  2007/03/09 17:52:17  sybreon
  * initial import
  *
- * 
  */
 
 module aeMB_aslu (/*AUTOARG*/
@@ -43,7 +46,7 @@ module aeMB_aslu (/*AUTOARG*/
    dwb_adr_o, rRESULT,
    // Inputs
    dwb_dat_i, rBRA, rDLY, rREGA, rREGB, rSIMM, rMXSRC, rMXTGT, rMXALU,
-   rOPC, rPC, rIMM, rRD, rRA, nclk, nrst, drun, drst
+   rOPC, rPC, rIMM, rRD, rRA, rMXLDST, nclk, nrst, drun, drst
    );
    parameter DSIZ = 32;
 
@@ -60,7 +63,7 @@ module aeMB_aslu (/*AUTOARG*/
    input [31:0]      rPC;   
    input [15:0]      rIMM;
    input [4:0] 	     rRD, rRA;   
-   
+   input [1:0] 	     rMXLDST;   
    
    input 	     nclk, nrst, drun, drst;   
    
@@ -84,17 +87,30 @@ module aeMB_aslu (/*AUTOARG*/
 		    rREGB;
    
    // ARITHMETIC
+   //wire 	    wADDC_ = (rOPC[1] & (rMXLDST == 2'o0)) ? rMSR_C : 1'b0;
    wire 	    wADDC_ = (rOPC[1]) ? rMSR_C : 1'b0;
    wire 	    wSUBC_ = (rOPC[1]) ? rMSR_C : 1'b1;
-   wire 	    wADDC, wSUBC, wRES_AC;   
-   wire [31:0] 	    wADD,wSUB,wRES_A;
+   wire 	    wADDC, wSUBC, wRES_AC,wCMPC;
+   wire 	    wCMPU;   
+   wire [31:0] 	    wADD,wSUB,wRES_A,wCMP;
+   
+   // TODO: verify signed compare
+   assign 	    wCMPU = (rIMM[1]) ? ~(wOPB >= wOPA) :
+			    ~(((wOPB >= wOPA) & (wOPB[31]==wOPA[31])) | (~wOPB[31] & wOPA[31]));   
+   assign 	    {wCMPC,wCMP} = {wSUBC,wCMPU,wSUB[30:0]};   
    assign 	    {wADDC,wADD} = (wOPB + wOPA) + wADDC_;
-   assign 	    {wSUBC,wSUB} = (wOPB + ~wOPA) + wSUBC_;
+   assign 	    {wSUBC,wSUB} = (wOPB + ~wOPA) + wSUBC_;   
    
    reg 		    rRES_AC;
    reg [31:0] 	    rRES_A;
-   always @(/*AUTOSENSE*/rOPC or wADD or wADDC or wSUB or wSUBC)
-     {rRES_AC,rRES_A} <= #1 (rOPC[0] & ~rOPC[5]) ? {~wSUBC,wSUB} : {wADDC,wADD};   
+   always @(/*AUTOSENSE*/rIMM or rOPC or wADD or wADDC or wCMP
+	    or wCMPC or wSUB or wSUBC)
+     //{rRES_AC,rRES_A} <= #1 (rOPC[0] & ~rOPC[5]) ? {~wSUBC,wSUB} : {wADDC,wADD};   
+     case ({rOPC[5],rOPC[3],rOPC[0],rIMM[0]})
+       4'h2, 4'h6, 4'h7: {rRES_AC,rRES_A} <= #1 {~wSUBC,wSUB}; // SUB
+       4'h3: {rRES_AC,rRES_A} <= #1 {~wCMPC,wCMP}; // CMP
+       default: {rRES_AC,rRES_A} <= #1 {wADDC,wADD};       
+     endcase // case ({rOPC[5],rOPC[0]})   
    
    // LOGIC
    wire [31:0] 	    wOR = wOPA | wOPB;
@@ -174,7 +190,7 @@ module aeMB_aslu (/*AUTOARG*/
      end
 
    // DWB I/F
-   assign 	    dwb_adr_o = rRESULT;
-   //{rRESULT[DSIZ-1:2],2'b00};
+   //assign 	    dwb_adr_o = rRESULT;
+   assign dwb_adr_o = {rRESULT[DSIZ-1:2],2'b00};
    
 endmodule // aeMB_aslu
