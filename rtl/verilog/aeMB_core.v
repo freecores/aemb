@@ -3,14 +3,15 @@
 // Description     : Microblaze Compatible Core
 // Author          : Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
 // Created On      : Fri Dec 29 16:15:18 2006
-// Last Modified By: Shawn Tan
-// Last Modified On: 2006-12-29
-// Update Count    : 0
-// Status          : Unknown, Use with caution!
+// Last Modified By: $Author: sybreon $
+// Last Modified On: $Date: 2007-04-04 06:13:23 $
+// Update Count    : $Revision: 1.2 $
+// Status          : $State: Exp $
 
 /*
- * $Id: aeMB_core.v,v 1.1 2007-03-09 17:52:17 sybreon Exp $
+ * $Id: aeMB_core.v,v 1.2 2007-04-04 06:13:23 sybreon Exp $
  * 
+ * AEMB 32-bit Microblaze Compatible Core
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
  *  
  * This library is free software; you can redistribute it and/or modify it 
@@ -34,13 +35,14 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.1  2007/03/09 17:52:17  sybreon
+ * initial import
  *
  */
 
 module aeMB_core (/*AUTOARG*/
    // Outputs
-   iwb_we_o, iwb_stb_o, iwb_sel_o, iwb_adr_o, dwb_we_o, dwb_stb_o,
-   dwb_dat_o, dwb_adr_o,
+   iwb_stb_o, iwb_adr_o, dwb_we_o, dwb_stb_o, dwb_dat_o, dwb_adr_o,
    // Inputs
    sys_run_i, sys_rst_i, sys_int_i, sys_exc_i, sys_clk_i, iwb_dat_i,
    iwb_ack_i, dwb_dat_i, dwb_ack_i
@@ -57,9 +59,7 @@ module aeMB_core (/*AUTOARG*/
    output		dwb_stb_o;		// From decode of aeMB_decode.v
    output		dwb_we_o;		// From decode of aeMB_decode.v
    output [ISIZ-1:0]	iwb_adr_o;		// From fetch of aeMB_fetch.v
-   output [3:0]		iwb_sel_o;		// From decode of aeMB_decode.v
    output		iwb_stb_o;		// From decode of aeMB_decode.v
-   output		iwb_we_o;		// From decode of aeMB_decode.v
    // End of automatics
    /*AUTOINPUT*/
    // Beginning of automatic inputs (from unused autoinst inputs)
@@ -90,6 +90,7 @@ module aeMB_core (/*AUTOARG*/
    wire			rIWBSTB;		// From decode of aeMB_decode.v
    wire			rLNK;			// From decode of aeMB_decode.v
    wire [1:0]		rMXALU;			// From decode of aeMB_decode.v
+   wire [1:0]		rMXLDST;		// From decode of aeMB_decode.v
    wire [1:0]		rMXSRC;			// From decode of aeMB_decode.v
    wire [1:0]		rMXTGT;			// From decode of aeMB_decode.v
    wire [5:0]		rOPC;			// From decode of aeMB_decode.v
@@ -189,6 +190,7 @@ module aeMB_core (/*AUTOARG*/
 	   .rIMM			(rIMM[15:0]),
 	   .rRD				(rRD[4:0]),
 	   .rRA				(rRA[4:0]),
+	   .rMXLDST			(rMXLDST[1:0]),
 	   .nclk			(nclk),
 	   .nrst			(nrst),
 	   .drun			(drun),
@@ -215,9 +217,8 @@ module aeMB_core (/*AUTOARG*/
 	     .rLNK			(rLNK),
 	     .rBRA			(rBRA),
 	     .rRWE			(rRWE),
-	     .iwb_sel_o			(iwb_sel_o[3:0]),
+	     .rMXLDST			(rMXLDST[1:0]),
 	     .iwb_stb_o			(iwb_stb_o),
-	     .iwb_we_o			(iwb_we_o),
 	     .dwb_stb_o			(dwb_stb_o),
 	     .dwb_we_o			(dwb_we_o),
 	     // Inputs
