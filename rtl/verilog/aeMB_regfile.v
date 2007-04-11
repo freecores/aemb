@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_regfile.v,v 1.6 2007-04-11 04:30:43 sybreon Exp $
+ * $Id: aeMB_regfile.v,v 1.7 2007-04-11 16:30:06 sybreon Exp $
  * 
  * AEMB Register File
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -25,6 +25,10 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.6  2007/04/11 04:30:43  sybreon
+ * Added pipeline stalling from incomplete bus cycles.
+ * Separated sync and async portions of code.
+ *
  * Revision 1.5  2007/04/04 14:08:34  sybreon
  * Added initial interrupt/exception support.
  *
@@ -153,7 +157,7 @@ module aeMB_regfile(/*AUTOARG*/
      end // else: !if(drun)
 
    // Load Registers
-   reg [31:0] 	     rREGA, rREGB, xREGA, xREGB;
+   reg [31:0] 	     xREGA, xREGB;
    always @(/*AUTOSENSE*/drun or r00 or r01 or r02 or r03 or r04
 	    or r05 or r06 or r07 or r08 or r09 or r0A or r0B or r0C
 	    or r0D or r0E or r0F or r10 or r11 or r12 or r13 or r14
@@ -359,42 +363,36 @@ module aeMB_regfile(/*AUTOARG*/
 	       (!fR11) ? r11 : (fLD) ? wDWBDAT : (fLNK) ? rPC_ : (fWE) ? rRESULT : r11;	
      end // else: !if(!nrst)
 
-
-   // Alternative Registers
+   // Alternative Design
+   reg [31:0]  rMEMA[0:31], rMEMB[0:31], rMEMD[0:31];
    wire [31:0] wDDAT, wREGA, wREGB, wREGD, wWBDAT;   
    wire        wDWE = (fLD | fLNK | fWE) & |rRD_ & nrun;
    assign      wDDAT = (fLD) ? wDWBDAT :
 		       (fLNK) ? rPC_ : rRESULT;		       
-
    assign      wWBDAT = (fDFWD) ? wRESULT : wREGD;   
-
-   DPARAM bankA (
-		 .radr(rRA),
-		 .rdat(wREGA),
-		 .wdat(wDDAT),
-		 .wadr(rRD_),
-		 .wre(wDWE),
-		 .nclk(nclk));
-
-   DPARAM bankB (
-		 .radr(rRB),
-		 .rdat(wREGB),
-		 .wdat(wDDAT),
-		 .wadr(rRD_),
-		 .wre(wDWE),
-		 .nclk(nclk));   
    
-   DPARAM bankD (
-		 .radr(rRD),
-		 .rdat(wREGD),
-		 .wdat(wDDAT),
-		 .wadr(rRD_),
-		 .wre(wDWE),
-		 .nclk(nclk));
+   assign      wREGA = rMEMA[rRA];
+   assign      wREGB = rMEMB[rRB];
+   assign      wREGD = rMEMD[rRD];
    
+   always @(negedge nclk)
+     if (wDWE) begin
+	rMEMA[rRD_] <= wDDAT;
+	rMEMB[rRD_] <= wDDAT;
+	rMEMD[rRD_] <= wDDAT;	 
+     end
    
    // PIPELINE REGISTERS //////////////////////////////////////////////////
 
+   reg [31:0] rREGA, rREGB;   
+   always @(/*AUTOSENSE*/wREGA or wREGB)
+     begin
+	//rREGA <= #1 xREGA;
+	//rREGB <= #1 xREGB;
+	rREGA <= #1 wREGA;
+	rREGB <= #1 wREGB;	
+     end
+   
    always @(negedge nclk or negedge nrst)
      if (!nrst) begin
 	/*AUTORESET*/
@@ -402,63 +400,26 @@ module aeMB_regfile(/*AUTOARG*/
 	rDWBDAT <= 32'h0;
 	// End of automatics
      end else if (nrun) begin
-	//rDWBDAT <= #1 xDWBDAT
+	//rDWBDAT <= #1 xDWBDAT;	
 	rDWBDAT <= #1 wWBDAT;	
      end
 
-   always @(posedge nclk or negedge nrst)
-     if (!nrst) begin
-	/*AUTORESET*/
-	// Beginning of autoreset for uninitialized flops
-	rREGA <= 32'h0;
-	rREGB <= 32'h0;
-	// End of automatics
-     end else begin
-	//rREGA <= #1 xREGA;
-	//rREGB <= #1 xREGB;
-	rREGA <= #1 wREGA;
-	rREGB <= #1 wREGB;	
-     end
+   // SIMULATION ONLY ///////////////////////////////////////////////////
+   integer i;
+   initial begin
+      for (i=0;i<31;i=i+1) begin
+	 rMEMA[i] <= 0;
+	 rMEMB[i] <= 0;
+	 rMEMD[i] <= 0;	 
+      end
+   end
    
-   // Simulation ONLY
    always @(negedge nclk) begin
       if ((fWE & (rRD_== 5'd0)) || (fLNK & (rRD_== 5'd0)) || (fLD & (rRD_== 5'd0))) $displayh("!!! Warning: Write to R0 !!!");
    end
    
 endmodule // aeMB_regfile
 
-// Internal Two-Port Async RAM
-module DPARAM (/*AUTOARG*/
-   // Outputs
-   rdat,
-   // Inputs
-   radr, wdat, wadr, nclk, wre
-   );
-   output [31:0] rdat;
-   input [4:0] 	 radr;
-   
-   input [31:0]  wdat;
-   input [4:0] 	 wadr;
-
-   input 	 nclk;   
-   input 	 wre;
-   
-   reg [31:0] rMEM[0:31];
-
-   assign     rdat = rMEM[radr];
-
-   always @(negedge nclk)
-     if (wre)
-       rMEM[wadr] <= wdat;   
-
-   // Simulation Only
-   integer    i;
-   initial begin
-      for (i=0;i<31;i=i+1)
-	rMEM[i] <= 0;
-   end
-   
-endmodule
 
 // Local Variables:
 // verilog-library-directories:(".")
