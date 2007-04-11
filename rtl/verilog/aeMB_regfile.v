@@ -1,15 +1,5 @@
-//                              -*- Mode: Verilog -*-
-// Filename        : aeMB_regfile.v
-// Description     : AEMB Register File
-// Author          : Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
-// Created On      : Fri Dec 29 16:17:31 2006
-// Last Modified By: $Author: sybreon $
-// Last Modified On: $Date: 2007-04-04 14:08:34 $
-// Update Count    : $Revision: 1.5 $
-// Status          : $State: Exp $
-
 /*
- * $Id: aeMB_regfile.v,v 1.5 2007-04-04 14:08:34 sybreon Exp $
+ * $Id: aeMB_regfile.v,v 1.6 2007-04-11 04:30:43 sybreon Exp $
  * 
  * AEMB Register File
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -35,6 +25,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.5  2007/04/04 14:08:34  sybreon
+ * Added initial interrupt/exception support.
+ *
  * Revision 1.4  2007/04/04 06:11:47  sybreon
  * Fixed memory read-write data hazard
  *
@@ -49,12 +42,14 @@
  *
  */
 
+// 1284@78 - REG
+// 227@141 - RAM
 module aeMB_regfile(/*AUTOARG*/
    // Outputs
    dwb_dat_o, rREGA, rREGB,
    // Inputs
    dwb_dat_i, rDWBSTB, rDWBWE, rRA, rRB, rRD, rRD_, rRESULT, rFSM,
-   rPC, rPCNXT, rLNK, rRWE, nclk, nrst, drun, drst
+   rPC, rLNK, rRWE, nclk, nrst, drun, nrun
    );
    // Data WB bus width
    parameter DSIZ = 32;
@@ -69,9 +64,10 @@ module aeMB_regfile(/*AUTOARG*/
    input [4:0] 	 rRA, rRB, rRD, rRD_;   
    input [31:0]  rRESULT;
    input [1:0] 	 rFSM;   
-   input [31:0]  rPC, rPCNXT;
+   input [31:0]  rPC;
+   //, rPCNXT;
    input 	 rLNK, rRWE;
-   input 	 nclk, nrst, drun, drst;   
+   input 	 nclk, nrst, drun, nrun;   
    
    // Register File
    reg [31:0] 	 r00,r01,r02,r03,r04,r05,r06,r07;
@@ -92,12 +88,12 @@ module aeMB_regfile(/*AUTOARG*/
 	// Beginning of autoreset for uninitialized flops
 	rPC_ <= 32'h0;
 	// End of automatics
-     end else begin
+     end else if (nrun) begin
 	rPC_ <= #1 rPC;	
      end
    
    // DWB data - Endian Correction
-   reg [31:0] 	 rDWBDAT;
+   reg [31:0] 	 rDWBDAT, xDWBDAT;
    //assign 	 dwb_dat_o = rDWBDAT;
    //wire [31:0] 	 wDWBDAT = dwb_dat_i;
    assign 	 dwb_dat_o = {rDWBDAT[7:0],rDWBDAT[15:8],rDWBDAT[23:16],rDWBDAT[31:24]};   
@@ -109,138 +105,135 @@ module aeMB_regfile(/*AUTOARG*/
    wire [31:0] 	 wRESULT = (fMFWD) ? wDWBDAT : rRESULT;   
 
    // Register Load
-   always @(negedge nclk or negedge nrst)
-     if (!nrst) begin
-	/*AUTORESET*/
-	// Beginning of autoreset for uninitialized flops
-	rDWBDAT <= 32'h0;
-	// End of automatics
-     end else if (drun) begin
+   always @(/*AUTOSENSE*/drun or fDFWD or r00 or r01 or r02 or r03
+	    or r04 or r05 or r06 or r07 or r08 or r09 or r0A or r0B
+	    or r0C or r0D or r0E or r0F or r10 or r11 or r12 or r13
+	    or r14 or r15 or r16 or r17 or r18 or r19 or r1A or r1B
+	    or r1C or r1D or r1E or r1F or rRD or wRESULT)
+     if (drun) begin
 	case (rRD)
-	  5'h00: rDWBDAT <= #1 (fDFWD) ? wRESULT : r00;
-	  5'h01: rDWBDAT <= #1 (fDFWD) ? wRESULT : r01;
-	  5'h02: rDWBDAT <= #1 (fDFWD) ? wRESULT : r02;
-	  5'h03: rDWBDAT <= #1 (fDFWD) ? wRESULT : r03;
-	  5'h04: rDWBDAT <= #1 (fDFWD) ? wRESULT : r04;
-	  5'h05: rDWBDAT <= #1 (fDFWD) ? wRESULT : r05;
-	  5'h06: rDWBDAT <= #1 (fDFWD) ? wRESULT : r06;
-	  5'h07: rDWBDAT <= #1 (fDFWD) ? wRESULT : r07;
-	  5'h08: rDWBDAT <= #1 (fDFWD) ? wRESULT : r08;
-	  5'h09: rDWBDAT <= #1 (fDFWD) ? wRESULT : r09;
-	  5'h0A: rDWBDAT <= #1 (fDFWD) ? wRESULT : r0A;
-	  5'h0B: rDWBDAT <= #1 (fDFWD) ? wRESULT : r0B;
-	  5'h0C: rDWBDAT <= #1 (fDFWD) ? wRESULT : r0C;
-	  5'h0D: rDWBDAT <= #1 (fDFWD) ? wRESULT : r0D;
-	  5'h0E: rDWBDAT <= #1 (fDFWD) ? wRESULT : r0E;
-	  5'h0F: rDWBDAT <= #1 (fDFWD) ? wRESULT : r0F;
-	  5'h10: rDWBDAT <= #1 (fDFWD) ? wRESULT : r10;
-	  5'h11: rDWBDAT <= #1 (fDFWD) ? wRESULT : r11;
-	  5'h12: rDWBDAT <= #1 (fDFWD) ? wRESULT : r12;
-	  5'h13: rDWBDAT <= #1 (fDFWD) ? wRESULT : r13;
-	  5'h14: rDWBDAT <= #1 (fDFWD) ? wRESULT : r14;
-	  5'h15: rDWBDAT <= #1 (fDFWD) ? wRESULT : r15;
-	  5'h16: rDWBDAT <= #1 (fDFWD) ? wRESULT : r16;
-	  5'h17: rDWBDAT <= #1 (fDFWD) ? wRESULT : r17;
-	  5'h18: rDWBDAT <= #1 (fDFWD) ? wRESULT : r18;
-	  5'h19: rDWBDAT <= #1 (fDFWD) ? wRESULT : r19;
-	  5'h1A: rDWBDAT <= #1 (fDFWD) ? wRESULT : r1A;
-	  5'h1B: rDWBDAT <= #1 (fDFWD) ? wRESULT : r1B;
-	  5'h1C: rDWBDAT <= #1 (fDFWD) ? wRESULT : r1C;
-	  5'h1D: rDWBDAT <= #1 (fDFWD) ? wRESULT : r1D;
-	  5'h1E: rDWBDAT <= #1 (fDFWD) ? wRESULT : r1E;
-	  5'h1F: rDWBDAT <= #1 (fDFWD) ? wRESULT : r1F;
+	  5'h00: xDWBDAT <= (fDFWD) ? wRESULT : r00;
+	  5'h01: xDWBDAT <= (fDFWD) ? wRESULT : r01;
+	  5'h02: xDWBDAT <= (fDFWD) ? wRESULT : r02;
+	  5'h03: xDWBDAT <= (fDFWD) ? wRESULT : r03;
+	  5'h04: xDWBDAT <= (fDFWD) ? wRESULT : r04;
+	  5'h05: xDWBDAT <= (fDFWD) ? wRESULT : r05;
+	  5'h06: xDWBDAT <= (fDFWD) ? wRESULT : r06;
+	  5'h07: xDWBDAT <= (fDFWD) ? wRESULT : r07;
+	  5'h08: xDWBDAT <= (fDFWD) ? wRESULT : r08;
+	  5'h09: xDWBDAT <= (fDFWD) ? wRESULT : r09;
+	  5'h0A: xDWBDAT <= (fDFWD) ? wRESULT : r0A;
+	  5'h0B: xDWBDAT <= (fDFWD) ? wRESULT : r0B;
+	  5'h0C: xDWBDAT <= (fDFWD) ? wRESULT : r0C;
+	  5'h0D: xDWBDAT <= (fDFWD) ? wRESULT : r0D;
+	  5'h0E: xDWBDAT <= (fDFWD) ? wRESULT : r0E;
+	  5'h0F: xDWBDAT <= (fDFWD) ? wRESULT : r0F;
+	  5'h10: xDWBDAT <= (fDFWD) ? wRESULT : r10;
+	  5'h11: xDWBDAT <= (fDFWD) ? wRESULT : r11;
+	  5'h12: xDWBDAT <= (fDFWD) ? wRESULT : r12;
+	  5'h13: xDWBDAT <= (fDFWD) ? wRESULT : r13;
+	  5'h14: xDWBDAT <= (fDFWD) ? wRESULT : r14;
+	  5'h15: xDWBDAT <= (fDFWD) ? wRESULT : r15;
+	  5'h16: xDWBDAT <= (fDFWD) ? wRESULT : r16;
+	  5'h17: xDWBDAT <= (fDFWD) ? wRESULT : r17;
+	  5'h18: xDWBDAT <= (fDFWD) ? wRESULT : r18;
+	  5'h19: xDWBDAT <= (fDFWD) ? wRESULT : r19;
+	  5'h1A: xDWBDAT <= (fDFWD) ? wRESULT : r1A;
+	  5'h1B: xDWBDAT <= (fDFWD) ? wRESULT : r1B;
+	  5'h1C: xDWBDAT <= (fDFWD) ? wRESULT : r1C;
+	  5'h1D: xDWBDAT <= (fDFWD) ? wRESULT : r1D;
+	  5'h1E: xDWBDAT <= (fDFWD) ? wRESULT : r1E;
+	  5'h1F: xDWBDAT <= (fDFWD) ? wRESULT : r1F;
 	endcase // case (rRD)
      end else begin // if (drun)
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
-	rDWBDAT <= 32'h0;
+	xDWBDAT <= 32'h0;
 	// End of automatics
      end // else: !if(drun)
 
    // Load Registers
-   reg [31:0] 	     rREGA, rREGB;
-   always @(posedge nclk or negedge nrst)
-     if (!nrst) begin
-	/*AUTORESET*/
-	// Beginning of autoreset for uninitialized flops
-	rREGA <= 32'h0;
-	rREGB <= 32'h0;
-	// End of automatics
-     end else if (drun) begin
+   reg [31:0] 	     rREGA, rREGB, xREGA, xREGB;
+   always @(/*AUTOSENSE*/drun or r00 or r01 or r02 or r03 or r04
+	    or r05 or r06 or r07 or r08 or r09 or r0A or r0B or r0C
+	    or r0D or r0E or r0F or r10 or r11 or r12 or r13 or r14
+	    or r15 or r16 or r17 or r18 or r19 or r1A or r1B or r1C
+	    or r1D or r1E or r1F or rRA or rRB)
+     if (drun) begin
 	case (rRA)
-	  5'h1F: rREGA <= #1 r1F;	  
-	  5'h1E: rREGA <= #1 r1E;	  
-	  5'h1D: rREGA <= #1 r1D;	  
-	  5'h1C: rREGA <= #1 r1C;	  
-	  5'h1B: rREGA <= #1 r1B;	  
-	  5'h1A: rREGA <= #1 r1A;	  
-	  5'h19: rREGA <= #1 r19;	  
-	  5'h18: rREGA <= #1 r18;	  
-	  5'h17: rREGA <= #1 r17;	  
-	  5'h16: rREGA <= #1 r16;	  
-	  5'h15: rREGA <= #1 r15;	  
-	  5'h14: rREGA <= #1 r14;	  
-	  5'h13: rREGA <= #1 r13;	  
-	  5'h12: rREGA <= #1 r12;	  
-	  5'h11: rREGA <= #1 r11;	  
-	  5'h10: rREGA <= #1 r10;	  
-	  5'h0F: rREGA <= #1 r0F;	  
-	  5'h0E: rREGA <= #1 r0E;	  
-	  5'h0D: rREGA <= #1 r0D;	  
-	  5'h0C: rREGA <= #1 r0C;	  
-	  5'h0B: rREGA <= #1 r0B;	  
-	  5'h0A: rREGA <= #1 r0A;	  
-	  5'h09: rREGA <= #1 r09;	  
-	  5'h08: rREGA <= #1 r08;	  
-	  5'h07: rREGA <= #1 r07;	  
-	  5'h06: rREGA <= #1 r06;	  
-	  5'h05: rREGA <= #1 r05;	  
-	  5'h04: rREGA <= #1 r04;	  
-	  5'h03: rREGA <= #1 r03;	  
-	  5'h02: rREGA <= #1 r02;	  
-	  5'h01: rREGA <= #1 r01;	  
-	  5'h00: rREGA <= #1 r00;	  
+	  5'h1F: xREGA <= r1F;	  
+	  5'h1E: xREGA <= r1E;	  
+	  5'h1D: xREGA <= r1D;	  
+	  5'h1C: xREGA <= r1C;	  
+	  5'h1B: xREGA <= r1B;	  
+	  5'h1A: xREGA <= r1A;	  
+	  5'h19: xREGA <= r19;	  
+	  5'h18: xREGA <= r18;	  
+	  5'h17: xREGA <= r17;	  
+	  5'h16: xREGA <= r16;	  
+	  5'h15: xREGA <= r15;	  
+	  5'h14: xREGA <= r14;	  
+	  5'h13: xREGA <= r13;	  
+	  5'h12: xREGA <= r12;	  
+	  5'h11: xREGA <= r11;	  
+	  5'h10: xREGA <= r10;	  
+	  5'h0F: xREGA <= r0F;	  
+	  5'h0E: xREGA <= r0E;	  
+	  5'h0D: xREGA <= r0D;	  
+	  5'h0C: xREGA <= r0C;	  
+	  5'h0B: xREGA <= r0B;	  
+	  5'h0A: xREGA <= r0A;	  
+	  5'h09: xREGA <= r09;	  
+	  5'h08: xREGA <= r08;	  
+	  5'h07: xREGA <= r07;	  
+	  5'h06: xREGA <= r06;	  
+	  5'h05: xREGA <= r05;	  
+	  5'h04: xREGA <= r04;	  
+	  5'h03: xREGA <= r03;	  
+	  5'h02: xREGA <= r02;	  
+	  5'h01: xREGA <= r01;	  
+	  5'h00: xREGA <= r00;	  
 	endcase // case (rRA)
 
 	case (rRB)
-	  5'h1F: rREGB <= #1 r1F;	  
-	  5'h1E: rREGB <= #1 r1E;	  
-	  5'h1D: rREGB <= #1 r1D;	  
-	  5'h1C: rREGB <= #1 r1C;	  
-	  5'h1B: rREGB <= #1 r1B;	  
-	  5'h1A: rREGB <= #1 r1A;	  
-	  5'h19: rREGB <= #1 r19;	  
-	  5'h18: rREGB <= #1 r18;	  
-	  5'h17: rREGB <= #1 r17;	  
-	  5'h16: rREGB <= #1 r16;	  
-	  5'h15: rREGB <= #1 r15;	  
-	  5'h14: rREGB <= #1 r14;	  
-	  5'h13: rREGB <= #1 r13;	  
-	  5'h12: rREGB <= #1 r12;	  
-	  5'h11: rREGB <= #1 r11;	  
-	  5'h10: rREGB <= #1 r10;	  
-	  5'h0F: rREGB <= #1 r0F;	  
-	  5'h0E: rREGB <= #1 r0E;	  
-	  5'h0D: rREGB <= #1 r0D;	  
-	  5'h0C: rREGB <= #1 r0C;	  
-	  5'h0B: rREGB <= #1 r0B;	  
-	  5'h0A: rREGB <= #1 r0A;	  
-	  5'h09: rREGB <= #1 r09;	  
-	  5'h08: rREGB <= #1 r08;	  
-	  5'h07: rREGB <= #1 r07;	  
-	  5'h06: rREGB <= #1 r06;	  
-	  5'h05: rREGB <= #1 r05;	  
-	  5'h04: rREGB <= #1 r04;	  
-	  5'h03: rREGB <= #1 r03;	  
-	  5'h02: rREGB <= #1 r02;	  
-	  5'h01: rREGB <= #1 r01;	  
-	  5'h00: rREGB <= #1 r00;	  
+	  5'h1F: xREGB <= r1F;	  
+	  5'h1E: xREGB <= r1E;	  
+	  5'h1D: xREGB <= r1D;	  
+	  5'h1C: xREGB <= r1C;	  
+	  5'h1B: xREGB <= r1B;	  
+	  5'h1A: xREGB <= r1A;	  
+	  5'h19: xREGB <= r19;	  
+	  5'h18: xREGB <= r18;	  
+	  5'h17: xREGB <= r17;	  
+	  5'h16: xREGB <= r16;	  
+	  5'h15: xREGB <= r15;	  
+	  5'h14: xREGB <= r14;	  
+	  5'h13: xREGB <= r13;	  
+	  5'h12: xREGB <= r12;	  
+	  5'h11: xREGB <= r11;	  
+	  5'h10: xREGB <= r10;	  
+	  5'h0F: xREGB <= r0F;	  
+	  5'h0E: xREGB <= r0E;	  
+	  5'h0D: xREGB <= r0D;	  
+	  5'h0C: xREGB <= r0C;	  
+	  5'h0B: xREGB <= r0B;	  
+	  5'h0A: xREGB <= r0A;	  
+	  5'h09: xREGB <= r09;	  
+	  5'h08: xREGB <= r08;	  
+	  5'h07: xREGB <= r07;	  
+	  5'h06: xREGB <= r06;	  
+	  5'h05: xREGB <= r05;	  
+	  5'h04: xREGB <= r04;	  
+	  5'h03: xREGB <= r03;	  
+	  5'h02: xREGB <= r02;	  
+	  5'h01: xREGB <= r01;	  
+	  5'h00: xREGB <= r00;	  
 	endcase // case (rRB)
      end else begin // if (drun)
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
-	rREGA <= 32'h0;
-	rREGB <= 32'h0;
+	xREGA <= 32'h0;
+	xREGB <= 32'h0;
 	// End of automatics
      end // else: !if(drun)
    
@@ -359,19 +352,113 @@ module aeMB_regfile(/*AUTOARG*/
 	// R00 - Zero
 	r00 <= #1 r00;	
 	// R0E - Interrupt
-	r0E <= #1 (rFSM == 2'b01) ? rPCNXT :
+	r0E <= #1 //(rFSM == 2'b01) ? rPCNXT :
 	       (!fR0E) ? r0E : (fLD) ? wDWBDAT : (fLNK) ? rPC_ : (fWE) ? rRESULT : r0E;
 	// R11 - Exception
-	r11 <= #1 (rFSM == 2'b10) ? rPCNXT :
+	r11 <= #1 //(rFSM == 2'b10) ? rPCNXT :
 	       (!fR11) ? r11 : (fLD) ? wDWBDAT : (fLNK) ? rPC_ : (fWE) ? rRESULT : r11;	
      end // else: !if(!nrst)
 
+
+   // Alternative Registers
+   wire [31:0] wDDAT, wREGA, wREGB, wREGD, wWBDAT;   
+   wire        wDWE = (fLD | fLNK | fWE) & |rRD_ & nrun;
+   assign      wDDAT = (fLD) ? wDWBDAT :
+		       (fLNK) ? rPC_ : rRESULT;		       
+
+   assign      wWBDAT = (fDFWD) ? wRESULT : wREGD;   
+
+   DPARAM bankA (
+		 .radr(rRA),
+		 .rdat(wREGA),
+		 .wdat(wDDAT),
+		 .wadr(rRD_),
+		 .wre(wDWE),
+		 .nclk(nclk));
+
+   DPARAM bankB (
+		 .radr(rRB),
+		 .rdat(wREGB),
+		 .wdat(wDDAT),
+		 .wadr(rRD_),
+		 .wre(wDWE),
+		 .nclk(nclk));   
+   
+   DPARAM bankD (
+		 .radr(rRD),
+		 .rdat(wREGD),
+		 .wdat(wDDAT),
+		 .wadr(rRD_),
+		 .wre(wDWE),
+		 .nclk(nclk));
+   
+   
+   // PIPELINE REGISTERS //////////////////////////////////////////////////
+
+   always @(negedge nclk or negedge nrst)
+     if (!nrst) begin
+	/*AUTORESET*/
+	// Beginning of autoreset for uninitialized flops
+	rDWBDAT <= 32'h0;
+	// End of automatics
+     end else if (nrun) begin
+	//rDWBDAT <= #1 xDWBDAT
+	rDWBDAT <= #1 wWBDAT;	
+     end
+
+   always @(posedge nclk or negedge nrst)
+     if (!nrst) begin
+	/*AUTORESET*/
+	// Beginning of autoreset for uninitialized flops
+	rREGA <= 32'h0;
+	rREGB <= 32'h0;
+	// End of automatics
+     end else begin
+	//rREGA <= #1 xREGA;
+	//rREGB <= #1 xREGB;
+	rREGA <= #1 wREGA;
+	rREGB <= #1 wREGB;	
+     end
+   
    // Simulation ONLY
    always @(negedge nclk) begin
       if ((fWE & (rRD_== 5'd0)) || (fLNK & (rRD_== 5'd0)) || (fLD & (rRD_== 5'd0))) $displayh("!!! Warning: Write to R0 !!!");
    end
-            
+   
 endmodule // aeMB_regfile
+
+// Internal Two-Port Async RAM
+module DPARAM (/*AUTOARG*/
+   // Outputs
+   rdat,
+   // Inputs
+   radr, wdat, wadr, nclk, wre
+   );
+   output [31:0] rdat;
+   input [4:0] 	 radr;
+   
+   input [31:0]  wdat;
+   input [4:0] 	 wadr;
+
+   input 	 nclk;   
+   input 	 wre;
+   
+   reg [31:0] rMEM[0:31];
+
+   assign     rdat = rMEM[radr];
+
+   always @(negedge nclk)
+     if (wre)
+       rMEM[wadr] <= wdat;   
+
+   // Simulation Only
+   integer    i;
+   initial begin
+      for (i=0;i<31;i=i+1)
+	rMEM[i] <= 0;
+   end
+   
+endmodule
 
 // Local Variables:
 // verilog-library-directories:(".")

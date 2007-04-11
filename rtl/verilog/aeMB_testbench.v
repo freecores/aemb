@@ -1,15 +1,5 @@
-//                              -*- Mode: Verilog -*-
-// Filename        : aeMB_testbench.v
-// Description     : AEMB Test Bench
-// Author          : Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
-// Created On      : Sun Dec 31 17:07:54 2006
-// Last Modified By: $Author: sybreon $
-// Last Modified On: $Date: 2007-04-04 14:08:34 $
-// Update Count    : $Revision: 1.3 $
-// Status          : $State: Exp $
-
 /*
- * $Id: aeMB_testbench.v,v 1.3 2007-04-04 14:08:34 sybreon Exp $
+ * $Id: aeMB_testbench.v,v 1.4 2007-04-11 04:30:43 sybreon Exp $
  * 
  * AEMB Generic Testbench
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -33,6 +23,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.3  2007/04/04 14:08:34  sybreon
+ * Added initial interrupt/exception support.
+ *
  * Revision 1.2  2007/04/04 06:11:59  sybreon
  * Extended testbench code
  *
@@ -49,8 +42,8 @@ module testbench ();
 
    initial begin
       $dumpfile("aeMB_core.vcd");
-      $dumpvars(1,dut,dut.regfile);
-   end   
+      $dumpvars(1,dut);
+   end
    
    initial begin
       sys_clk_i = 1;
@@ -63,8 +56,8 @@ module testbench ();
    end
    
    initial fork	
-      #100000 $displayh("\nTest Completed."); 
-      #100000 $finish;
+      //#100000 $displayh("\nTest Completed."); 
+      //#11000 $finish;
    join   
    
    always #5 sys_clk_i = ~sys_clk_i;   
@@ -79,7 +72,9 @@ module testbench ();
 
    always @(posedge sys_clk_i) begin
       iwb_ack_i <= #1 iwb_stb_o;
+      //& $random;
       dwb_ack_i <= #1 dwb_stb_o;
+      //& $random;
       iwb_dat_i <= #1 rom[iwb_adr_o[ISIZ-1:2]];
    end
    
@@ -107,23 +102,21 @@ module testbench ();
       #1 $readmemh("aeMB.rom",rom);
       #1 $readmemh("aeMB.rom",ram); 
 
-   end   
+   end
 
-   always @(posedge sys_clk_i) begin
-      $write($stime);
-      $writeh(": PC=0x",iwb_adr_o,": INST=",iwb_dat_i);
-      if (dwb_stb_o & dwb_we_o) 
-	$writeh("; ST: 0x",dwb_adr_o,"=0x",dwb_dat_o);
-      #1
-      if (dwb_stb_o & ~dwb_we_o)
-	$writeh("; LD: 0x",dwb_adr_o,"=0x",dwb_dat_i);
+   always @(negedge sys_clk_i) begin
+      if (dwb_stb_o & dwb_we_o & dwb_ack_i) 
+	$displayh($stime,"; ST: 0x",dwb_adr_o,"=0x",dwb_dat_o);     
+      if (dwb_stb_o & ~dwb_we_o & dwb_ack_i)
+	$displayh($stime,"; LD: 0x",dwb_adr_o,"=0x",dwb_dat_i);
 
       if ((dwb_adr_o == 16'h8888) && (dwb_dat_o == 32'h7a55ed00))
-	$write("; *** INTERRUPT ***");      
+	$display("*** SERVICE ***");      
+
+      if (dut.control.rFSM == 2'o1)
+	$display("*** INTERRUPT ***");      
       
-      #1
-      $write("\n");      
-   end
+   end // always @ (posedge sys_clk_i)
    
    aeMB_core #(ISIZ,DSIZ)
      dut (
@@ -132,7 +125,7 @@ module testbench ();
 	  .dwb_dat_o(dwb_dat_o),.dwb_dat_i(dwb_dat_i),.dwb_we_o(dwb_we_o),
 	  .iwb_adr_o(iwb_adr_o),.iwb_dat_i(iwb_dat_i),.iwb_stb_o(iwb_stb_o),
 	  .iwb_ack_i(iwb_ack_i),
-	  .sys_clk_i(sys_clk_i), .sys_rst_i(sys_rst_i),.sys_run_i(1'b1)
+	  .sys_clk_i(sys_clk_i), .sys_rst_i(sys_rst_i)
 	  );
    
-endmodule
+endmodule // testbench

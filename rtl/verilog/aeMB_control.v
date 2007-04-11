@@ -1,15 +1,5 @@
-//                              -*- Mode: Verilog -*-
-// Filename        : aeMB_control.v
-// Description     : AEMB MCU Control Unit
-// Author          : Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
-// Created On      : Fri Dec 29 18:21:27 2006
-// Last Modified By: $Author: sybreon $
-// Last Modified On: $Date: 2007-04-04 14:08:34 $
-// Update Count    : $Revision: 1.2 $
-// Status          : $State: Exp $
-
 /*
- * $Id: aeMB_control.v,v 1.2 2007-04-04 14:08:34 sybreon Exp $
+ * $Id: aeMB_control.v,v 1.3 2007-04-11 04:30:43 sybreon Exp $
  * 
  * AE68 System Control Unit
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -33,23 +23,27 @@
  * 
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.2  2007/04/04 14:08:34  sybreon
+ * Added initial interrupt/exception support.
+ *
  * Revision 1.1  2007/03/09 17:52:17  sybreon
  * initial import
  *
  */
 
+// 6@250
 module aeMB_control (/*AUTOARG*/
    // Outputs
-   rFSM, nclk, nrst, frun, drun, frst, drst,
+   rFSM, nclk, nrst, nrun, frun, drun,
    // Inputs
-   sys_rst_i, sys_clk_i, sys_int_i, sys_exc_i, sys_run_i, rIWBSTB,
-   iwb_ack_i, rDWBSTB, dwb_ack_i, rBRA, rDLY
+   sys_rst_i, sys_clk_i, sys_int_i, sys_exc_i, rIWBSTB, iwb_ack_i,
+   rDWBSTB, dwb_ack_i, rBRA, rDLY
    );
    // System
    input 	sys_rst_i, sys_clk_i;
    input 	sys_int_i;
    input 	sys_exc_i;   
-   input 	sys_run_i;
+   //input 	sys_run_i;
    
    // Instruction WB
    input 	rIWBSTB;
@@ -63,9 +57,8 @@ module aeMB_control (/*AUTOARG*/
    input 	rBRA, rDLY;   
    output [1:0] rFSM;
    //, rLDST;
-   output 	nclk, nrst;   
+   output 	nclk, nrst, nrun;   
    output 	frun, drun;
-   output 	frst, drst;
       
    // Clock code here
    assign 	nclk = sys_clk_i;
@@ -81,11 +74,11 @@ module aeMB_control (/*AUTOARG*/
 	rRST <= 2'h0;
 	// End of automatics
      end else begin
-	rRST <= {rRST[0],sys_rst_i};
+	rRST <= {rRST[0],1'b1};
      end
 
    // Quiet RUN signal
-   wire 	qrun = ~((rDWBSTB ^ dwb_ack_i) | ((rIWBSTB ^ iwb_ack_i)));
+   assign 	nrun = ~((rDWBSTB ^ dwb_ack_i) | ((rIWBSTB ^ iwb_ack_i)));
 
    // Debounce Interrupt/Exception Signals
    reg [2:0] rEXC, rINT;
@@ -96,7 +89,7 @@ module aeMB_control (/*AUTOARG*/
 	rEXC <= 3'h0;
 	rINT <= 3'h0;
 	// End of automatics
-     end else begin
+     end else if (nrun) begin
 	rEXC <= #1 {rEXC[1:0], sys_exc_i};
 	rINT <= #1 {rINT[1:0], sys_int_i};	
      end
@@ -115,7 +108,7 @@ module aeMB_control (/*AUTOARG*/
 	// Beginning of autoreset for uninitialized flops
 	rFSM <= 2'h0;
 	// End of automatics
-     end else begin
+     end else if (nrun) begin
 	rFSM <= #1 rNXT;
      end
 
@@ -129,13 +122,11 @@ module aeMB_control (/*AUTOARG*/
 		  (rINT == 3'h3) ? FSM_HWINT :
 		  FSM_RUN;	  
        end
-     endcase // case(rFSM)
+     endcase // case (rFSM)
       
    // Pause/Bubble
    reg [1:0]    rRUN;   
    assign 	{drun,frun} = rRUN;
-   assign 	drst = nrst;
-   assign 	frst = nrst;   
    
    always @(posedge nclk or negedge nrst)
      if (!nrst) begin

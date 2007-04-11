@@ -1,15 +1,5 @@
-//                              -*- Mode: Verilog -*-
-// Filename        : aeMB_aslu.v
-// Description     : AEMB Arithmetic Shift Logic Unit
-// Author          : Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
-// Created On      : Sat Dec 30 06:03:24 2006
-// Last Modified By: $Author: sybreon $
-// Last Modified On: $Date: 2007-04-04 06:11:05 $
-// Update Count    : $Revision
-// Status          : $State: Exp $
-
 /*
- * $Id: aeMB_aslu.v,v 1.3 2007-04-04 06:11:05 sybreon Exp $
+ * $Id: aeMB_aslu.v,v 1.4 2007-04-11 04:30:43 sybreon Exp $
  *
  * AEMB Arithmetic Shift Logic Unit 
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -33,6 +23,9 @@
  * 
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.3  2007/04/04 06:11:05  sybreon
+ * Added CMP instruction
+ *
  * Revision 1.2  2007/04/03 14:46:26  sybreon
  * Fixed endian correction issues on data bus.
  *
@@ -41,12 +34,13 @@
  *
  */
 
+// 268@91
 module aeMB_aslu (/*AUTOARG*/
    // Outputs
    dwb_adr_o, rRESULT,
    // Inputs
    dwb_dat_i, rBRA, rDLY, rREGA, rREGB, rSIMM, rMXSRC, rMXTGT, rMXALU,
-   rOPC, rPC, rIMM, rRD, rRA, rMXLDST, nclk, nrst, drun, drst
+   rOPC, rPC, rIMM, rRD, rRA, rMXLDST, nclk, nrst, drun, nrun
    );
    parameter DSIZ = 32;
 
@@ -65,10 +59,10 @@ module aeMB_aslu (/*AUTOARG*/
    input [4:0] 	     rRD, rRA;   
    input [1:0] 	     rMXLDST;   
    
-   input 	     nclk, nrst, drun, drst;   
+   input 	     nclk, nrst, drun, nrun;   
    
-   reg [31:0] 	    rRESULT;
-   reg 		    rMSR_C;
+   reg [31:0] 	    rRESULT, xRESULT;
+   reg 		    rMSR_C, xMSR_C;
    
    // Endian correction
    //wire [31:0] 	    wDWBDAT = dwb_dat_i;   
@@ -91,15 +85,15 @@ module aeMB_aslu (/*AUTOARG*/
    wire 	    wADDC_ = (rOPC[1]) ? rMSR_C : 1'b0;
    wire 	    wSUBC_ = (rOPC[1]) ? rMSR_C : 1'b1;
    wire 	    wADDC, wSUBC, wRES_AC,wCMPC;
-   wire 	    wCMPU;   
    wire [31:0] 	    wADD,wSUB,wRES_A,wCMP;
    
    // TODO: verify signed compare
-   assign 	    wCMPU = (rIMM[1]) ? ~(wOPB >= wOPA) :
-			    ~(((wOPB >= wOPA) & (wOPB[31]==wOPA[31])) | (~wOPB[31] & wOPA[31]));   
-   assign 	    {wCMPC,wCMP} = {wSUBC,wCMPU,wSUB[30:0]};   
+   wire 	    wCMPU = (wOPA > wOPB);   
+   wire 	    wCMPF = (rIMM[1]) ? wCMPU :
+			    ((wCMPU & ~(wOPB[31] ^ wOPA[31])) | (wOPB[31] & ~wOPA[31]));   
+   assign 	    {wCMPC,wCMP} = {wSUBC,wCMPF,wSUB[30:0]};  
    assign 	    {wADDC,wADD} = (wOPB + wOPA) + wADDC_;
-   assign 	    {wSUBC,wSUB} = (wOPB + ~wOPA) + wSUBC_;   
+   assign 	    {wSUBC,wSUB} = (wOPB + ~wOPA) + wSUBC_;      
    
    reg 		    rRES_AC;
    reg [31:0] 	    rRES_A;
@@ -110,7 +104,7 @@ module aeMB_aslu (/*AUTOARG*/
        4'h2, 4'h6, 4'h7: {rRES_AC,rRES_A} <= #1 {~wSUBC,wSUB}; // SUB
        4'h3: {rRES_AC,rRES_A} <= #1 {~wCMPC,wCMP}; // CMP
        default: {rRES_AC,rRES_A} <= #1 {wADDC,wADD};       
-     endcase // case ({rOPC[5],rOPC[0]})   
+     endcase // case ({rOPC[5],rOPC[3],rOPC[0],rIMM[0]})
    
    // LOGIC
    wire [31:0] 	    wOR = wOPA | wOPB;
@@ -125,7 +119,7 @@ module aeMB_aslu (/*AUTOARG*/
        2'o1: rRES_L <= #1 wAND;
        2'o2: rRES_L <= #1 wXOR;
        2'o3: rRES_L <= #1 wANDN;       
-     endcase // case(rOPC[1:0])
+     endcase // case (rOPC[1:0])
    
    // SHIFT
    wire 	    wSRAC, wSRCC, wSRLC, wRES_SC;
@@ -146,51 +140,51 @@ module aeMB_aslu (/*AUTOARG*/
        2'o1: {rRES_SC,rRES_S} <= #1 {wSRCC,wSRC};
        2'o2: {rRES_SC,rRES_S} <= #1 {wSRLC,wSRL};
        2'o3: {rRES_SC,rRES_S} <= #1 (rIMM[0]) ? {rMSR_C,wSEXT16} : {rMSR_C,wSEXT8};       
-     endcase // case(rIMM[6:5])
+     endcase // case (rIMM[6:5])
 
    // MOVE
    reg [31:0] 	    rRES_M;
    always @(/*AUTOSENSE*/rRA or wOPA or wOPB)
      rRES_M <= #1 (rRA[3]) ? wOPB : wOPA;   
    
-   // RESULT + C
-   always @(negedge nclk or negedge drst)
-     if (!drst) begin
-	/*AUTORESET*/
-	// Beginning of autoreset for uninitialized flops
-	rRESULT <= 32'h0;
-	// End of automatics
-     end else if (drun) begin
-	case (rMXALU)
-	  2'o0: rRESULT <= #1 rRES_A;
-	  2'o1: rRESULT <= #1 rRES_L;
-	  2'o2: rRESULT <= #1 rRES_S;
-	  2'o3: rRESULT <= #1 rRES_M;	  
-	endcase // case(rMXALU)
-     end else begin
-	/*AUTORESET*/
-	// Beginning of autoreset for uninitialized flops
-	rRESULT <= 32'h0;
-	// End of automatics
-     end
+   // DWB I/F
+   //assign 	    dwb_adr_o = rRESULT;
+   assign dwb_adr_o = {rRESULT[DSIZ-1:2],2'b00};
    
+   // RESULT + C
+   always @(/*AUTOSENSE*/drun or rMSR_C or rMXALU or rOPC or rRES_A
+	    or rRES_AC or rRES_L or rRES_M or rRES_S or rRES_SC)
+     if (drun) begin
+	case (rMXALU)
+	  2'o0: xRESULT <= #1 rRES_A;
+	  2'o1: xRESULT <= #1 rRES_L;
+	  2'o2: xRESULT <= #1 rRES_S;
+	  2'o3: xRESULT <= #1 rRES_M;	  
+	endcase // case (rMXALU)
+	case (rMXALU)
+	  2'o0: xMSR_C <= #1 (rOPC[2]) ? rMSR_C : rRES_AC;
+	  2'o2: xMSR_C <= #1 rRES_SC;
+	  default: xMSR_C <= #1 rMSR_C;
+	endcase // case (rMXALU)
+     end else begin // if (drun)
+	/*AUTORESET*/
+	// Beginning of autoreset for uninitialized flops
+	xMSR_C <= 1'h0;
+	xRESULT <= 32'h0;
+	// End of automatics
+     end // else: !if(drun)
+
+   // PIPELINE REGISTER //////////////////////////////////////////////////
    always @(negedge nclk or negedge nrst)
      if (!nrst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	rMSR_C <= 1'h0;
+	rRESULT <= 32'h0;
 	// End of automatics
-     end else if (drun) begin
-	case (rMXALU)
-	  2'o0: rMSR_C <= #1 (rOPC[2]) ? rMSR_C : rRES_AC;
-	  2'o2: rMSR_C <= #1 rRES_SC;
-	  default: rMSR_C <= #1 rMSR_C;
-	  //rMSR_C;	  
-	endcase // case(rMXALU)
+     end else if (nrun) begin
+	rRESULT <= #1 xRESULT;
+	rMSR_C <= #1 xMSR_C;	
      end
-
-   // DWB I/F
-   //assign 	    dwb_adr_o = rRESULT;
-   assign dwb_adr_o = {rRESULT[DSIZ-1:2],2'b00};
    
 endmodule // aeMB_aslu
