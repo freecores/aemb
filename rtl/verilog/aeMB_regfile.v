@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_regfile.v,v 1.7 2007-04-11 16:30:06 sybreon Exp $
+ * $Id: aeMB_regfile.v,v 1.8 2007-04-12 20:21:33 sybreon Exp $
  * 
  * AEMB Register File
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -25,6 +25,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.7  2007/04/11 16:30:06  sybreon
+ * Cosmetic changes
+ *
  * Revision 1.6  2007/04/11 04:30:43  sybreon
  * Added pipeline stalling from incomplete bus cycles.
  * Separated sync and async portions of code.
@@ -412,10 +415,6 @@ module aeMB_regfile(/*AUTOARG*/
 	 rMEMB[i] <= 0;
 	 rMEMD[i] <= 0;	 
       end
-   end
-   
-   always @(negedge nclk) begin
-      if ((fWE & (rRD_== 5'd0)) || (fLNK & (rRD_== 5'd0)) || (fLD & (rRD_== 5'd0))) $displayh("!!! Warning: Write to R0 !!!");
    end
    
 endmodule // aeMB_regfile

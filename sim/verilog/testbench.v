@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_testbench.v,v 1.4 2007-04-11 04:30:43 sybreon Exp $
+ * $Id: testbench.v,v 1.1 2007-04-12 20:21:34 sybreon Exp $
  * 
  * AEMB Generic Testbench
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -23,6 +23,10 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.4  2007/04/11 04:30:43  sybreon
+ * Added pipeline stalling from incomplete bus cycles.
+ * Separated sync and async portions of code.
+ *
  * Revision 1.3  2007/04/04 14:08:34  sybreon
  * Added initial interrupt/exception support.
  *
@@ -41,7 +45,7 @@ module testbench ();
    reg sys_clk_i, sys_rst_i, sys_int_i, sys_exc_i;
 
    initial begin
-      $dumpfile("aeMB_core.vcd");
+      $dumpfile("dump.vcd");
       $dumpvars(1,dut);
    end
    
@@ -64,58 +68,60 @@ module testbench ();
 
    // FAKE ROM
    reg [31:0] rom [0:65535];
-   reg [31:0] iwb_dat_i;
+   wire [31:0] iwb_dat_i;
    reg 	      iwb_ack_i, dwb_ack_i;
    wire [ISIZ-1:0] iwb_adr_o;
    wire        iwb_stb_o;
    wire        dwb_stb_o;
 
+   // FAKE RAM
+   reg [31:0] ram [0:65535];
+   wire [31:0] dwb_dat_i;
+   reg [31:0] dwblat;
+   wire       dwb_we_o;
+   reg [DSIZ-1:2] dadr,iadr; 
+   wire [31:0] dwb_dat_o;
+   wire [DSIZ-1:0] dwb_adr_o;
+
+   assign 	   dwb_dat_i = ram[dadr];
+   assign 	   iwb_dat_i = ram[iadr];   
    always @(posedge sys_clk_i) begin
       iwb_ack_i <= #1 iwb_stb_o;
       //& $random;
       dwb_ack_i <= #1 dwb_stb_o;
       //& $random;
-      iwb_dat_i <= #1 rom[iwb_adr_o[ISIZ-1:2]];
-   end
-   
-   // FAKE RAM
-   reg [31:0] ram [0:65535];
-   reg [31:0] dwb_dat_i;
-   reg [31:0] dwblat;
-   wire       dwb_we_o;
-   wire [31:0] dwb_dat_o;
-   wire [DSIZ-1:0] dwb_adr_o;
-   
-   always @(posedge sys_clk_i) begin
+      iadr <= #1 iwb_adr_o[ISIZ-1:2];
       ram[dwb_adr_o[DSIZ-1:2]] <= (dwb_we_o & dwb_stb_o) ? dwb_dat_o : ram[dwb_adr_o[DSIZ-1:2]];
       dwblat <= dwb_adr_o;
-      dwb_dat_i <= ram[dwb_adr_o[DSIZ-1:2]];      
+      dadr <= dwb_adr_o[DSIZ-1:2];      
    end
 
    integer i;   
    initial begin
       for (i=0;i<65535;i=i+1) begin
 	 ram[i] <= 32'h0;
-	 rom[i] <= 32'h0;	 
-      end
-      
-      #1 $readmemh("aeMB.rom",rom);
+      end      
       #1 $readmemh("aeMB.rom",ram); 
-
    end
 
    always @(negedge sys_clk_i) begin
+      $write("\nT: ",$stime);
+      if (iwb_stb_o & iwb_ack_i)
+	$writeh("\tPC: 0x",iwb_adr_o,"=0x",iwb_dat_i);      
       if (dwb_stb_o & dwb_we_o & dwb_ack_i) 
-	$displayh($stime,"; ST: 0x",dwb_adr_o,"=0x",dwb_dat_o);     
+	$writeh("\tST: 0x",dwb_adr_o,"=0x",dwb_dat_o);     
       if (dwb_stb_o & ~dwb_we_o & dwb_ack_i)
-	$displayh($stime,"; LD: 0x",dwb_adr_o,"=0x",dwb_dat_i);
+	$writeh("\tLD: 0x",dwb_adr_o,"=0x",dwb_dat_i);
 
+      if (dut.regfile.wDWE)
+	$writeh("\tR",dut.regfile.rRD_,"=",dut.regfile.wDDAT,";");         
+      
       if ((dwb_adr_o == 16'h8888) && (dwb_dat_o == 32'h7a55ed00))
 	$display("*** SERVICE ***");      
 
       if (dut.control.rFSM == 2'o1)
 	$display("*** INTERRUPT ***");      
-      
+
    end // always @ (posedge sys_clk_i)
    
    aeMB_core #(ISIZ,DSIZ)
