@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_decode.v,v 1.4 2007-04-11 04:30:43 sybreon Exp $
+ * $Id: aeMB_decode.v,v 1.5 2007-04-25 22:15:04 sybreon Exp $
  * 
  * AEMB Instruction Decoder
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -23,6 +23,10 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.4  2007/04/11 04:30:43  sybreon
+ * Added pipeline stalling from incomplete bus cycles.
+ * Separated sync and async portions of code.
+ *
  * Revision 1.3  2007/04/04 06:12:27  sybreon
  * Fixed minor bugs
  *
@@ -41,7 +45,8 @@ module aeMB_decode (/*AUTOARG*/
    rDWBSTB, rDWBWE, rIWBSTB, rDLY, rLNK, rBRA, rRWE, rMXLDST,
    iwb_stb_o, dwb_stb_o, dwb_we_o,
    // Inputs
-   rREGA, rRESULT, iwb_dat_i, dwb_dat_i, nclk, nrst, drun, frun, nrun
+   sDWBDAT, rDWBSEL, rREGA, rRESULT, iwb_dat_i, nclk, nrst, drun,
+   frun, nrun
    );
    // Internal I/F
    output [31:0] rSIMM;
@@ -52,11 +57,14 @@ module aeMB_decode (/*AUTOARG*/
    output [15:0] rIMM;
    output 	 rDWBSTB, rDWBWE, rIWBSTB;
    output 	 rDLY, rLNK, rBRA, rRWE;
-   output [1:0]  rMXLDST;   
+   output [1:0]  rMXLDST;
+   input [31:0]  sDWBDAT;   
+   input [3:0] 	 rDWBSEL;   
    input [31:0]  rREGA, rRESULT;
    
    // External I/F
-   input [31:0]  iwb_dat_i, dwb_dat_i;
+   input [31:0]  iwb_dat_i;
+   //, dwb_dat_i;
    output 	 iwb_stb_o;   
    output 	 dwb_stb_o, dwb_we_o;
    
@@ -64,11 +72,11 @@ module aeMB_decode (/*AUTOARG*/
    input 	 nclk, nrst, drun, frun, nrun;
 
    // Endian Correction
-   //wire [31:0] 	 wWBDAT = dwb_dat_i; 	 
-   //wire [31:0] 	 wIREG = iwb_dat_i;	 
-   wire [31:0] 	 wWBDAT = {dwb_dat_i[7:0],dwb_dat_i[15:8],dwb_dat_i[23:16],dwb_dat_i[31:24]}; 	 
-   wire [31:0] 	 wIREG = {iwb_dat_i[7:0],iwb_dat_i[15:8],iwb_dat_i[23:16],iwb_dat_i[31:24]};
-
+   wire [31:0] 	 wIREG;
+   wire [31:0] 	 wWBDAT;
+   assign 	 wIREG = {iwb_dat_i[7:0],iwb_dat_i[15:8],iwb_dat_i[23:16],iwb_dat_i[31:24]};
+   assign 	 wWBDAT = sDWBDAT;
+   
    // Decode
    wire [5:0] 	 wOPC = wIREG[31:26];
    wire [4:0] 	 wRD = wIREG[25:21];
@@ -394,7 +402,7 @@ module aeMB_decode (/*AUTOARG*/
 	rSIMM <= #1 xSIMM;
 	rFIMM <= #1 xFIMM;
 	rIMMHI <= #1 xIMMHI;	
-     end // else: !if(!nrst)
+     end // if (nrun)
 
    always @(negedge nclk or negedge nrst)
      if (!nrst) begin
@@ -416,7 +424,7 @@ module aeMB_decode (/*AUTOARG*/
 	rRWE <= #1 xRWE;
 	rDWBSTB <= #1 xDWBSTB;
 	rDWBWE <= #1 xDWBWE;	
-     end // else: !if(!nrst)
+     end
    
 endmodule // aeMB_decode
 

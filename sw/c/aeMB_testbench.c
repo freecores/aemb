@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_testbench.c,v 1.3 2007-04-04 14:09:04 sybreon Exp $
+ * $Id: aeMB_testbench.c,v 1.4 2007-04-25 22:15:05 sybreon Exp $
  * 
  * AEMB Function Verification C Testbench
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -28,6 +28,9 @@
  * 
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.3  2007/04/04 14:09:04  sybreon
+ * Added initial interrupt/exception support.
+ *
  * Revision 1.2  2007/04/04 06:07:45  sybreon
  * Fixed C code bug which passes the test
  *
@@ -48,7 +51,7 @@ void int_handler_func () {
 void int_call_func () {
   int *p;
   p = 0x88888888;
-  *p = 0x00ED557A; // Write a value to a IO port.
+  *p = 0x52544E49; // "INTR"
 }
 
 /* Recursive Version */
@@ -79,54 +82,70 @@ unsigned int fastfib(unsigned int n)
   return p==a?*(p+2):*(p-1);
 }
 
-/* Compare the Results */
+/* Various Test */
 
 int main() {
   unsigned int n;
   unsigned int fib_fast, fib_slow;  
-  unsigned int fib_lut[] = {0,
-			    1,
-			    1,
-			    2,
-			    3,
-			    5,
-			    8,
-			    13,
-			    21,
-			    34,
-			    55,
-			    89,
-			    144,
-			    233,
-			    377,
-			    610,
-			    987,
-			    1597,
-			    2584,
-			    4181,
-			    6765,
-			    10946,
-			    17711,
-			    28657,
-			    46368,
-			    75025,
-			    121393,
-			    196418,
-			    317811,
-			    514229,
-			    832040,
-			    1346269,
-			    2178309,
-			    3524578,
-			    5702887};  
+  unsigned int fib_lut32[] = {0,
+			      1,
+			      1,
+			      2,
+			      3,
+			      5,
+			      8,
+			      13,
+			      21,
+			      34,
+			      55,
+			      89,
+			      144,
+			      233};  
+
+  unsigned short fib_lut16[] = {0,
+				1,
+				1,
+				2,
+				3,
+				5,
+				8,
+				13,
+				21,
+				34,
+				55,
+				89,
+				144,
+				233};
   
-  for (n=0;n<35;n++) {
+  unsigned char fib_lut8[] = {0,
+			      1,
+			      1,
+			      2,
+			      3,
+			      5,
+			      8,
+			      13,
+			      21,
+			      34,
+			      55,
+			      89,
+			      144,
+			      233};
+  
+  for (n=0;n<14;n++) {
     fib_slow = slowfib(n);    
     fib_fast = fastfib(n);
-    while ((fib_fast != fib_lut[n]) || (fib_slow != fib_fast)) {
-      fib_lut[n] = 0x00ED17FA;
+    while ((fib_slow != fib_fast) || 
+	   (fib_fast != fib_lut32[n]) || 
+	   (fib_fast != fib_lut16[n]) || 
+	   (fib_fast != fib_lut8[n])) {
+      // "FAIL" 
+      fib_lut32[n] = 0x4C494146;
     }
-  }    
-  
-  return fib_fast;
+    // "PASS"
+    fib_lut32[n] = 0x53534150;
+  }      
+
+  return 0;  
 }
+

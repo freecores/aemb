@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_aslu.v,v 1.4 2007-04-11 04:30:43 sybreon Exp $
+ * $Id: aeMB_aslu.v,v 1.5 2007-04-25 22:15:04 sybreon Exp $
  *
  * AEMB Arithmetic Shift Logic Unit 
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -23,6 +23,10 @@
  * 
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.4  2007/04/11 04:30:43  sybreon
+ * Added pipeline stalling from incomplete bus cycles.
+ * Separated sync and async portions of code.
+ *
  * Revision 1.3  2007/04/04 06:11:05  sybreon
  * Added CMP instruction
  *
@@ -37,17 +41,20 @@
 // 268@91
 module aeMB_aslu (/*AUTOARG*/
    // Outputs
-   dwb_adr_o, rRESULT,
+   dwb_adr_o, dwb_sel_o, rRESULT, rDWBSEL,
    // Inputs
-   dwb_dat_i, rBRA, rDLY, rREGA, rREGB, rSIMM, rMXSRC, rMXTGT, rMXALU,
+   sDWBDAT, rBRA, rDLY, rREGA, rREGB, rSIMM, rMXSRC, rMXTGT, rMXALU,
    rOPC, rPC, rIMM, rRD, rRA, rMXLDST, nclk, nrst, drun, nrun
    );
    parameter DSIZ = 32;
 
    output [DSIZ-1:0] dwb_adr_o;
-   input [31:0]      dwb_dat_i;   
+   output [3:0]      dwb_sel_o;   
+   //input [31:0]      dwb_dat_i;   
    
    output [31:0]     rRESULT;
+   output [3:0]      rDWBSEL;
+   input [31:0]      sDWBDAT;   
    input 	     rBRA, rDLY;      
    input [31:0]      rREGA, rREGB;
    input [31:0]      rSIMM;
@@ -63,18 +70,54 @@ module aeMB_aslu (/*AUTOARG*/
    
    reg [31:0] 	    rRESULT, xRESULT;
    reg 		    rMSR_C, xMSR_C;
+
+   // Operands
+   wire [31:0] 	    wOPA, wOPB;   
+   
+   // DWB I/F
+   reg [31:0] 	    rDWBADR;
+   wire [31:0] 	    wDWBADR;
+   
+   assign 	    dwb_adr_o = {rDWBADR[DSIZ-1:2],2'b00};
+   assign 	    wDWBADR = (wOPA + wOPB);   
+
+   reg [3:0] 	    rDWBSEL, xDWBSEL;
+
+   always @(/*AUTOSENSE*/rOPC or wDWBADR)
+     case (wDWBADR[1:0])
+       2'o0: case (rOPC[1:0])
+	       2'o0: xDWBSEL <= 4'h8;
+	       2'o1: xDWBSEL <= 4'hC;
+	       default: xDWBSEL <= 4'hF;
+	     endcase // case (rOPC[1:0])
+       2'o1: case (rOPC[1:0])
+	       2'o0: xDWBSEL <= 4'h4;
+	       default: xDWBSEL <= 4'h0;
+	     endcase // case (rOPC[1:0])
+       2'o2: case (rOPC[1:0])
+	       2'o0: xDWBSEL <= 4'h2;
+	       2'o1: xDWBSEL <= 4'h3;
+	       default: xDWBSEL <= 4'h0;
+	     endcase // case (rOPC[1:0])
+       2'o3: case (rOPC[1:0])
+	       2'o0: xDWBSEL <= 4'h1;
+	       default: xDWBSEL <= 4'h0;
+	     endcase // case (rOPC[1:0])
+     endcase // case (wDWBADR[1:0])
+   
    
    // Endian correction
-   //wire [31:0] 	    wDWBDAT = dwb_dat_i;   
-   wire [31:0] 	    wDWBDAT = {dwb_dat_i[7:0],dwb_dat_i[15:8],dwb_dat_i[23:16],dwb_dat_i[31:24]};   
+   wire [31:0] 	    wDWBDAT;
+   assign 	    dwb_sel_o = {rDWBSEL[0],rDWBSEL[1],rDWBSEL[2],rDWBSEL[3]};   
+   assign 	    wDWBDAT = sDWBDAT;
    
    // Source and Target Select
-   wire [31:0] 	    wOPA =
+   assign 	    wOPA =
 		    (rMXSRC == 2'b11) ? wDWBDAT :
 		    (rMXSRC == 2'b10) ? rRESULT :
 		    (rMXSRC == 2'b01) ? rPC : 
 		    rREGA;
-   wire [31:0] 	    wOPB =
+   assign 	    wOPB =
 		    (rMXTGT == 2'b11) ? wDWBDAT :
 		    (rMXTGT == 2'b10) ? rRESULT :
 		    (rMXTGT == 2'b01) ? rSIMM :
@@ -147,10 +190,6 @@ module aeMB_aslu (/*AUTOARG*/
    always @(/*AUTOSENSE*/rRA or wOPA or wOPB)
      rRES_M <= #1 (rRA[3]) ? wOPB : wOPA;   
    
-   // DWB I/F
-   //assign 	    dwb_adr_o = rRESULT;
-   assign dwb_adr_o = {rRESULT[DSIZ-1:2],2'b00};
-   
    // RESULT + C
    always @(/*AUTOSENSE*/drun or rMSR_C or rMXALU or rOPC or rRES_A
 	    or rRES_AC or rRES_L or rRES_M or rRES_S or rRES_SC)
@@ -179,12 +218,16 @@ module aeMB_aslu (/*AUTOARG*/
      if (!nrst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
+	rDWBADR <= 32'h0;
+	rDWBSEL <= 4'h0;
 	rMSR_C <= 1'h0;
 	rRESULT <= 32'h0;
 	// End of automatics
      end else if (nrun) begin
 	rRESULT <= #1 xRESULT;
-	rMSR_C <= #1 xMSR_C;	
+	rMSR_C <= #1 xMSR_C;
+	rDWBADR <= #1 wDWBADR;
+	rDWBSEL <= #1 xDWBSEL;	
      end
    
 endmodule // aeMB_aslu

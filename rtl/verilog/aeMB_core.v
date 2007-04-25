@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_core.v,v 1.3 2007-04-11 04:30:43 sybreon Exp $
+ * $Id: aeMB_core.v,v 1.4 2007-04-25 22:15:04 sybreon Exp $
  * 
  * AEMB 32-bit Microblaze Compatible Core
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -25,6 +25,10 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.3  2007/04/11 04:30:43  sybreon
+ * Added pipeline stalling from incomplete bus cycles.
+ * Separated sync and async portions of code.
+ *
  * Revision 1.2  2007/04/04 06:13:23  sybreon
  * Removed unused signals
  *
@@ -35,7 +39,8 @@
 
 module aeMB_core (/*AUTOARG*/
    // Outputs
-   iwb_stb_o, iwb_adr_o, dwb_we_o, dwb_stb_o, dwb_dat_o, dwb_adr_o,
+   iwb_stb_o, iwb_adr_o, dwb_we_o, dwb_stb_o, dwb_sel_o, dwb_dat_o,
+   dwb_adr_o,
    // Inputs
    sys_rst_i, sys_int_i, sys_exc_i, sys_clk_i, iwb_dat_i, iwb_ack_i,
    dwb_dat_i, dwb_ack_i
@@ -49,6 +54,7 @@ module aeMB_core (/*AUTOARG*/
    // Beginning of automatic outputs (from unused autoinst outputs)
    output [DSIZ-1:0]	dwb_adr_o;		// From aslu of aeMB_aslu.v
    output [31:0]	dwb_dat_o;		// From regfile of aeMB_regfile.v
+   output [3:0]		dwb_sel_o;		// From aslu of aeMB_aslu.v
    output		dwb_stb_o;		// From decode of aeMB_decode.v
    output		dwb_we_o;		// From decode of aeMB_decode.v
    output [ISIZ-1:0]	iwb_adr_o;		// From fetch of aeMB_fetch.v
@@ -57,7 +63,7 @@ module aeMB_core (/*AUTOARG*/
    /*AUTOINPUT*/
    // Beginning of automatic inputs (from unused autoinst inputs)
    input		dwb_ack_i;		// To control of aeMB_control.v
-   input [31:0]		dwb_dat_i;		// To regfile of aeMB_regfile.v, ...
+   input [31:0]		dwb_dat_i;		// To regfile of aeMB_regfile.v
    input		iwb_ack_i;		// To control of aeMB_control.v
    input [31:0]		iwb_dat_i;		// To fetch of aeMB_fetch.v, ...
    input		sys_clk_i;		// To control of aeMB_control.v
@@ -74,6 +80,7 @@ module aeMB_core (/*AUTOARG*/
    wire			nrun;			// From control of aeMB_control.v
    wire			rBRA;			// From decode of aeMB_decode.v
    wire			rDLY;			// From decode of aeMB_decode.v
+   wire [3:0]		rDWBSEL;		// From aslu of aeMB_aslu.v
    wire			rDWBSTB;		// From decode of aeMB_decode.v
    wire			rDWBWE;			// From decode of aeMB_decode.v
    wire [1:0]		rFSM;			// From control of aeMB_control.v
@@ -95,6 +102,7 @@ module aeMB_core (/*AUTOARG*/
    wire [31:0]		rRESULT;		// From aslu of aeMB_aslu.v
    wire			rRWE;			// From decode of aeMB_decode.v
    wire [31:0]		rSIMM;			// From decode of aeMB_decode.v
+   wire [31:0]		sDWBDAT;		// From regfile of aeMB_regfile.v
    // End of automatics
 
    aeMB_regfile #(DSIZ)
@@ -103,6 +111,7 @@ module aeMB_core (/*AUTOARG*/
 	      .dwb_dat_o		(dwb_dat_o[31:0]),
 	      .rREGA			(rREGA[31:0]),
 	      .rREGB			(rREGB[31:0]),
+	      .sDWBDAT			(sDWBDAT[31:0]),
 	      // Inputs
 	      .dwb_dat_i		(dwb_dat_i[31:0]),
 	      .rDWBSTB			(rDWBSTB),
@@ -114,6 +123,8 @@ module aeMB_core (/*AUTOARG*/
 	      .rRESULT			(rRESULT[31:0]),
 	      .rFSM			(rFSM[1:0]),
 	      .rPC			(rPC[31:0]),
+	      .rOPC			(rOPC[5:0]),
+	      .rDWBSEL			(rDWBSEL[3:0]),
 	      .rLNK			(rLNK),
 	      .rRWE			(rRWE),
 	      .nclk			(nclk),
@@ -160,9 +171,11 @@ module aeMB_core (/*AUTOARG*/
      aslu (/*AUTOINST*/
 	   // Outputs
 	   .dwb_adr_o			(dwb_adr_o[DSIZ-1:0]),
+	   .dwb_sel_o			(dwb_sel_o[3:0]),
 	   .rRESULT			(rRESULT[31:0]),
+	   .rDWBSEL			(rDWBSEL[3:0]),
 	   // Inputs
-	   .dwb_dat_i			(dwb_dat_i[31:0]),
+	   .sDWBDAT			(sDWBDAT[31:0]),
 	   .rBRA			(rBRA),
 	   .rDLY			(rDLY),
 	   .rREGA			(rREGA[31:0]),
@@ -207,10 +220,11 @@ module aeMB_core (/*AUTOARG*/
 	     .dwb_stb_o			(dwb_stb_o),
 	     .dwb_we_o			(dwb_we_o),
 	     // Inputs
+	     .sDWBDAT			(sDWBDAT[31:0]),
+	     .rDWBSEL			(rDWBSEL[3:0]),
 	     .rREGA			(rREGA[31:0]),
 	     .rRESULT			(rRESULT[31:0]),
 	     .iwb_dat_i			(iwb_dat_i[31:0]),
-	     .dwb_dat_i			(dwb_dat_i[31:0]),
 	     .nclk			(nclk),
 	     .nrst			(nrst),
 	     .drun			(drun),

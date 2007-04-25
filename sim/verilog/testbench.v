@@ -1,5 +1,5 @@
 /*
- * $Id: testbench.v,v 1.1 2007-04-12 20:21:34 sybreon Exp $
+ * $Id: testbench.v,v 1.2 2007-04-25 22:15:05 sybreon Exp $
  * 
  * AEMB Generic Testbench
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -23,26 +23,21 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
- * Revision 1.4  2007/04/11 04:30:43  sybreon
- * Added pipeline stalling from incomplete bus cycles.
- * Separated sync and async portions of code.
- *
- * Revision 1.3  2007/04/04 14:08:34  sybreon
- * Added initial interrupt/exception support.
- *
- * Revision 1.2  2007/04/04 06:11:59  sybreon
- * Extended testbench code
- *
- * Revision 1.1  2007/03/09 17:52:17  sybreon
- * initial import
+ * Revision 1.1  2007/04/12 20:21:34  sybreon
+ * Moved testbench into /sim/verilog.
+ * Simulation cleanups.
  *
  */
 
 module testbench ();
    parameter ISIZ = 16;
    parameter DSIZ = 16;   
+
    
-   reg sys_clk_i, sys_rst_i, sys_int_i, sys_exc_i;
+   // INITIAL SETUP //////////////////////////////////////////////////////
+   
+   reg 	     sys_clk_i, sys_rst_i, sys_int_i, sys_exc_i;
+   always #5 sys_clk_i = ~sys_clk_i;   
 
    initial begin
       $dumpfile("dump.vcd");
@@ -64,36 +59,46 @@ module testbench ();
       //#11000 $finish;
    join   
    
-   always #5 sys_clk_i = ~sys_clk_i;   
-
-   // FAKE ROM
-   reg [31:0] rom [0:65535];
-   wire [31:0] iwb_dat_i;
-   reg 	      iwb_ack_i, dwb_ack_i;
+   // FAKE MEMORY ////////////////////////////////////////////////////////
+   
    wire [ISIZ-1:0] iwb_adr_o;
-   wire        iwb_stb_o;
-   wire        dwb_stb_o;
+   wire 	   iwb_stb_o;
+   wire 	   dwb_stb_o;
+   reg [31:0] 	   rom [0:65535];
+   wire [31:0] 	   iwb_dat_i;
+   reg 		   iwb_ack_i, dwb_ack_i;
 
-   // FAKE RAM
-   reg [31:0] ram [0:65535];
-   wire [31:0] dwb_dat_i;
-   reg [31:0] dwblat;
-   wire       dwb_we_o;
-   reg [DSIZ-1:2] dadr,iadr; 
-   wire [31:0] dwb_dat_o;
+   reg [31:0] 	   ram[0:65535];
+   wire [31:0] 	   dwb_dat_i;
+   reg [31:0] 	   dwblat;
+   wire 	   dwb_we_o;
+   reg [DSIZ-1:2]  dadr,iadr;
+   wire [3:0] 	   dwb_sel_o; 
+   wire [31:0] 	   dwb_dat_o;
    wire [DSIZ-1:0] dwb_adr_o;
-
+   wire [31:0] 	   dwb_dat_t;   
+   
    assign 	   dwb_dat_i = ram[dadr];
-   assign 	   iwb_dat_i = ram[iadr];   
+   assign 	   iwb_dat_i = ram[iadr];
+   assign 	   dwb_dat_t = ram[dwb_adr_o[DSIZ-1:2]];
+   
    always @(posedge sys_clk_i) begin
       iwb_ack_i <= #1 iwb_stb_o;
-      //& $random;
       dwb_ack_i <= #1 dwb_stb_o;
-      //& $random;
       iadr <= #1 iwb_adr_o[ISIZ-1:2];
-      ram[dwb_adr_o[DSIZ-1:2]] <= (dwb_we_o & dwb_stb_o) ? dwb_dat_o : ram[dwb_adr_o[DSIZ-1:2]];
-      dwblat <= dwb_adr_o;
-      dadr <= dwb_adr_o[DSIZ-1:2];      
+      dadr <= dwb_adr_o[DSIZ-1:2];
+      
+      if (dwb_we_o & dwb_stb_o) begin
+	 case (dwb_sel_o)
+	   4'h1: ram[dwb_adr_o[DSIZ-1:2]] <= {dwb_dat_t[31:8],dwb_dat_o[7:0]};
+	   4'h2: ram[dwb_adr_o[DSIZ-1:2]] <= {dwb_dat_t[31:16],dwb_dat_o[15:8],dwb_dat_t[7:0]};	   
+	   4'h4: ram[dwb_adr_o[DSIZ-1:2]] <= {dwb_dat_t[31:24],dwb_dat_o[23:16],dwb_dat_t[15:0]};	   
+	   4'h8: ram[dwb_adr_o[DSIZ-1:2]] <= {dwb_dat_o[31:24],dwb_dat_t[23:0]};	   
+	   4'h3: ram[dwb_adr_o[DSIZ-1:2]] <= {dwb_dat_t[31:16],dwb_dat_o[15:0]};	   
+	   4'hC: ram[dwb_adr_o[DSIZ-1:2]] <= {dwb_dat_o[31:16],dwb_dat_t[15:0]};	   	  
+	   4'hF: ram[dwb_adr_o[DSIZ-1:2]] <= {dwb_dat_o[31:0]};	   
+	 endcase // case (dwb_sel_o)	 
+      end
    end
 
    integer i;   
@@ -101,34 +106,49 @@ module testbench ();
       for (i=0;i<65535;i=i+1) begin
 	 ram[i] <= 32'h0;
       end      
-      #1 $readmemh("aeMB.rom",ram); 
+      #1 $readmemh("aeMB.rom",ram);
    end
 
+   // DISPLAY OUTPUTS ///////////////////////////////////////////////////
+   
    always @(negedge sys_clk_i) begin
+      
       $write("\nT: ",$stime);
       if (iwb_stb_o & iwb_ack_i)
 	$writeh("\tPC: 0x",iwb_adr_o,"=0x",iwb_dat_i);      
       if (dwb_stb_o & dwb_we_o & dwb_ack_i) 
-	$writeh("\tST: 0x",dwb_adr_o,"=0x",dwb_dat_o);     
+	$writeh("\tST: 0x",dwb_adr_o,"=0x",dwb_dat_o," S=0x",dwb_sel_o);     
       if (dwb_stb_o & ~dwb_we_o & dwb_ack_i)
-	$writeh("\tLD: 0x",dwb_adr_o,"=0x",dwb_dat_i);
-
+	$writeh("\tLD: 0x",dwb_adr_o,"=0x",dwb_dat_i," S=0x",dwb_sel_o);
       if (dut.regfile.wDWE)
-	$writeh("\tR",dut.regfile.rRD_,"=",dut.regfile.wDDAT,";");         
+	$writeh("\tR",dut.regfile.rRD_,"=",dut.regfile.wDDAT,";");
       
       if ((dwb_adr_o == 16'h8888) && (dwb_dat_o == 32'h7a55ed00))
 	$display("*** SERVICE ***");      
-
       if (dut.control.rFSM == 2'o1)
-	$display("*** INTERRUPT ***");      
-
+	$display("*** INTERRUPT ***");
+      
+      if (dwb_we_o & (dwb_dat_o == "FAIL")) begin
+	 $display("\tFAIL");	 
+	 $finish;
+      end      
+      if (dwb_we_o & (dwb_dat_o == "PASS")) begin
+	 $display("\tPASS");
+      end
+      if (iwb_dat_i == 32'h000000b8) begin
+	 $display("\n\t*** PASSED ALL TESTS ***");
+	 $finish;	 
+      end
    end // always @ (posedge sys_clk_i)
+
+   // INTERNAL WIRING ////////////////////////////////////////////////////
    
    aeMB_core #(ISIZ,DSIZ)
      dut (
 	  .sys_int_i(sys_int_i),.sys_exc_i(sys_exc_i),
 	  .dwb_ack_i(dwb_ack_i),.dwb_stb_o(dwb_stb_o),.dwb_adr_o(dwb_adr_o),
 	  .dwb_dat_o(dwb_dat_o),.dwb_dat_i(dwb_dat_i),.dwb_we_o(dwb_we_o),
+	  .dwb_sel_o(dwb_sel_o),
 	  .iwb_adr_o(iwb_adr_o),.iwb_dat_i(iwb_dat_i),.iwb_stb_o(iwb_stb_o),
 	  .iwb_ack_i(iwb_ack_i),
 	  .sys_clk_i(sys_clk_i), .sys_rst_i(sys_rst_i)
