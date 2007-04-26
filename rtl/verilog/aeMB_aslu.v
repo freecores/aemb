@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_aslu.v,v 1.5 2007-04-25 22:15:04 sybreon Exp $
+ * $Id: aeMB_aslu.v,v 1.6 2007-04-26 14:29:53 sybreon Exp $
  *
  * AEMB Arithmetic Shift Logic Unit 
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -23,6 +23,9 @@
  * 
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.5  2007/04/25 22:15:04  sybreon
+ * Added support for 8-bit and 16-bit data types.
+ *
  * Revision 1.4  2007/04/11 04:30:43  sybreon
  * Added pipeline stalling from incomplete bus cycles.
  * Separated sync and async portions of code.
@@ -38,7 +41,7 @@
  *
  */
 
-// 268@91
+// 246@101
 module aeMB_aslu (/*AUTOARG*/
    // Outputs
    dwb_adr_o, dwb_sel_o, rRESULT, rDWBSEL,
@@ -79,7 +82,7 @@ module aeMB_aslu (/*AUTOARG*/
    wire [31:0] 	    wDWBADR;
    
    assign 	    dwb_adr_o = {rDWBADR[DSIZ-1:2],2'b00};
-   assign 	    wDWBADR = (wOPA + wOPB);   
+   //assign 	    wDWBADR = (wOPA + wOPB);   
 
    reg [3:0] 	    rDWBSEL, xDWBSEL;
 
@@ -108,7 +111,7 @@ module aeMB_aslu (/*AUTOARG*/
    
    // Endian correction
    wire [31:0] 	    wDWBDAT;
-   assign 	    dwb_sel_o = {rDWBSEL[0],rDWBSEL[1],rDWBSEL[2],rDWBSEL[3]};   
+   assign 	    dwb_sel_o = {rDWBSEL[0],rDWBSEL[1],rDWBSEL[2],rDWBSEL[3]};
    assign 	    wDWBDAT = sDWBDAT;
    
    // Source and Target Select
@@ -125,25 +128,38 @@ module aeMB_aslu (/*AUTOARG*/
    
    // ARITHMETIC
    //wire 	    wADDC_ = (rOPC[1] & (rMXLDST == 2'o0)) ? rMSR_C : 1'b0;
-   wire 	    wADDC_ = (rOPC[1]) ? rMSR_C : 1'b0;
-   wire 	    wSUBC_ = (rOPC[1]) ? rMSR_C : 1'b1;
-   wire 	    wADDC, wSUBC, wRES_AC,wCMPC;
-   wire [31:0] 	    wADD,wSUB,wRES_A,wCMP;
+   wire 	    wADDC_ = (rOPC[1] & rMSR_C) & ~|rMXLDST;
+   wire 	    wSUBC_ = (rOPC[1] & rMSR_C | ~rOPC[1]);
+   wire 	    wADDC, wSUBC, wRES_AC, wCMPC, wOPC;
+   wire [31:0] 	    wADD, wSUB, wRES_A, wCMP, wOPX;
    
    // TODO: verify signed compare
-   wire 	    wCMPU = (wOPA > wOPB);   
+   
+   wire 	    wCMP0 = (wOPA[7:0] > wOPB[7:0]);
+   wire 	    wCMP1 = (wOPA[15:8] > wOPB[15:8]);
+   wire 	    wCMP2 = (wOPA[23:16] > wOPB[23:16]);
+   wire 	    wCMP3 = (wOPA[31:24] > wOPB[31:24]);
+   wire 	    wCMPU = wCMP3 | (wCMP2 & ~wCMP3) | (wCMP1 & ~wCMP2 & ~wCMP3) | (wCMP0 & ~wCMP2 & ~wCMP3 & ~wCMP1);
+      
+   //wire 	    wCMPU = (wOPA > wOPB);   
    wire 	    wCMPF = (rIMM[1]) ? wCMPU :
 			    ((wCMPU & ~(wOPB[31] ^ wOPA[31])) | (wOPB[31] & ~wOPA[31]));   
    assign 	    {wCMPC,wCMP} = {wSUBC,wCMPF,wSUB[30:0]};  
-   assign 	    {wADDC,wADD} = (wOPB + wOPA) + wADDC_;
-   assign 	    {wSUBC,wSUB} = (wOPB + ~wOPA) + wSUBC_;      
+   //assign 	    {wADDC,wADD} = (wOPB + wOPA) + wADDC_;
+   //assign 	    {wSUBC,wSUB} = (wOPB + ~wOPA) + wSUBC_;
+   assign 	    wOPX = (rOPC[0] & !rOPC[5]) ? ~wOPA : wOPA ;
+   assign 	    wOPC = (rOPC[0] & !rOPC[5]) ? wSUBC_ : wADDC_ ;   
+   assign 	    {wSUBC,wSUB} = {wADDC,wADD}; 
+   assign 	    {wADDC,wADD} = (wOPB + wOPX) + wOPC; 
+   assign 	    wDWBADR = wADD;
+   
    
    reg 		    rRES_AC;
    reg [31:0] 	    rRES_A;
    always @(/*AUTOSENSE*/rIMM or rOPC or wADD or wADDC or wCMP
 	    or wCMPC or wSUB or wSUBC)
      //{rRES_AC,rRES_A} <= #1 (rOPC[0] & ~rOPC[5]) ? {~wSUBC,wSUB} : {wADDC,wADD};   
-     case ({rOPC[5],rOPC[3],rOPC[0],rIMM[0]})
+     case ({rOPC[3],rOPC[0],rIMM[0]})
        4'h2, 4'h6, 4'h7: {rRES_AC,rRES_A} <= #1 {~wSUBC,wSUB}; // SUB
        4'h3: {rRES_AC,rRES_A} <= #1 {~wCMPC,wCMP}; // CMP
        default: {rRES_AC,rRES_A} <= #1 {wADDC,wADD};       

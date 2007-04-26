@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_regfile.v,v 1.10 2007-04-25 22:52:53 sybreon Exp $
+ * $Id: aeMB_regfile.v,v 1.11 2007-04-26 14:29:53 sybreon Exp $
  * 
  * AEMB Register File
  * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -25,6 +25,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.10  2007/04/25 22:52:53  sybreon
+ * Fixed minor simulation bug.
+ *
  * Revision 1.9  2007/04/25 22:15:04  sybreon
  * Added support for 8-bit and 16-bit data types.
  *
@@ -119,14 +122,14 @@ module aeMB_regfile(/*AUTOARG*/
 
    always @(/*AUTOSENSE*/rDWBSEL or wDWBDAT)
      case (rDWBSEL)      
-       4'hF: sDWBDAT <= wDWBDAT;
+       default: sDWBDAT <= wDWBDAT;
        4'hC: sDWBDAT <= {16'd0,wDWBDAT[31:16]};
        4'h3: sDWBDAT <= {16'd0,wDWBDAT[15:0]};
        4'h8: sDWBDAT <= {24'd0,wDWBDAT[31:24]};
        4'h4: sDWBDAT <= {24'd0,wDWBDAT[23:16]};
        4'h2: sDWBDAT <= {24'd0,wDWBDAT[15:8]};
        4'h1: sDWBDAT <= {24'd0,wDWBDAT[7:0]};      
-       default: sDWBDAT <= 32'h0;       
+       //default: sDWBDAT <= 32'h0;       
      endcase // case (rDWBSEL)
    
    // Forwarding Control
