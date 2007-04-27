@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_regfile.v,v 1.12 2007-04-27 00:23:55 sybreon Exp $
+ * $Id: aeMB_regfile.v,v 1.13 2007-04-27 04:22:40 sybreon Exp $
  * 
  * AEMB Register File
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -27,6 +27,10 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.12  2007/04/27 00:23:55  sybreon
+ * Added code documentation.
+ * Improved size & speed of rtl/verilog/aeMB_aslu.v
+ *
  * Revision 1.11  2007/04/26 14:29:53  sybreon
  * Made minor performance optimisations.
  *
@@ -71,9 +75,9 @@ module aeMB_regfile(/*AUTOARG*/
    dwb_dat_i, rDWBSTB, rDWBWE, rRA, rRB, rRD, rRESULT, rFSM, rPC,
    rOPC, rDWBSEL, rLNK, rRWE, nclk, nrst, drun, nrun
    );
-   // Data WB address bus width
+   // FIXME: This parameter is not used here.
    parameter DSIZ = 32;
-
+   
    // Data WB Signals
    output [31:0] dwb_dat_o;
    input [31:0]  dwb_dat_i;
@@ -91,15 +95,6 @@ module aeMB_regfile(/*AUTOARG*/
    input 	 rLNK, rRWE;
    input 	 nclk, nrst, drun, nrun;   
 
-   // ASYNCHRONOUS ////////////////////////////////////////////////////////////////////
-
-   wire [31:0] 	 wRESULT;
-   wire 	 fWE = rRWE & !rDWBWE;
-   wire 	 fLNK = rLNK;
-   wire 	 fLD = rDWBSTB ^ rDWBWE;   
-   wire 	 fDFWD = !(rRD ^ rRD_) & fWE;
-   wire 	 fMFWD = rDWBSTB & !rDWBWE;   
-   
    /**
     Delay Latches
     ----------
@@ -116,6 +111,19 @@ module aeMB_regfile(/*AUTOARG*/
       xPC_ <= rPC[31:2];
       xRD_ <= rRD;      
    end
+
+   /**
+    Control Flags
+    -------------
+    Various internal flags.
+    */
+   
+   wire [31:0] 	 wRESULT;
+   wire 	 fWE = rRWE & !rDWBWE;
+   wire 	 fLNK = rLNK;
+   wire 	 fLD = rDWBSTB ^ rDWBWE;   
+   wire 	 fDFWD = !(rRD ^ rRD_) & fWE;
+   wire 	 fMFWD = rDWBSTB & !rDWBWE;      
    
    /**
     Data WISHBONE Bus
@@ -216,6 +224,7 @@ module aeMB_regfile(/*AUTOARG*/
     The register file is initialised with random values to reflect a
     realistic situation where the values are undefined at power-up.
     */
+   // synopsys translate_off
    integer i;
    initial begin
       for (i=0;i<31;i=i+1) begin
@@ -224,6 +233,7 @@ module aeMB_regfile(/*AUTOARG*/
 	 rMEMD[i] <= $random;	 
       end
    end
+   // synopsys translate_on
    
 endmodule // aeMB_regfile
 
