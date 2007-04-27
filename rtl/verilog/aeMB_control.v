@@ -1,28 +1,33 @@
 /*
- * $Id: aeMB_control.v,v 1.3 2007-04-11 04:30:43 sybreon Exp $
+ * $Id: aeMB_control.v,v 1.4 2007-04-27 00:23:55 sybreon Exp $
  * 
  * AE68 System Control Unit
- * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
+ * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
  *  
- * This library is free software; you can redistribute it and/or modify it 
- * under the terms of the GNU Lesser General Public License as published by 
- * the Free Software Foundation; either version 2.1 of the License, 
- * or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; either version 2.1 of
+ * the License, or (at your option) any later version.
  * 
- * This library is distributed in the hope that it will be useful, but 
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
- * or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public 
- * License for more details.
+ * This library is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
  * 
- * You should have received a copy of the GNU Lesser General Public License 
- * along with this library; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
+ * USA
  *
  * DESCRIPTION
  * Controls the state of the processor.
  * 
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.3  2007/04/11 04:30:43  sybreon
+ * Added pipeline stalling from incomplete bus cycles.
+ * Separated sync and async portions of code.
+ *
  * Revision 1.2  2007/04/04 14:08:34  sybreon
  * Added initial interrupt/exception support.
  *
@@ -31,7 +36,6 @@
  *
  */
 
-// 6@250
 module aeMB_control (/*AUTOARG*/
    // Outputs
    rFSM, nclk, nrst, nrun, frun, drun,
@@ -43,7 +47,6 @@ module aeMB_control (/*AUTOARG*/
    input 	sys_rst_i, sys_clk_i;
    input 	sys_int_i;
    input 	sys_exc_i;   
-   //input 	sys_run_i;
    
    // Instruction WB
    input 	rIWBSTB;
@@ -60,13 +63,25 @@ module aeMB_control (/*AUTOARG*/
    output 	nclk, nrst, nrun;   
    output 	frun, drun;
       
-   // Clock code here
-   assign 	nclk = sys_clk_i;
+   /**
+    RUN Signal
+    ----------
+    This master run signal will pause or run the entire pipeline. It
+    will pause for any incomplete bus transaction.
+    */
+   
+   assign 	nrun = ~((rDWBSTB ^ dwb_ack_i) | ((rIWBSTB ^ iwb_ack_i)));
 
-   // Debounce reset
+   /**
+    Debounce
+    --------
+    The following external signals are debounced and synchronised:
+    - Reset
+    - Interrupt
+    */
+   
    reg [1:0] 	rRST;
-   assign 	nrst = rRST[1];
-   always @(posedge nclk or negedge sys_rst_i)     
+   always @(negedge nclk or negedge sys_rst_i)     
      if (!sys_rst_i) begin
 	//rNRST <= 2'h3;	
 	/*AUTORESET*/
@@ -77,24 +92,27 @@ module aeMB_control (/*AUTOARG*/
 	rRST <= {rRST[0],1'b1};
      end
 
-   // Quiet RUN signal
-   assign 	nrun = ~((rDWBSTB ^ dwb_ack_i) | ((rIWBSTB ^ iwb_ack_i)));
-
-   // Debounce Interrupt/Exception Signals
    reg [2:0] rEXC, rINT;
    always @(negedge nclk or negedge nrst)
      if (!nrst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
-	rEXC <= 3'h0;
 	rINT <= 3'h0;
 	// End of automatics
      end else if (nrun) begin
-	rEXC <= #1 {rEXC[1:0], sys_exc_i};
+	//rEXC <= #1 {rEXC[1:0], sys_exc_i};
 	rINT <= #1 {rINT[1:0], sys_int_i};	
      end
    
-   // Machine States
+   /**
+    Machine States
+    --------------
+    The internal machine state is affected by external interrupt,
+    exception and software exceptions. Only interrupts are
+    implemented.
+    
+    TODO: Implement exceptions.
+    */
    parameter [1:0]
 		FSM_RUN = 2'o0,
 		FSM_SWEXC = 2'o3,
@@ -112,19 +130,26 @@ module aeMB_control (/*AUTOARG*/
 	rFSM <= #1 rNXT;
      end
 
-   always @(/*AUTOSENSE*/rEXC or rFSM or rINT)
+   always @(/*AUTOSENSE*/rFSM or rINT)
      case (rFSM)
        FSM_HWEXC: rNXT <= FSM_RUN;       
        //FSM_SWEXC: rNXT <= FSM_RUN;     
        FSM_HWINT: rNXT <= FSM_RUN;      
        default: begin
-	  rNXT <= (rEXC == 3'h3) ? FSM_HWEXC :
+	  rNXT <= //(rEXC == 3'h3) ? FSM_HWEXC :
 		  (rINT == 3'h3) ? FSM_HWINT :
 		  FSM_RUN;	  
        end
      endcase // case (rFSM)
       
-   // Pause/Bubble
+   /**
+    Bubble
+    ------
+    Pipeline bubbles are introduced during a branch or interrupt.
+    
+    TODO: Implement interrupt bubble.
+    */
+   
    reg [1:0]    rRUN;   
    assign 	{drun,frun} = rRUN;
    
@@ -135,5 +160,16 @@ module aeMB_control (/*AUTOARG*/
      end else begin
 	rRUN <= #1 {~(rBRA ^ rDLY), ~rBRA};	
      end
+
+   /**
+    Clock/Reset
+    -----------
+    This controls the internal clock/reset signal for the core. Any
+    DCM/PLL/DPLL can be instantiated here if needed.
+    */
+   
+   assign 	nclk = sys_clk_i;
+   assign 	nrst = rRST[1];
+
    
 endmodule // aeMB_control

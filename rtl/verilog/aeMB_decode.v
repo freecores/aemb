@@ -1,28 +1,32 @@
 /*
- * $Id: aeMB_decode.v,v 1.5 2007-04-25 22:15:04 sybreon Exp $
+ * $Id: aeMB_decode.v,v 1.6 2007-04-27 00:23:55 sybreon Exp $
  * 
  * AEMB Instruction Decoder
- * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
+ * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
  *  
- * This library is free software; you can redistribute it and/or modify it 
- * under the terms of the GNU Lesser General Public License as published by 
- * the Free Software Foundation; either version 2.1 of the License, 
- * or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; either version 2.1 of
+ * the License, or (at your option) any later version.
  * 
- * This library is distributed in the hope that it will be useful, but 
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
- * or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public 
- * License for more details.
+ * This library is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
  * 
- * You should have received a copy of the GNU Lesser General Public License 
- * along with this library; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
+ * USA
  *
  * DESCRIPTION
  * Instruction decoder
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.5  2007/04/25 22:15:04  sybreon
+ * Added support for 8-bit and 16-bit data types.
+ *
  * Revision 1.4  2007/04/11 04:30:43  sybreon
  * Added pipeline stalling from incomplete bus cycles.
  * Separated sync and async portions of code.
@@ -38,12 +42,10 @@
  *
  */
 
-// 88@143
 module aeMB_decode (/*AUTOARG*/
    // Outputs
-   rSIMM, rMXALU, rMXSRC, rMXTGT, rRA, rRB, rRD, rRD_, rOPC, rIMM,
-   rDWBSTB, rDWBWE, rIWBSTB, rDLY, rLNK, rBRA, rRWE, rMXLDST,
-   iwb_stb_o, dwb_stb_o, dwb_we_o,
+   rSIMM, rMXALU, rMXSRC, rMXTGT, rRA, rRB, rRD, rOPC, rIMM, rDWBSTB,
+   rDWBWE, rDLY, rLNK, rBRA, rRWE, rMXLDST, dwb_stb_o, dwb_we_o,
    // Inputs
    sDWBDAT, rDWBSEL, rREGA, rRESULT, iwb_dat_i, nclk, nrst, drun,
    frun, nrun
@@ -52,10 +54,10 @@ module aeMB_decode (/*AUTOARG*/
    output [31:0] rSIMM;
    output [1:0]  rMXALU;
    output [1:0]  rMXSRC, rMXTGT;
-   output [4:0]  rRA, rRB, rRD, rRD_;
+   output [4:0]  rRA, rRB, rRD;
    output [5:0]  rOPC;   
    output [15:0] rIMM;
-   output 	 rDWBSTB, rDWBWE, rIWBSTB;
+   output 	 rDWBSTB, rDWBWE;
    output 	 rDLY, rLNK, rBRA, rRWE;
    output [1:0]  rMXLDST;
    input [31:0]  sDWBDAT;   
@@ -64,32 +66,35 @@ module aeMB_decode (/*AUTOARG*/
    
    // External I/F
    input [31:0]  iwb_dat_i;
-   //, dwb_dat_i;
-   output 	 iwb_stb_o;   
    output 	 dwb_stb_o, dwb_we_o;
    
    // System I/F
    input 	 nclk, nrst, drun, frun, nrun;
 
-   // Endian Correction
-   wire [31:0] 	 wIREG;
-   wire [31:0] 	 wWBDAT;
-   assign 	 wIREG = {iwb_dat_i[7:0],iwb_dat_i[15:8],iwb_dat_i[23:16],iwb_dat_i[31:24]};
-   assign 	 wWBDAT = sDWBDAT;
+   /**
+    rOPC/rRD/rRA/rRB/rIMM
+    ---------------------
+    Instruction latch for the different fields of the instruction
+    ISA. This part may be changed in the future to incorporate an
+    instruction cache.
    
-   // Decode
+    FIXME: Endian correction!
+    TODO: Modify this for block RAM based instruction cache.
+    */
+   wire [31:0] 	 wIREG;
+   assign 	 wIREG = {iwb_dat_i[7:0],iwb_dat_i[15:8],iwb_dat_i[23:16],iwb_dat_i[31:24]};
+         
    wire [5:0] 	 wOPC = wIREG[31:26];
    wire [4:0] 	 wRD = wIREG[25:21];
    wire [4:0] 	 wRA = wIREG[20:16];
    wire [4:0] 	 wRB = wIREG[15:11];   
    wire [15:0] 	 wIMM = wIREG[15:0];
-      
-   // rOPC, rRD, rRA, rRB, rIMM;
+
    reg [5:0] 	 rOPC;
-   reg [4:0] 	 rRD, rRA, rRB, rRD_;
+   reg [4:0] 	 rRD, rRA, rRB;
    reg [15:0] 	 rIMM;
    reg [5:0] 	 xOPC;
-   reg [4:0] 	 xRD, xRA, xRB, xRD_;
+   reg [4:0] 	 xRD, xRA, xRB;
    reg [15:0] 	 xIMM;
    
    always @(/*AUTOSENSE*/frun or wIMM or wOPC or wRA or wRB or wRD)
@@ -110,17 +115,13 @@ module aeMB_decode (/*AUTOARG*/
 	// End of automatics
      end // else: !if(frun)
    
-   always @(/*AUTOSENSE*/drun or rRD)
-     if (drun) begin
-	xRD_ <= rRD;
-     end else begin
-	/*AUTORESET*/
-	// Beginning of autoreset for uninitialized flops
-	xRD_ <= 5'h0;
-	// End of automatics
-     end
+   /**
+    Opcode Groups
+    -------------
+    Start decoding by breaking up the opcode into groups. This should
+    infer a bunch of decoders on appropriate synthesis tools.
+    */
    
-   // Groups
    wire 	 fGH0 = (wOPC[5:3] == 3'o0);
    wire 	 fGH1 = (wOPC[5:3] == 3'o1);
    wire 	 fGH2 = (wOPC[5:3] == 3'o2);
@@ -138,7 +139,13 @@ module aeMB_decode (/*AUTOARG*/
    wire 	 fGL6 = (wOPC[2:0] == 3'o6);
    wire 	 fGL7 = (wOPC[2:0] == 3'o7);
    
-   // Decode Logic
+   /*
+    Main Decoder
+    ------------
+    As there aren't many instruction groups to decode, we will decode
+    all the instruction families here.
+    */
+   
    wire 	 fADD = ({wOPC[5:4],wOPC[0]} == 3'o0);
    wire 	 fSUB = ({wOPC[5:4],wOPC[0]} == 3'o1);   
    wire 	 fLOGIC = ({wOPC[5:4],wOPC[2]} == 3'o4);
@@ -156,7 +163,12 @@ module aeMB_decode (/*AUTOARG*/
    wire 	 fRET = fGH5 & fGL5;
    wire 	 fMISC = fGH4 & fGL5;
 
-   // MXALU
+   /**
+    MXALU
+    -----
+    This signal controls the MXALU mux inside the ASLU unit.
+    */
+   
    reg [1:0] 	 rMXALU, xMXALU;
    always @(/*AUTOSENSE*/fBRA or fLOGIC or fSHIFT or frun)
      if (frun) begin
@@ -172,7 +184,13 @@ module aeMB_decode (/*AUTOARG*/
 	// End of automatics
      end // else: !if(frun)
    
-   // BCC/BRA/RET
+   /**
+    BCC/BRA/RET
+    -----------
+    This signal controls the associated muxes for BRANCH, DELAY and
+    LINK operations.
+    */
+   
    reg 		 rMXDLY,rMXLNK,xMXDLY,xMXLNK;
    reg [1:0] 	 rMXBRA,xMXBRA;
    always @(/*AUTOSENSE*/fBCC or fBRU or fRET or frun or wRA or wRD)
@@ -198,7 +216,13 @@ module aeMB_decode (/*AUTOARG*/
 	// End of automatics
      end // else: !if(frun)
    
-   // LD ST
+   /**
+    LD/ST
+    -----
+    This signal controls the mux that controls the LOAD and STORE
+    operations.
+    */
+   
    reg [1:0] 	  rMXLDST,xMXLDST;
    always @(/*AUTOSENSE*/fLD or fST or frun)
      if (frun) begin
@@ -213,10 +237,15 @@ module aeMB_decode (/*AUTOARG*/
 	// End of automatics
      end // else: !if(frun)
    
-   // SRC/TGT - incorporates forwarding   
+   /** 
+    SRC/TGT
+    -------
+    Controls the muxes that select the appropriate sources for the A,
+    B and D operands. All data hazards are resolved here.
+    */
+   
    reg [1:0] 	  rMXSRC, rMXTGT, rMXALT, xMXSRC,xMXTGT,xMXALT;
    wire 	  fRWE = (rRD != 5'd0) & (rMXBRA != 2'o3);
-   //wire 	  fFWDBCC = (rMXBRA != 2'o3);
    
    always @(/*AUTOSENSE*/fBCC or fBRU or fRWE or frun or rMXLDST
 	    or rRD or wOPC or wRA or wRB)
@@ -245,7 +274,13 @@ module aeMB_decode (/*AUTOARG*/
 	// End of automatics
      end // else: !if(frun)
        
-   // IMM processing
+   /**
+    IMM Latching
+    ------------
+    The logic to generate either a full 32-bit or sign extended 32-bit
+    immediate is done here.
+    */
+   
    reg [31:0] 	 rSIMM, xSIMM;
    reg [15:0] 	 rIMMHI, xIMMHI;   
    reg 		 rFIMM, xFIMM;
@@ -264,11 +299,16 @@ module aeMB_decode (/*AUTOARG*/
 	// End of automatics
      end // else: !if(frun)
 
-   // CC
-   // COMPARATOR
-   //wire [31:0] wREGA = rREGA;
+   /**
+    COMPARATOR
+    ----------
+    This performs the comparison for conditional branches. It handles
+    the necessary data hazards. It generates a branch flag that is
+    used by the execution stage.
+    */
+   
    wire [31:0] wREGA =
-	       (rMXALT == 2'o3) ? wWBDAT :
+	       (rMXALT == 2'o3) ? sDWBDAT :
 	       (rMXALT == 2'o2) ? rRESULT :
 	       rREGA;   
    
@@ -292,7 +332,13 @@ module aeMB_decode (/*AUTOARG*/
        default: rBCC <= 1'b0;
      endcase // case (rRD[2:0])
 
-   // Branch Signal
+   /**
+    Branch Signals
+    --------------
+    This controls the generation of the BRANCH, DELAY and LINK
+    signals.
+    */
+   
    reg 	       rBRA, rDLY, rLNK, xBRA, xDLY, xLNK;
    always @(/*AUTOSENSE*/drun or rBCC or rMXBRA or rMXDLY or rMXLNK)
      if (drun) begin
@@ -321,9 +367,14 @@ module aeMB_decode (/*AUTOARG*/
 	// End of automatics
      end // else: !if(drun)
    
-   // MXRWE
+   /**
+    MXRWE
+    -----
+    This signal controls the flag that determines whether a D register
+    is open for writing.
+    */
    reg 		 rRWE, xRWE;
-   wire 	 wRWE = (rRD != 5'd0);   
+   wire 	 wRWE = |rRD;   
    always @(/*AUTOSENSE*/drun or rMXBRA or rMXLDST or wRWE)
      if (drun) begin
 	case (rMXBRA)
@@ -338,7 +389,13 @@ module aeMB_decode (/*AUTOARG*/
 	// End of automatics
      end // else: !if(drun)
 
-   // DWB logic
+   /**
+    Data WISHBONE Bus
+    -----------------
+    The STB and WE signals for the DWB are decoded here depending on
+    the LOAD/STORE control signal.    
+    */
+   
    reg rDWBSTB, rDWBWE, xDWBSTB, xDWBWE;
    assign dwb_stb_o = rDWBSTB;
    assign dwb_we_o = rDWBWE;
@@ -355,10 +412,6 @@ module aeMB_decode (/*AUTOARG*/
 	// End of automatics
      end
    
-   // WB other signals
-   assign iwb_stb_o = rIWBSTB;
-   assign rIWBSTB = 1'b1;   
-
    // PIPELINE REGISTERS ///////////////////////////////////////////////
 
    always @(negedge nclk or negedge nrst)
@@ -366,9 +419,14 @@ module aeMB_decode (/*AUTOARG*/
 	rOPC <= 6'o40;	
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
+	rBRA <= 1'h0;
+	rDLY <= 1'h0;
+	rDWBSTB <= 1'h0;
+	rDWBWE <= 1'h0;
 	rFIMM <= 1'h0;
 	rIMM <= 16'h0;
 	rIMMHI <= 16'h0;
+	rLNK <= 1'h0;
 	rMXALT <= 2'h0;
 	rMXALU <= 2'h0;
 	rMXBRA <= 2'h0;
@@ -380,6 +438,7 @@ module aeMB_decode (/*AUTOARG*/
 	rRA <= 5'h0;
 	rRB <= 5'h0;
 	rRD <= 5'h0;
+	rRWE <= 1'h0;
 	rSIMM <= 32'h0;
 	// End of automatics
      end else if (nrun) begin // if (!nrst)
@@ -402,29 +461,14 @@ module aeMB_decode (/*AUTOARG*/
 	rSIMM <= #1 xSIMM;
 	rFIMM <= #1 xFIMM;
 	rIMMHI <= #1 xIMMHI;	
-     end // if (nrun)
 
-   always @(negedge nclk or negedge nrst)
-     if (!nrst) begin
-	/*AUTORESET*/
-	// Beginning of autoreset for uninitialized flops
-	rBRA <= 1'h0;
-	rDLY <= 1'h0;
-	rDWBSTB <= 1'h0;
-	rDWBWE <= 1'h0;
-	rLNK <= 1'h0;
-	rRD_ <= 5'h0;
-	rRWE <= 1'h0;
-	// End of automatics
-     end else if (nrun) begin // if (!nrst)
-	rRD_ <= #1 xRD_;
 	rBRA <= #1 xBRA;
 	rDLY <= #1 xDLY;
 	rLNK <= #1 xLNK;
 	rRWE <= #1 xRWE;
 	rDWBSTB <= #1 xDWBSTB;
 	rDWBWE <= #1 xDWBWE;	
-     end
+     end // if (nrun)
    
 endmodule // aeMB_decode
 

@@ -1,30 +1,35 @@
 /*
- * $Id: aeMB_regfile.v,v 1.11 2007-04-26 14:29:53 sybreon Exp $
+ * $Id: aeMB_regfile.v,v 1.12 2007-04-27 00:23:55 sybreon Exp $
  * 
  * AEMB Register File
- * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
+ * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
  *  
- * This library is free software; you can redistribute it and/or modify it 
- * under the terms of the GNU Lesser General Public License as published by 
- * the Free Software Foundation; either version 2.1 of the License, 
- * or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; either version 2.1 of
+ * the License, or (at your option) any later version.
  * 
- * This library is distributed in the hope that it will be useful, but 
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
- * or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public 
- * License for more details.
+ * This library is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
  * 
- * You should have received a copy of the GNU Lesser General Public License 
- * along with this library; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
+ * USA
  *
  * DESCRIPTION
- * Implements the 32 registers as registers. Some registers require
- * special actions during hardware exception/interrupts. Data forwarding
- * is also taken care of inside here to simplify decode logic.
+ * Implements the 32 registers as memory. Some registers require
+ * special actions during hardware exception/interrupts. Data
+ * forwarding is also taken care of inside here to simplify decode
+ * logic.
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.11  2007/04/26 14:29:53  sybreon
+ * Made minor performance optimisations.
+ *
  * Revision 1.10  2007/04/25 22:52:53  sybreon
  * Fixed minor simulation bug.
  *
@@ -59,143 +64,168 @@
  *
  */
 
-// 1284@78 - REG
-// 227@141 - RAM
 module aeMB_regfile(/*AUTOARG*/
    // Outputs
    dwb_dat_o, rREGA, rREGB, sDWBDAT,
    // Inputs
-   dwb_dat_i, rDWBSTB, rDWBWE, rRA, rRB, rRD, rRD_, rRESULT, rFSM,
-   rPC, rOPC, rDWBSEL, rLNK, rRWE, nclk, nrst, drun, nrun
+   dwb_dat_i, rDWBSTB, rDWBWE, rRA, rRB, rRD, rRESULT, rFSM, rPC,
+   rOPC, rDWBSEL, rLNK, rRWE, nclk, nrst, drun, nrun
    );
-   // Data WB bus width
+   // Data WB address bus width
    parameter DSIZ = 32;
 
-   // Data WB I/F
+   // Data WB Signals
    output [31:0] dwb_dat_o;
    input [31:0]  dwb_dat_i;
    
-   // Internal I/F
+   // Internal Signals
    output [31:0] rREGA, rREGB;
-   output [31:0] sDWBDAT;
-   
+   output [31:0] sDWBDAT;   
    input 	 rDWBSTB, rDWBWE;   
-   input [4:0] 	 rRA, rRB, rRD, rRD_;   
+   input [4:0] 	 rRA, rRB, rRD;   
    input [31:0]  rRESULT;
    input [1:0] 	 rFSM;   
    input [31:0]  rPC;
    input [5:0] 	 rOPC;   
    input [3:0] 	 rDWBSEL;   
-   //, rPCNXT;
    input 	 rLNK, rRWE;
    input 	 nclk, nrst, drun, nrun;   
-   
-   // Register File
-   reg [31:0] 	 r00,r01,r02,r03,r04,r05,r06,r07;
-   reg [31:0] 	 r08,r09,r0A,r0B,r0C,r0D,r0E,r0F;
-   reg [31:0] 	 r10,r11,r12,r13,r14,r15,r16,r17;
-   reg [31:0] 	 r18,r19,r1A,r1B,r1C,r1D,r1E,r1F; 		 
 
-   // FLAGS
-   wire fWE = rRWE & ~rDWBWE;
-   wire fLNK = rLNK;
-   wire fLD = rDWBSTB ^ rDWBWE;   
+   // ASYNCHRONOUS ////////////////////////////////////////////////////////////////////
 
-   // PC Latch
-   reg [31:0] 	 rPC_;
-   always @(negedge nclk or negedge nrst)
-     if (!nrst) begin
-	/*AUTORESET*/
-	// Beginning of autoreset for uninitialized flops
-	rPC_ <= 32'h0;
-	// End of automatics
-     end else if (nrun) begin
-	rPC_ <= #1 rPC;	
-     end
+   wire [31:0] 	 wRESULT;
+   wire 	 fWE = rRWE & !rDWBWE;
+   wire 	 fLNK = rLNK;
+   wire 	 fLD = rDWBSTB ^ rDWBWE;   
+   wire 	 fDFWD = !(rRD ^ rRD_) & fWE;
+   wire 	 fMFWD = rDWBSTB & !rDWBWE;   
    
-   // DWB data - Endian Correction
+   /**
+    Delay Latches
+    ----------
+    The PC and RD are latched internally as it will be needed for
+    linking and interrupt handling.
+    
+    FIXME: May need to be blocked (drun).
+    */
+   
+   reg [31:2] 	 rPC_, xPC_;
+   reg [4:0] 	 rRD_, xRD_;
+   
+   always @(/*AUTOSENSE*/rPC or rRD) begin
+      xPC_ <= rPC[31:2];
+      xRD_ <= rRD;      
+   end
+   
+   /**
+    Data WISHBONE Bus
+    -----------------
+    The data word that is read or written between the core and the
+    external bus may need to be re-ordered.
+    
+    FIXME: Endian correction!
+    */
+   
    wire [31:0] 	 wDWBDAT;
    reg [31:0] 	 sDWBDAT;   
    reg [31:0] 	 rDWBDAT;
    assign 	 dwb_dat_o = {rDWBDAT[7:0],rDWBDAT[15:8],rDWBDAT[23:16],rDWBDAT[31:24]};   
    assign 	 wDWBDAT = {dwb_dat_i[7:0],dwb_dat_i[15:8],dwb_dat_i[23:16],dwb_dat_i[31:24]};   
 
-   always @(/*AUTOSENSE*/rDWBSEL or wDWBDAT)
-     case (rDWBSEL)      
-       default: sDWBDAT <= wDWBDAT;
-       4'hC: sDWBDAT <= {16'd0,wDWBDAT[31:16]};
-       4'h3: sDWBDAT <= {16'd0,wDWBDAT[15:0]};
-       4'h8: sDWBDAT <= {24'd0,wDWBDAT[31:24]};
-       4'h4: sDWBDAT <= {24'd0,wDWBDAT[23:16]};
-       4'h2: sDWBDAT <= {24'd0,wDWBDAT[15:8]};
-       4'h1: sDWBDAT <= {24'd0,wDWBDAT[7:0]};      
-       //default: sDWBDAT <= 32'h0;       
-     endcase // case (rDWBSEL)
+   /**
+    RAM Based Register File
+    -----------------------
+    This approach was chosen for implementing the register file as it
+    was easier to implement and resulted in a higher speed than a pure
+    register based implementation. A comparison was made using
+    synthesis data obtained from Xilinx ISE:
+    Reg : 1284 slices @ 78 MHz 
+    RAM : 227 slices @ 141 MHz
+    */
    
-   // Forwarding Control
-   wire 	 fDFWD = (rRD == rRD_) & fWE;
-   wire 	 fMFWD = rDWBSTB & ~rDWBWE;   
-   wire [31:0] 	 wRESULT = (fMFWD) ? sDWBDAT : rRESULT;   
-      
-   // Alternative Design
    reg [31:0]  rMEMA[0:31], rMEMB[0:31], rMEMD[0:31];
    wire [31:0] wDDAT, wREGA, wREGB, wREGD, wWBDAT;   
    wire        wDWE = (fLD | fLNK | fWE) & |rRD_ & nrun;
    assign      wDDAT = (fLD) ? sDWBDAT :
-		       (fLNK) ? rPC_ : rRESULT;		       
+		       (fLNK) ? {rPC_,2'd0} :
+		       rRESULT;		       
    assign      wWBDAT = (fDFWD) ? wRESULT : wREGD;   
+   assign      wRESULT = (fMFWD) ? sDWBDAT : rRESULT;   
    
-   assign      wREGA = rMEMA[rRA];
-   assign      wREGB = rMEMB[rRB];
+   assign      rREGA = rMEMA[rRA];
+   assign      rREGB = rMEMB[rRB];
    assign      wREGD = rMEMD[rRD];
    
    always @(negedge nclk)
-     if (wDWE) begin
+     if (wDWE | !nrst) begin
 	rMEMA[rRD_] <= wDDAT;
 	rMEMB[rRD_] <= wDDAT;
 	rMEMD[rRD_] <= wDDAT;	 
      end
 
-   // Resize
+   /**
+    Memory Resizer
+    --------------
+    This moves the appropriate bytes around depending on the size of
+    the operation. There is no checking for invalid size selection.    
+    */
+   
    reg [31:0] sWBDAT;
    always @(/*AUTOSENSE*/rOPC or wWBDAT)
      case (rOPC[1:0])
-       2'o0: sWBDAT <= {(4){wWBDAT[7:0]}};       
+       // 8-bit
+       2'o0: sWBDAT <= {(4){wWBDAT[7:0]}};
+       // 16-bit
        2'o1: sWBDAT <= {(2){wWBDAT[15:0]}};
+       // 32-bit
        default: sWBDAT <= wWBDAT;       
      endcase // case (rOPC[1:0])
-   
-   // PIPELINE REGISTERS //////////////////////////////////////////////////
 
-   reg [31:0] rREGA, rREGB;   
-   always @(/*AUTOSENSE*/wREGA or wREGB)
-     begin
-	rREGA <= #1 wREGA;
-	rREGB <= #1 wREGB;	
-     end
+   always @(/*AUTOSENSE*/rDWBSEL or wDWBDAT)
+     case (rDWBSEL)
+       // 8-bit
+       4'h8: sDWBDAT <= {24'd0,wDWBDAT[31:24]};
+       4'h4: sDWBDAT <= {24'd0,wDWBDAT[23:16]};
+       4'h2: sDWBDAT <= {24'd0,wDWBDAT[15:8]};
+       4'h1: sDWBDAT <= {24'd0,wDWBDAT[7:0]};
+       // 16-bit
+       4'hC: sDWBDAT <= {16'd0,wDWBDAT[31:16]};
+       4'h3: sDWBDAT <= {16'd0,wDWBDAT[15:0]};
+       // 32-bit
+       default: sDWBDAT <= wDWBDAT;
+     endcase // case (rDWBSEL)
+
+   // PIPELINE REGISTERS //////////////////////////////////////////////////
    
    always @(negedge nclk or negedge nrst)
      if (!nrst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	rDWBDAT <= 32'h0;
+	rPC_ <= 30'h0;
+	rRD_ <= 5'h0;
 	// End of automatics
      end else if (nrun) begin
-	rDWBDAT <= #1 sWBDAT;	
+	rDWBDAT <= #1 sWBDAT;
+	rPC_ <= xPC_;
+	rRD_ <= xRD_;	
      end
 
    // SIMULATION ONLY ///////////////////////////////////////////////////
+   /**
+    The register file is initialised with random values to reflect a
+    realistic situation where the values are undefined at power-up.
+    */
    integer i;
    initial begin
       for (i=0;i<31;i=i+1) begin
-	 rMEMA[i] <= 0;
-	 rMEMB[i] <= 0;
-	 rMEMD[i] <= 0;	 
+	 rMEMA[i] <= $random;
+	 rMEMB[i] <= $random;
+	 rMEMD[i] <= $random;	 
       end
    end
    
 endmodule // aeMB_regfile
-
 
 // Local Variables:
 // verilog-library-directories:(".")

@@ -1,22 +1,23 @@
 /*
- * $Id: aeMB_core.v,v 1.4 2007-04-25 22:15:04 sybreon Exp $
+ * $Id: aeMB_core.v,v 1.5 2007-04-27 00:23:55 sybreon Exp $
  * 
  * AEMB 32-bit Microblaze Compatible Core
- * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
+ * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
  *  
- * This library is free software; you can redistribute it and/or modify it 
- * under the terms of the GNU Lesser General Public License as published by 
- * the Free Software Foundation; either version 2.1 of the License, 
- * or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; either version 2.1 of
+ * the License, or (at your option) any later version.
  * 
- * This library is distributed in the hope that it will be useful, but 
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
- * or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public 
- * License for more details.
+ * This library is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
  * 
- * You should have received a copy of the GNU Lesser General Public License 
- * along with this library; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
+ * USA
  *
  * DESCRIPTION
  * Microblaze compatible, WISHBONE compliant hardware core. This core is
@@ -25,6 +26,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.4  2007/04/25 22:15:04  sybreon
+ * Added support for 8-bit and 16-bit data types.
+ *
  * Revision 1.3  2007/04/11 04:30:43  sybreon
  * Added pipeline stalling from incomplete bus cycles.
  * Separated sync and async portions of code.
@@ -58,7 +62,7 @@ module aeMB_core (/*AUTOARG*/
    output		dwb_stb_o;		// From decode of aeMB_decode.v
    output		dwb_we_o;		// From decode of aeMB_decode.v
    output [ISIZ-1:0]	iwb_adr_o;		// From fetch of aeMB_fetch.v
-   output		iwb_stb_o;		// From decode of aeMB_decode.v
+   output		iwb_stb_o;		// From fetch of aeMB_fetch.v
    // End of automatics
    /*AUTOINPUT*/
    // Beginning of automatic inputs (from unused autoinst inputs)
@@ -85,7 +89,7 @@ module aeMB_core (/*AUTOARG*/
    wire			rDWBWE;			// From decode of aeMB_decode.v
    wire [1:0]		rFSM;			// From control of aeMB_control.v
    wire [15:0]		rIMM;			// From decode of aeMB_decode.v
-   wire			rIWBSTB;		// From decode of aeMB_decode.v
+   wire			rIWBSTB;		// From fetch of aeMB_fetch.v
    wire			rLNK;			// From decode of aeMB_decode.v
    wire [1:0]		rMXALU;			// From decode of aeMB_decode.v
    wire [1:0]		rMXLDST;		// From decode of aeMB_decode.v
@@ -96,7 +100,6 @@ module aeMB_core (/*AUTOARG*/
    wire [4:0]		rRA;			// From decode of aeMB_decode.v
    wire [4:0]		rRB;			// From decode of aeMB_decode.v
    wire [4:0]		rRD;			// From decode of aeMB_decode.v
-   wire [4:0]		rRD_;			// From decode of aeMB_decode.v
    wire [31:0]		rREGA;			// From regfile of aeMB_regfile.v
    wire [31:0]		rREGB;			// From regfile of aeMB_regfile.v
    wire [31:0]		rRESULT;		// From aslu of aeMB_aslu.v
@@ -105,6 +108,8 @@ module aeMB_core (/*AUTOARG*/
    wire [31:0]		sDWBDAT;		// From regfile of aeMB_regfile.v
    // End of automatics
 
+   // INSTANTIATIONS /////////////////////////////////////////////////////////////////
+   
    aeMB_regfile #(DSIZ)
      regfile (/*AUTOINST*/
 	      // Outputs
@@ -119,7 +124,6 @@ module aeMB_core (/*AUTOARG*/
 	      .rRA			(rRA[4:0]),
 	      .rRB			(rRB[4:0]),
 	      .rRD			(rRD[4:0]),
-	      .rRD_			(rRD_[4:0]),
 	      .rRESULT			(rRESULT[31:0]),
 	      .rFSM			(rFSM[1:0]),
 	      .rPC			(rPC[31:0]),
@@ -136,7 +140,9 @@ module aeMB_core (/*AUTOARG*/
      fetch (/*AUTOINST*/
 	    // Outputs
 	    .iwb_adr_o			(iwb_adr_o[ISIZ-1:0]),
+	    .iwb_stb_o			(iwb_stb_o),
 	    .rPC			(rPC[31:0]),
+	    .rIWBSTB			(rIWBSTB),
 	    // Inputs
 	    .iwb_dat_i			(iwb_dat_i[31:0]),
 	    .nclk			(nclk),
@@ -205,18 +211,15 @@ module aeMB_core (/*AUTOARG*/
 	     .rRA			(rRA[4:0]),
 	     .rRB			(rRB[4:0]),
 	     .rRD			(rRD[4:0]),
-	     .rRD_			(rRD_[4:0]),
 	     .rOPC			(rOPC[5:0]),
 	     .rIMM			(rIMM[15:0]),
 	     .rDWBSTB			(rDWBSTB),
 	     .rDWBWE			(rDWBWE),
-	     .rIWBSTB			(rIWBSTB),
 	     .rDLY			(rDLY),
 	     .rLNK			(rLNK),
 	     .rBRA			(rBRA),
 	     .rRWE			(rRWE),
 	     .rMXLDST			(rMXLDST[1:0]),
-	     .iwb_stb_o			(iwb_stb_o),
 	     .dwb_stb_o			(dwb_stb_o),
 	     .dwb_we_o			(dwb_we_o),
 	     // Inputs
