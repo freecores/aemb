@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_decode.v,v 1.6 2007-04-27 00:23:55 sybreon Exp $
+ * $Id: aeMB_decode.v,v 1.7 2007-04-27 04:23:17 sybreon Exp $
  * 
  * AEMB Instruction Decoder
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -24,6 +24,10 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.6  2007/04/27 00:23:55  sybreon
+ * Added code documentation.
+ * Improved size & speed of rtl/verilog/aeMB_aslu.v
+ *
  * Revision 1.5  2007/04/25 22:15:04  sybreon
  * Added support for 8-bit and 16-bit data types.
  *
@@ -170,19 +174,13 @@ module aeMB_decode (/*AUTOARG*/
     */
    
    reg [1:0] 	 rMXALU, xMXALU;
-   always @(/*AUTOSENSE*/fBRA or fLOGIC or fSHIFT or frun)
-     if (frun) begin
-	xMXALU <= //(!fNBR) ? 2'o0 :
-		  (fSHIFT) ? 2'o2 :
-		  (fLOGIC) ? 2'o1 :
-		  (fBRA) ? 2'o3 :
-		  2'o0;	
-     end else begin
-	/*AUTORESET*/
-	// Beginning of autoreset for uninitialized flops
-	xMXALU <= 2'h0;
-	// End of automatics
-     end // else: !if(frun)
+   always @(/*AUTOSENSE*/fBRA or fLOGIC or fSHIFT) begin // frun
+      xMXALU <= //(!fNBR) ? 2'o0 :
+		(fSHIFT) ? 2'o2 :
+		(fLOGIC) ? 2'o1 :
+		(fBRA) ? 2'o3 :
+		2'o0;	
+   end
    
    /**
     BCC/BRA/RET
@@ -205,16 +203,18 @@ module aeMB_decode (/*AUTOARG*/
 		  (fRET) ? 1'b1 :
 		  (fBRU) ? wRA[4] :
 		  1'b0;
-	xMXLNK <=  //(!fNBR) ? 1'b0 :
-		  (fBRU) ? wRA[2] : 1'b0;	
      end else begin // if (frun)
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	xMXBRA <= 2'h0;
 	xMXDLY <= 1'h0;
-	xMXLNK <= 1'h0;
 	// End of automatics
      end // else: !if(frun)
+
+   always @(/*AUTOSENSE*/fBRU or wRA) begin
+      xMXLNK <=  //(!fNBR) ? 1'b0 :
+		 (fBRU) ? wRA[2] : 1'b0;	
+   end
    
    /**
     LD/ST
@@ -231,7 +231,7 @@ module aeMB_decode (/*AUTOARG*/
 		   (fST) ? 2'o3 :
 		   2'o0;	
      end else begin
-	/*AUTORESET*/
+	/*UTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	xMXLDST <= 2'h0;
 	// End of automatics
@@ -241,39 +241,31 @@ module aeMB_decode (/*AUTOARG*/
     SRC/TGT
     -------
     Controls the muxes that select the appropriate sources for the A,
-    B and D operands. All data hazards are resolved here.
+    B and D operands. All data hazards are resolved here.    
     */
    
    reg [1:0] 	  rMXSRC, rMXTGT, rMXALT, xMXSRC,xMXTGT,xMXALT;
-   wire 	  fRWE = (rRD != 5'd0) & (rMXBRA != 2'o3);
+   wire 	  fRWE = (|rRD) & !(&rMXBRA);
+
+   always @(/*AUTOSENSE*/fBCC or fBRU or fRWE or rMXLDST or rRD
+	    or wOPC or wRA or wRB) begin // frun
+      xMXSRC <= //(!fNBR) ? 2'o0 :
+		(fBRU|fBCC) ? 2'o1 : // PC
+		((rRD == wRA) & (rMXLDST == 2'o2)) ? 2'o3 : // DWB
+		((rRD == wRA) & fRWE) ? 2'o2 : // FWD
+		2'o0; // RA
+      xMXTGT <= //(!fNBR) ? 2'o0 :
+		(wOPC[3]) ? 2'o1 : // IMM
+		((rRD == wRB) & (rMXLDST == 2'o2)) ? 2'o3 : // DWB
+		((rRD == wRB) & fRWE) ? 2'o2 : // FWD
+		2'o0;	// RB
+      xMXALT <= //(!fNBR) ? 2'o0 :
+		//(fBRU|fBCC) ? 2'o1 : // PC
+		((rRD == wRA) & (rMXLDST == 2'o2)) ? 2'o3 : // DWB
+		((rRD == wRA) & fRWE) ? 2'o2 : // FWD
+		2'o0; // RA
+   end // always @ (...
    
-   always @(/*AUTOSENSE*/fBCC or fBRU or fRWE or frun or rMXLDST
-	    or rRD or wOPC or wRA or wRB)
-     if (frun) begin
-	xMXSRC <= //(!fNBR) ? 2'o0 :
-		  (fBRU|fBCC) ? 2'o1 : // PC
-		  ((rRD == wRA) & (rMXLDST == 2'o2)) ? 2'o3 : // DWB
-		  ((rRD == wRA) & fRWE) ? 2'o2 : // FWD
-		  2'o0; // RA
-	xMXTGT <= //(!fNBR) ? 2'o0 :
-		  (wOPC[3]) ? 2'o1 : // IMM
-		  ((rRD == wRB) & (rMXLDST == 2'o2)) ? 2'o3 : // DWB
-		  ((rRD == wRB) & fRWE) ? 2'o2 : // FWD
-		  2'o0;	// RB
-	xMXALT <= //(!fNBR) ? 2'o0 :
-		  //(fBRU|fBCC) ? 2'o1 : // PC
-		  ((rRD == wRA) & (rMXLDST == 2'o2)) ? 2'o3 : // DWB
-		  ((rRD == wRA) & fRWE) ? 2'o2 : // FWD
-		  2'o0; // RA
-     end else begin // if (frun)
-	/*AUTORESET*/
-	// Beginning of autoreset for uninitialized flops
-	xMXALT <= 2'h0;
-	xMXSRC <= 2'h0;
-	xMXTGT <= 2'h0;
-	// End of automatics
-     end // else: !if(frun)
-       
    /**
     IMM Latching
     ------------
@@ -284,21 +276,13 @@ module aeMB_decode (/*AUTOARG*/
    reg [31:0] 	 rSIMM, xSIMM;
    reg [15:0] 	 rIMMHI, xIMMHI;   
    reg 		 rFIMM, xFIMM;
-   
-   always @(/*AUTOSENSE*/fIMM or frun or rFIMM or rIMMHI or wIMM)
-     if (frun) begin
-	xSIMM <= (rFIMM) ? {rIMMHI,wIMM} : {{(16){wIMM[15]}},wIMM};
-	xFIMM <= fIMM;	
-	xIMMHI <= (fIMM) ? wIMM : rIMMHI;	
-     end else begin
-	/*AUTORESET*/
-	// Beginning of autoreset for uninitialized flops
-	xFIMM <= 1'h0;
-	xIMMHI <= 16'h0;
-	xSIMM <= 32'h0;
-	// End of automatics
-     end // else: !if(frun)
 
+   always @(/*AUTOSENSE*/fIMM or rFIMM or rIMMHI or wIMM) begin // frun
+      xSIMM <= (rFIMM) ? {rIMMHI,wIMM} : {{(16){wIMM[15]}},wIMM};
+      xFIMM <= fIMM;	
+      xIMMHI <= (fIMM) ? wIMM : rIMMHI;	      
+   end
+   
    /**
     COMPARATOR
     ----------
@@ -373,6 +357,7 @@ module aeMB_decode (/*AUTOARG*/
     This signal controls the flag that determines whether a D register
     is open for writing.
     */
+   
    reg 		 rRWE, xRWE;
    wire 	 wRWE = |rRD;   
    always @(/*AUTOSENSE*/drun or rMXBRA or rMXLDST or wRWE)
@@ -416,7 +401,7 @@ module aeMB_decode (/*AUTOARG*/
 
    always @(negedge nclk or negedge nrst)
      if (!nrst) begin
-	rOPC <= 6'o40;	
+	//rOPC <= 6'o40;	
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	rBRA <= 1'h0;
@@ -435,6 +420,7 @@ module aeMB_decode (/*AUTOARG*/
 	rMXLNK <= 1'h0;
 	rMXSRC <= 2'h0;
 	rMXTGT <= 2'h0;
+	rOPC <= 6'h0;
 	rRA <= 5'h0;
 	rRB <= 5'h0;
 	rRD <= 5'h0;
