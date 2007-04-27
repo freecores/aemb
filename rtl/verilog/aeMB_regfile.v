@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_regfile.v,v 1.13 2007-04-27 04:22:40 sybreon Exp $
+ * $Id: aeMB_regfile.v,v 1.14 2007-04-27 15:15:49 sybreon Exp $
  * 
  * AEMB Register File
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -27,6 +27,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.13  2007/04/27 04:22:40  sybreon
+ * Fixed minor synthesis bug.
+ *
  * Revision 1.12  2007/04/27 00:23:55  sybreon
  * Added code documentation.
  * Improved size & speed of rtl/verilog/aeMB_aslu.v
@@ -227,7 +230,7 @@ module aeMB_regfile(/*AUTOARG*/
    // synopsys translate_off
    integer i;
    initial begin
-      for (i=0;i<31;i=i+1) begin
+      for (i=0;i<32;i=i+1) begin
 	 rMEMA[i] <= $random;
 	 rMEMB[i] <= $random;
 	 rMEMD[i] <= $random;	 
