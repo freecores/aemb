@@ -1,28 +1,32 @@
 /*
- * $Id: testbench.v,v 1.2 2007-04-25 22:15:05 sybreon Exp $
+ * $Id: testbench.v,v 1.3 2007-04-27 15:18:43 sybreon Exp $
  * 
  * AEMB Generic Testbench
- * Copyright (C) 2006 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
+ * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
  *  
- * This library is free software; you can redistribute it and/or modify it 
- * under the terms of the GNU Lesser General Public License as published by 
- * the Free Software Foundation; either version 2.1 of the License, 
- * or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; either version 2.1 of
+ * the License, or (at your option) any later version.
  * 
- * This library is distributed in the hope that it will be useful, but 
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
- * or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public 
- * License for more details.
+ * This library is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
  * 
- * You should have received a copy of the GNU Lesser General Public License 
- * along with this library; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
+ * USA
  *
  * DESCRIPTION
  * Top level test bench and fake RAM/ROM.
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.2  2007/04/25 22:15:05  sybreon
+ * Added support for 8-bit and 16-bit data types.
+ *
  * Revision 1.1  2007/04/12 20:21:34  sybreon
  * Moved testbench into /sim/verilog.
  * Simulation cleanups.
@@ -123,10 +127,10 @@ module testbench ();
       if (dut.regfile.wDWE)
 	$writeh("\tR",dut.regfile.rRD_,"=",dut.regfile.wDDAT,";");
       
-      if ((dwb_adr_o == 16'h8888) && (dwb_dat_o == 32'h7a55ed00))
-	$display("*** SERVICE ***");      
+      if (dwb_we_o & (dwb_dat_o == "INTR"))
+	$display("\t*** SERVICE ***");      
       if (dut.control.rFSM == 2'o1)
-	$display("*** INTERRUPT ***");
+	$display("\t*** INTERRUPT ***");
       
       if (dwb_we_o & (dwb_dat_o == "FAIL")) begin
 	 $display("\tFAIL");	 
