@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_aslu.v,v 1.7 2007-04-27 00:23:55 sybreon Exp $
+ * $Id: aeMB_aslu.v,v 1.8 2007-04-30 15:56:50 sybreon Exp $
  *
  * AEMB Arithmetic Shift Logic Unit 
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -25,6 +25,10 @@
  * 
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.7  2007/04/27 00:23:55  sybreon
+ * Added code documentation.
+ * Improved size & speed of rtl/verilog/aeMB_aslu.v
+ *
  * Revision 1.6  2007/04/26 14:29:53  sybreon
  * Made minor performance optimisations.
  *
@@ -57,7 +61,6 @@ module aeMB_aslu (/*AUTOARG*/
 
    output [DSIZ-1:0] dwb_adr_o;
    output [3:0]      dwb_sel_o;   
-   //input [31:0]      dwb_dat_i;   
    
    output [31:0]     rRESULT;
    output [3:0]      rDWBSEL;
@@ -209,7 +212,7 @@ module aeMB_aslu (/*AUTOARG*/
 
    reg [3:0] 	    rDWBSEL, xDWBSEL;
    assign 	    dwb_adr_o = {rRESULT[DSIZ-1:2],2'b00};
-   assign 	    dwb_sel_o = {rDWBSEL[0],rDWBSEL[1],rDWBSEL[2],rDWBSEL[3]};
+   assign 	    dwb_sel_o = rDWBSEL;
 
    always @(/*AUTOSENSE*/rOPC or wADD)
      case (wADD[1:0])

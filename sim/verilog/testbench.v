@@ -1,5 +1,5 @@
 /*
- * $Id: testbench.v,v 1.3 2007-04-27 15:18:43 sybreon Exp $
+ * $Id: testbench.v,v 1.4 2007-04-30 15:56:50 sybreon Exp $
  * 
  * AEMB Generic Testbench
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -24,6 +24,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.3  2007/04/27 15:18:43  sybreon
+ * Minor updates as sw/c/aeMB_testbench.c got updated.
+ *
  * Revision 1.2  2007/04/25 22:15:05  sybreon
  * Added support for 8-bit and 16-bit data types.
  *
@@ -44,8 +47,8 @@ module testbench ();
    always #5 sys_clk_i = ~sys_clk_i;   
 
    initial begin
-      $dumpfile("dump.vcd");
-      $dumpvars(1,dut);
+      //$dumpfile("dump.vcd");
+      //$dumpvars(1,dut);
    end
    
    initial begin
@@ -82,9 +85,9 @@ module testbench ();
    wire [DSIZ-1:0] dwb_adr_o;
    wire [31:0] 	   dwb_dat_t;   
    
-   assign 	   dwb_dat_i = ram[dadr];
-   assign 	   iwb_dat_i = ram[iadr];
-   assign 	   dwb_dat_t = ram[dwb_adr_o[DSIZ-1:2]];
+   assign 	   {dwb_dat_i[7:0],dwb_dat_i[15:8],dwb_dat_i[23:16],dwb_dat_i[31:24]} = ram[dadr];
+   assign 	   {iwb_dat_i[7:0],iwb_dat_i[15:8],iwb_dat_i[23:16],iwb_dat_i[31:24]} = ram[iadr];
+   assign 	   {dwb_dat_t} = ram[dwb_adr_o[DSIZ-1:2]];
    
    always @(posedge sys_clk_i) begin
       iwb_ack_i <= #1 iwb_stb_o;
@@ -94,13 +97,13 @@ module testbench ();
       
       if (dwb_we_o & dwb_stb_o) begin
 	 case (dwb_sel_o)
-	   4'h1: ram[dwb_adr_o[DSIZ-1:2]] <= {dwb_dat_t[31:8],dwb_dat_o[7:0]};
-	   4'h2: ram[dwb_adr_o[DSIZ-1:2]] <= {dwb_dat_t[31:16],dwb_dat_o[15:8],dwb_dat_t[7:0]};	   
-	   4'h4: ram[dwb_adr_o[DSIZ-1:2]] <= {dwb_dat_t[31:24],dwb_dat_o[23:16],dwb_dat_t[15:0]};	   
-	   4'h8: ram[dwb_adr_o[DSIZ-1:2]] <= {dwb_dat_o[31:24],dwb_dat_t[23:0]};	   
-	   4'h3: ram[dwb_adr_o[DSIZ-1:2]] <= {dwb_dat_t[31:16],dwb_dat_o[15:0]};	   
-	   4'hC: ram[dwb_adr_o[DSIZ-1:2]] <= {dwb_dat_o[31:16],dwb_dat_t[15:0]};	   	  
-	   4'hF: ram[dwb_adr_o[DSIZ-1:2]] <= {dwb_dat_o[31:0]};	   
+	   4'h1: ram[dwb_adr_o[DSIZ-1:2]] <= {dwb_dat_o[7:0],dwb_dat_t[23:0]};
+	   4'h2: ram[dwb_adr_o[DSIZ-1:2]] <= {dwb_dat_t[31:24],dwb_dat_o[15:8],dwb_dat_t[15:0]};	   
+	   4'h4: ram[dwb_adr_o[DSIZ-1:2]] <= {dwb_dat_t[31:16],dwb_dat_o[23:16],dwb_dat_t[7:0]};	   
+	   4'h8: ram[dwb_adr_o[DSIZ-1:2]] <= {dwb_dat_t[31:8],dwb_dat_o[31:24]};	   
+	   4'h3: ram[dwb_adr_o[DSIZ-1:2]] <= {dwb_dat_o[7:0],dwb_dat_o[15:8],dwb_dat_t[15:0]};	   
+	   4'hC: ram[dwb_adr_o[DSIZ-1:2]] <= {dwb_dat_t[31:16],dwb_dat_o[23:16],dwb_dat_o[31:24]};	   	  
+	   4'hF: ram[dwb_adr_o[DSIZ-1:2]] <= {dwb_dat_o[7:0],dwb_dat_o[15:8],dwb_dat_o[23:16],dwb_dat_o[31:24]};	   
 	 endcase // case (dwb_sel_o)	 
       end
    end
@@ -108,7 +111,7 @@ module testbench ();
    integer i;   
    initial begin
       for (i=0;i<65535;i=i+1) begin
-	 ram[i] <= 32'h0;
+	 ram[i] <= $random;
       end      
       #1 $readmemh("aeMB.rom",ram);
    end
@@ -139,7 +142,7 @@ module testbench ();
       if (dwb_we_o & (dwb_dat_o == "PASS")) begin
 	 $display("\tPASS");
       end
-      if (iwb_dat_i == 32'h000000b8) begin
+      if (iwb_dat_i == 32'hb8000000) begin
 	 $display("\n\t*** PASSED ALL TESTS ***");
 	 $finish;	 
       end

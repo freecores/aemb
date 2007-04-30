@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_testbench.c,v 1.5 2007-04-27 15:17:59 sybreon Exp $
+ * $Id: aeMB_testbench.c,v 1.6 2007-04-30 15:57:10 sybreon Exp $
  * 
  * AEMB Function Verification C Testbench
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -25,6 +25,10 @@
  * 
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.5  2007/04/27 15:17:59  sybreon
+ * Added code documentation.
+ * Added new tests that test floating point, modulo arithmetic and multiplication/division.
+ *
  * Revision 1.4  2007/04/25 22:15:05  sybreon
  * Added support for 8-bit and 16-bit data types.
  *
@@ -250,16 +254,16 @@ int main ()
   int* mpi = (int*)0xFFFFFFFF;
 
   // Number of each test to run
-  int max = 5;
+  int max = 3;
 
   // Fibonacci Test
-  if (fib_test(max) == -1) { *mpi = 0x4C494146; }
+  if (fib_test(max) == -1) { *mpi = 0x4641494C; }
 
   // Euclid Test
-  if (euclid_test(max) == -1) { *mpi = 0x4C494146; }
+  if (euclid_test(max) == -1) { *mpi = 0x4641494C; }
 
   // Newton-Rhapson Test
-  if (newton_test(max) == -1) { *mpi = 0x4C494146; }
+  if (newton_test(max) == -1) { *mpi = 0x4641494C; }
   
   // ALL PASSED
   return 0;

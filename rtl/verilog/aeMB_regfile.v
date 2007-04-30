@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_regfile.v,v 1.14 2007-04-27 15:15:49 sybreon Exp $
+ * $Id: aeMB_regfile.v,v 1.15 2007-04-30 15:56:50 sybreon Exp $
  * 
  * AEMB Register File
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -27,6 +27,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.14  2007/04/27 15:15:49  sybreon
+ * Fixed simulation bug.
+ *
  * Revision 1.13  2007/04/27 04:22:40  sybreon
  * Fixed minor synthesis bug.
  *
@@ -140,8 +143,8 @@ module aeMB_regfile(/*AUTOARG*/
    wire [31:0] 	 wDWBDAT;
    reg [31:0] 	 sDWBDAT;   
    reg [31:0] 	 rDWBDAT;
-   assign 	 dwb_dat_o = {rDWBDAT[7:0],rDWBDAT[15:8],rDWBDAT[23:16],rDWBDAT[31:24]};   
-   assign 	 wDWBDAT = {dwb_dat_i[7:0],dwb_dat_i[15:8],dwb_dat_i[23:16],dwb_dat_i[31:24]};   
+   assign 	 dwb_dat_o = rDWBDAT;
+   assign 	 wDWBDAT = dwb_dat_i;
 
    /**
     RAM Based Register File
