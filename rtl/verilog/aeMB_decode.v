@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_decode.v,v 1.7 2007-04-27 04:23:17 sybreon Exp $
+ * $Id: aeMB_decode.v,v 1.8 2007-04-30 15:58:31 sybreon Exp $
  * 
  * AEMB Instruction Decoder
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -24,6 +24,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.7  2007/04/27 04:23:17  sybreon
+ * Removed some unnecessary bubble control.
+ *
  * Revision 1.6  2007/04/27 00:23:55  sybreon
  * Added code documentation.
  * Improved size & speed of rtl/verilog/aeMB_aslu.v
@@ -86,7 +89,7 @@ module aeMB_decode (/*AUTOARG*/
     TODO: Modify this for block RAM based instruction cache.
     */
    wire [31:0] 	 wIREG;
-   assign 	 wIREG = {iwb_dat_i[7:0],iwb_dat_i[15:8],iwb_dat_i[23:16],iwb_dat_i[31:24]};
+   assign 	 wIREG = iwb_dat_i;   
          
    wire [5:0] 	 wOPC = wIREG[31:26];
    wire [4:0] 	 wRD = wIREG[25:21];
@@ -245,7 +248,7 @@ module aeMB_decode (/*AUTOARG*/
     */
    
    reg [1:0] 	  rMXSRC, rMXTGT, rMXALT, xMXSRC,xMXTGT,xMXALT;
-   wire 	  fRWE = (|rRD) & !(&rMXBRA);
+   wire 	  fRWE = (|rRD) & !(&rMXBRA) & !(|rMXLDST);
 
    always @(/*AUTOSENSE*/fBCC or fBRU or fRWE or rMXLDST or rRD
 	    or wOPC or wRA or wRB) begin // frun
