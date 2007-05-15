@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_regfile.v,v 1.15 2007-04-30 15:56:50 sybreon Exp $
+ * $Id: aeMB_regfile.v,v 1.16 2007-05-15 22:44:57 sybreon Exp $
  * 
  * AEMB Register File
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -27,6 +27,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.15  2007/04/30 15:56:50  sybreon
+ * Removed byte acrobatics.
+ *
  * Revision 1.14  2007/04/27 15:15:49  sybreon
  * Fixed simulation bug.
  *
@@ -163,8 +166,8 @@ module aeMB_regfile(/*AUTOARG*/
    assign      wDDAT = (fLD) ? sDWBDAT :
 		       (fLNK) ? {rPC_,2'd0} :
 		       rRESULT;		       
-   assign      wWBDAT = (fDFWD) ? wRESULT : wREGD;   
-   assign      wRESULT = (fMFWD) ? sDWBDAT : rRESULT;   
+   //assign      wWBDAT = (fDFWD) ? wRESULT : wREGD;   
+   //assign      wRESULT = (fMFWD) ? sDWBDAT : rRESULT;   
    
    assign      rREGA = rMEMA[rRA];
    assign      rREGB = rMEMB[rRB];
@@ -181,18 +184,22 @@ module aeMB_regfile(/*AUTOARG*/
     Memory Resizer
     --------------
     This moves the appropriate bytes around depending on the size of
-    the operation. There is no checking for invalid size selection.    
+    the operation. There is no checking for invalid size selection. It
+    also handles forwarding.
     */
    
-   reg [31:0] sWBDAT;
-   always @(/*AUTOSENSE*/rOPC or wWBDAT)
-     case (rOPC[1:0])
+   reg [31:0] xDWBDAT;
+   always @(/*AUTOSENSE*/fDFWD or rOPC or rRESULT or wREGD)
+     case ({fDFWD,rOPC[1:0]})
        // 8-bit
-       2'o0: sWBDAT <= {(4){wWBDAT[7:0]}};
+       3'o0: xDWBDAT <= {(4){wREGD[7:0]}};
+       3'o4: xDWBDAT <= {(4){rRESULT[7:0]}};
        // 16-bit
-       2'o1: sWBDAT <= {(2){wWBDAT[15:0]}};
+       3'o1: xDWBDAT <= {(2){wREGD[15:0]}};
+       3'o5: xDWBDAT <= {(2){rRESULT[15:0]}};
        // 32-bit
-       default: sWBDAT <= wWBDAT;       
+       3'o2, 3'o3: xDWBDAT <= wREGD;
+       3'o6, 3'o7: xDWBDAT <= rRESULT;
      endcase // case (rOPC[1:0])
 
    always @(/*AUTOSENSE*/rDWBSEL or wDWBDAT)
@@ -220,7 +227,7 @@ module aeMB_regfile(/*AUTOARG*/
 	rRD_ <= 5'h0;
 	// End of automatics
      end else if (nrun) begin
-	rDWBDAT <= #1 sWBDAT;
+	rDWBDAT <= #1 xDWBDAT;
 	rPC_ <= xPC_;
 	rRD_ <= xRD_;	
      end
