@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_control.v,v 1.4 2007-04-27 00:23:55 sybreon Exp $
+ * $Id: aeMB_control.v,v 1.5 2007-05-16 12:32:21 sybreon Exp $
  * 
  * AE68 System Control Unit
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -24,6 +24,10 @@
  * 
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.4  2007/04/27 00:23:55  sybreon
+ * Added code documentation.
+ * Improved size & speed of rtl/verilog/aeMB_aslu.v
+ *
  * Revision 1.3  2007/04/11 04:30:43  sybreon
  * Added pipeline stalling from incomplete bus cycles.
  * Separated sync and async portions of code.
@@ -150,15 +154,19 @@ module aeMB_control (/*AUTOARG*/
     TODO: Implement interrupt bubble.
     */
    
-   reg [1:0]    rRUN;   
+   reg [1:0]    rRUN, xRUN;   
    assign 	{drun,frun} = rRUN;
+
+   always @(/*AUTOSENSE*/rBRA or rDLY) begin
+       xRUN <= {~(rBRA ^ rDLY), ~rBRA};
+   end
    
    always @(posedge nclk or negedge nrst)
      if (!nrst) begin
 	rRUN <= 2'h3;	
 	/*AUTORESET*/
      end else begin
-	rRUN <= #1 {~(rBRA ^ rDLY), ~rBRA};	
+	rRUN <= #1 xRUN;	
      end
 
    /**
