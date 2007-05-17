@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_fetch.v,v 1.4 2007-04-27 00:23:55 sybreon Exp $
+ * $Id: aeMB_fetch.v,v 1.5 2007-05-17 09:08:21 sybreon Exp $
  * 
  * AEMB Instruction Fetch
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -25,6 +25,10 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.4  2007/04/27 00:23:55  sybreon
+ * Added code documentation.
+ * Improved size & speed of rtl/verilog/aeMB_aslu.v
+ *
  * Revision 1.3  2007/04/11 04:30:43  sybreon
  * Added pipeline stalling from incomplete bus cycles.
  * Separated sync and async portions of code.
@@ -41,7 +45,7 @@ module aeMB_fetch (/*AUTOARG*/
    // Outputs
    iwb_adr_o, iwb_stb_o, rPC, rIWBSTB,
    // Inputs
-   iwb_dat_i, nclk, nrst, nrun, rFSM, rBRA, rRESULT
+   iwb_dat_i, nclk, prst, prun, rFSM, rBRA, rRESULT
    );
    parameter ISIZ = 32;
 
@@ -51,7 +55,7 @@ module aeMB_fetch (/*AUTOARG*/
    input [31:0]      iwb_dat_i;
  
    // System
-   input 	     nclk, nrst, nrun;   
+   input 	     nclk, prst, prun;   
    
    // Internal
    output [31:0]     rPC;
@@ -87,14 +91,14 @@ module aeMB_fetch (/*AUTOARG*/
 
    // PIPELINE REGISTERS //////////////////////////////////////////////////
    
-   always @(negedge nclk or negedge nrst)
-     if (!nrst) begin
+   always @(negedge nclk)
+     if (prst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	rIWBADR <= 32'h0;
 	rPC <= 32'h0;
 	// End of automatics
-     end else if (nrun) begin
+     end else if (prun) begin
 	rPC <= #1 xPC;
 	rIWBADR <= #1 xIWBADR;	
      end

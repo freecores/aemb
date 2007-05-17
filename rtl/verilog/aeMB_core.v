@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_core.v,v 1.5 2007-04-27 00:23:55 sybreon Exp $
+ * $Id: aeMB_core.v,v 1.6 2007-05-17 09:08:21 sybreon Exp $
  * 
  * AEMB 32-bit Microblaze Compatible Core
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -26,6 +26,10 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.5  2007/04/27 00:23:55  sybreon
+ * Added code documentation.
+ * Improved size & speed of rtl/verilog/aeMB_aslu.v
+ *
  * Revision 1.4  2007/04/25 22:15:04  sybreon
  * Added support for 8-bit and 16-bit data types.
  *
@@ -80,8 +84,8 @@ module aeMB_core (/*AUTOARG*/
    wire			drun;			// From control of aeMB_control.v
    wire			frun;			// From control of aeMB_control.v
    wire			nclk;			// From control of aeMB_control.v
-   wire			nrst;			// From control of aeMB_control.v
-   wire			nrun;			// From control of aeMB_control.v
+   wire			prst;			// From control of aeMB_control.v
+   wire			prun;			// From control of aeMB_control.v
    wire			rBRA;			// From decode of aeMB_decode.v
    wire			rDLY;			// From decode of aeMB_decode.v
    wire [3:0]		rDWBSEL;		// From aslu of aeMB_aslu.v
@@ -132,9 +136,9 @@ module aeMB_core (/*AUTOARG*/
 	      .rLNK			(rLNK),
 	      .rRWE			(rRWE),
 	      .nclk			(nclk),
-	      .nrst			(nrst),
+	      .prst			(prst),
 	      .drun			(drun),
-	      .nrun			(nrun));
+	      .prun			(prun));
 
    aeMB_fetch #(ISIZ)
      fetch (/*AUTOINST*/
@@ -146,8 +150,8 @@ module aeMB_core (/*AUTOARG*/
 	    // Inputs
 	    .iwb_dat_i			(iwb_dat_i[31:0]),
 	    .nclk			(nclk),
-	    .nrst			(nrst),
-	    .nrun			(nrun),
+	    .prst			(prst),
+	    .prun			(prun),
 	    .rFSM			(rFSM[1:0]),
 	    .rBRA			(rBRA),
 	    .rRESULT			(rRESULT[31:0]));
@@ -157,8 +161,8 @@ module aeMB_core (/*AUTOARG*/
 	      // Outputs
 	      .rFSM			(rFSM[1:0]),
 	      .nclk			(nclk),
-	      .nrst			(nrst),
-	      .nrun			(nrun),
+	      .prst			(prst),
+	      .prun			(prun),
 	      .frun			(frun),
 	      .drun			(drun),
 	      // Inputs
@@ -197,9 +201,9 @@ module aeMB_core (/*AUTOARG*/
 	   .rRA				(rRA[4:0]),
 	   .rMXLDST			(rMXLDST[1:0]),
 	   .nclk			(nclk),
-	   .nrst			(nrst),
+	   .prst			(prst),
 	   .drun			(drun),
-	   .nrun			(nrun));
+	   .prun			(prun));
    
    aeMB_decode
      decode (/*AUTOINST*/
@@ -229,9 +233,9 @@ module aeMB_core (/*AUTOARG*/
 	     .rRESULT			(rRESULT[31:0]),
 	     .iwb_dat_i			(iwb_dat_i[31:0]),
 	     .nclk			(nclk),
-	     .nrst			(nrst),
+	     .prst			(prst),
 	     .drun			(drun),
 	     .frun			(frun),
-	     .nrun			(nrun));
+	     .prun			(prun));
    
 endmodule // aeMB_core

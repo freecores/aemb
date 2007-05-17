@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_regfile.v,v 1.16 2007-05-15 22:44:57 sybreon Exp $
+ * $Id: aeMB_regfile.v,v 1.17 2007-05-17 09:08:21 sybreon Exp $
  * 
  * AEMB Register File
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -27,6 +27,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.16  2007/05/15 22:44:57  sybreon
+ * Corrected speed issues after rev 1.9 update.
+ *
  * Revision 1.15  2007/04/30 15:56:50  sybreon
  * Removed byte acrobatics.
  *
@@ -82,7 +85,7 @@ module aeMB_regfile(/*AUTOARG*/
    dwb_dat_o, rREGA, rREGB, sDWBDAT,
    // Inputs
    dwb_dat_i, rDWBSTB, rDWBWE, rRA, rRB, rRD, rRESULT, rFSM, rPC,
-   rOPC, rDWBSEL, rLNK, rRWE, nclk, nrst, drun, nrun
+   rOPC, rDWBSEL, rLNK, rRWE, nclk, prst, drun, prun
    );
    // FIXME: This parameter is not used here.
    parameter DSIZ = 32;
@@ -102,7 +105,7 @@ module aeMB_regfile(/*AUTOARG*/
    input [5:0] 	 rOPC;   
    input [3:0] 	 rDWBSEL;   
    input 	 rLNK, rRWE;
-   input 	 nclk, nrst, drun, nrun;   
+   input 	 nclk, prst, drun, prun;   
 
    /**
     Delay Latches
@@ -162,19 +165,17 @@ module aeMB_regfile(/*AUTOARG*/
    
    reg [31:0]  rMEMA[0:31], rMEMB[0:31], rMEMD[0:31];
    wire [31:0] wDDAT, wREGA, wREGB, wREGD, wWBDAT;   
-   wire        wDWE = (fLD | fLNK | fWE) & |rRD_ & nrun;
+   wire        wDWE = (fLD | fLNK | fWE) & |rRD_ & prun;
    assign      wDDAT = (fLD) ? sDWBDAT :
 		       (fLNK) ? {rPC_,2'd0} :
 		       rRESULT;		       
-   //assign      wWBDAT = (fDFWD) ? wRESULT : wREGD;   
-   //assign      wRESULT = (fMFWD) ? sDWBDAT : rRESULT;   
    
    assign      rREGA = rMEMA[rRA];
    assign      rREGB = rMEMB[rRB];
    assign      wREGD = rMEMD[rRD];
    
    always @(negedge nclk)
-     if (wDWE | !nrst) begin
+     if (wDWE | prst) begin
 	rMEMA[rRD_] <= wDDAT;
 	rMEMB[rRD_] <= wDDAT;
 	rMEMD[rRD_] <= wDDAT;	 
@@ -200,7 +201,7 @@ module aeMB_regfile(/*AUTOARG*/
        // 32-bit
        3'o2, 3'o3: xDWBDAT <= wREGD;
        3'o6, 3'o7: xDWBDAT <= rRESULT;
-     endcase // case (rOPC[1:0])
+     endcase // case ({fDFWD,rOPC[1:0]})
 
    always @(/*AUTOSENSE*/rDWBSEL or wDWBDAT)
      case (rDWBSEL)
@@ -218,15 +219,15 @@ module aeMB_regfile(/*AUTOARG*/
 
    // PIPELINE REGISTERS //////////////////////////////////////////////////
    
-   always @(negedge nclk or negedge nrst)
-     if (!nrst) begin
+   always @(negedge nclk)
+     if (prst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	rDWBDAT <= 32'h0;
 	rPC_ <= 30'h0;
 	rRD_ <= 5'h0;
 	// End of automatics
-     end else if (nrun) begin
+     end else if (prun) begin
 	rDWBDAT <= #1 xDWBDAT;
 	rPC_ <= xPC_;
 	rRD_ <= xRD_;	

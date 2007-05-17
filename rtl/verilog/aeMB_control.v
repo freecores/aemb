@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_control.v,v 1.5 2007-05-16 12:32:21 sybreon Exp $
+ * $Id: aeMB_control.v,v 1.6 2007-05-17 09:08:21 sybreon Exp $
  * 
  * AE68 System Control Unit
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -24,6 +24,9 @@
  * 
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.5  2007/05/16 12:32:21  sybreon
+ * Added async BRA/DLY signals for future clock, reset, and interrupt features.
+ *
  * Revision 1.4  2007/04/27 00:23:55  sybreon
  * Added code documentation.
  * Improved size & speed of rtl/verilog/aeMB_aslu.v
@@ -42,7 +45,7 @@
 
 module aeMB_control (/*AUTOARG*/
    // Outputs
-   rFSM, nclk, nrst, nrun, frun, drun,
+   rFSM, nclk, prst, prun, frun, drun,
    // Inputs
    sys_rst_i, sys_clk_i, sys_int_i, sys_exc_i, rIWBSTB, iwb_ack_i,
    rDWBSTB, dwb_ack_i, rBRA, rDLY
@@ -64,7 +67,7 @@ module aeMB_control (/*AUTOARG*/
    input 	rBRA, rDLY;   
    output [1:0] rFSM;
    //, rLDST;
-   output 	nclk, nrst, nrun;   
+   output 	nclk, prst, prun;   
    output 	frun, drun;
       
    /**
@@ -74,36 +77,23 @@ module aeMB_control (/*AUTOARG*/
     will pause for any incomplete bus transaction.
     */
    
-   assign 	nrun = ~((rDWBSTB ^ dwb_ack_i) | ((rIWBSTB ^ iwb_ack_i)));
+   assign 	prun = ~((rDWBSTB ^ dwb_ack_i) | ((rIWBSTB ^ iwb_ack_i)));
 
    /**
     Debounce
     --------
     The following external signals are debounced and synchronised:
-    - Reset
     - Interrupt
     */
    
-   reg [1:0] 	rRST;
-   always @(negedge nclk or negedge sys_rst_i)     
-     if (!sys_rst_i) begin
-	//rNRST <= 2'h3;	
-	/*AUTORESET*/
-	// Beginning of autoreset for uninitialized flops
-	rRST <= 2'h0;
-	// End of automatics
-     end else begin
-	rRST <= {rRST[0],1'b1};
-     end
-
    reg [2:0] rEXC, rINT;
-   always @(negedge nclk or negedge nrst)
-     if (!nrst) begin
+   always @(negedge nclk)
+     if (prst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	rINT <= 3'h0;
 	// End of automatics
-     end else if (nrun) begin
+     end else if (prun) begin
 	//rEXC <= #1 {rEXC[1:0], sys_exc_i};
 	rINT <= #1 {rINT[1:0], sys_int_i};	
      end
@@ -124,13 +114,13 @@ module aeMB_control (/*AUTOARG*/
 		FSM_HWINT = 2'o1;
    
    reg [1:0] 	  rFSM, rNXT;
-   always @(negedge nclk or negedge nrst)
-     if (!nrst) begin
+   always @(negedge nclk)
+     if (prst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	rFSM <= 2'h0;
 	// End of automatics
-     end else if (nrun) begin
+     end else if (prun) begin
 	rFSM <= #1 rNXT;
      end
 
@@ -155,19 +145,11 @@ module aeMB_control (/*AUTOARG*/
     */
    
    reg [1:0]    rRUN, xRUN;   
-   assign 	{drun,frun} = rRUN;
+   assign 	{drun,frun} = xRUN;
 
    always @(/*AUTOSENSE*/rBRA or rDLY) begin
        xRUN <= {~(rBRA ^ rDLY), ~rBRA};
    end
-   
-   always @(posedge nclk or negedge nrst)
-     if (!nrst) begin
-	rRUN <= 2'h3;	
-	/*AUTORESET*/
-     end else begin
-	rRUN <= #1 xRUN;	
-     end
 
    /**
     Clock/Reset
@@ -176,8 +158,17 @@ module aeMB_control (/*AUTOARG*/
     DCM/PLL/DPLL can be instantiated here if needed.
     */
    
+   reg [1:0] 	rRST;
    assign 	nclk = sys_clk_i;
-   assign 	nrst = rRST[1];
+   assign 	prst = rRST[1];
+
+   always @(negedge nclk)     
+     if (!sys_rst_i) begin
+	rRST <= 2'h3;	
+	/*AUTORESET*/
+     end else begin
+	rRST <= {rRST[0],1'b0};
+     end
 
    
 endmodule // aeMB_control

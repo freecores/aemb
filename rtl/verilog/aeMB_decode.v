@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_decode.v,v 1.8 2007-04-30 15:58:31 sybreon Exp $
+ * $Id: aeMB_decode.v,v 1.9 2007-05-17 09:08:21 sybreon Exp $
  * 
  * AEMB Instruction Decoder
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -24,6 +24,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.8  2007/04/30 15:58:31  sybreon
+ * Fixed minor data hazard bug spotted by Matt Ettus.
+ *
  * Revision 1.7  2007/04/27 04:23:17  sybreon
  * Removed some unnecessary bubble control.
  *
@@ -54,8 +57,8 @@ module aeMB_decode (/*AUTOARG*/
    rSIMM, rMXALU, rMXSRC, rMXTGT, rRA, rRB, rRD, rOPC, rIMM, rDWBSTB,
    rDWBWE, rDLY, rLNK, rBRA, rRWE, rMXLDST, dwb_stb_o, dwb_we_o,
    // Inputs
-   sDWBDAT, rDWBSEL, rREGA, rRESULT, iwb_dat_i, nclk, nrst, drun,
-   frun, nrun
+   sDWBDAT, rDWBSEL, rREGA, rRESULT, iwb_dat_i, nclk, prst, drun,
+   frun, prun
    );
    // Internal I/F
    output [31:0] rSIMM;
@@ -76,7 +79,7 @@ module aeMB_decode (/*AUTOARG*/
    output 	 dwb_stb_o, dwb_we_o;
    
    // System I/F
-   input 	 nclk, nrst, drun, frun, nrun;
+   input 	 nclk, prst, drun, frun, prun;
 
    /**
     rOPC/rRD/rRA/rRB/rIMM
@@ -103,6 +106,14 @@ module aeMB_decode (/*AUTOARG*/
    reg [5:0] 	 xOPC;
    reg [4:0] 	 xRD, xRA, xRB;
    reg [15:0] 	 xIMM;
+
+   /*
+   assign 	 rOPC = wOPC;
+   assign 	 rRA = wRA;
+   assign 	 rRB = wRB;
+   assign 	 rRD = wRD;
+   assign 	 rIMM = wIMM;   
+   */
    
    always @(/*AUTOSENSE*/frun or wIMM or wOPC or wRA or wRB or wRD)
      if (frun) begin
@@ -402,8 +413,8 @@ module aeMB_decode (/*AUTOARG*/
    
    // PIPELINE REGISTERS ///////////////////////////////////////////////
 
-   always @(negedge nclk or negedge nrst)
-     if (!nrst) begin
+   always @(negedge nclk)
+     if (prst) begin
 	//rOPC <= 6'o40;	
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
@@ -430,7 +441,7 @@ module aeMB_decode (/*AUTOARG*/
 	rRWE <= 1'h0;
 	rSIMM <= 32'h0;
 	// End of automatics
-     end else if (nrun) begin // if (!nrst)
+     end else if (prun) begin // if (prst)
 	rIMM <= #1 xIMM;
 	rOPC <= #1 xOPC;
 	rRA <= #1 xRA;
@@ -457,7 +468,7 @@ module aeMB_decode (/*AUTOARG*/
 	rRWE <= #1 xRWE;
 	rDWBSTB <= #1 xDWBSTB;
 	rDWBWE <= #1 xDWBWE;	
-     end // if (nrun)
+     end // if (prun)
    
 endmodule // aeMB_decode
 

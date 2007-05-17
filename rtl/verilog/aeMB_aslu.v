@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_aslu.v,v 1.8 2007-04-30 15:56:50 sybreon Exp $
+ * $Id: aeMB_aslu.v,v 1.9 2007-05-17 09:08:21 sybreon Exp $
  *
  * AEMB Arithmetic Shift Logic Unit 
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -25,6 +25,9 @@
  * 
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.8  2007/04/30 15:56:50  sybreon
+ * Removed byte acrobatics.
+ *
  * Revision 1.7  2007/04/27 00:23:55  sybreon
  * Added code documentation.
  * Improved size & speed of rtl/verilog/aeMB_aslu.v
@@ -55,7 +58,7 @@ module aeMB_aslu (/*AUTOARG*/
    dwb_adr_o, dwb_sel_o, rRESULT, rDWBSEL,
    // Inputs
    sDWBDAT, rBRA, rDLY, rREGA, rREGB, rSIMM, rMXSRC, rMXTGT, rMXALU,
-   rOPC, rPC, rIMM, rRD, rRA, rMXLDST, nclk, nrst, drun, nrun
+   rOPC, rPC, rIMM, rRD, rRA, rMXLDST, nclk, prst, drun, prun
    );
    parameter DSIZ = 32;
 
@@ -76,7 +79,7 @@ module aeMB_aslu (/*AUTOARG*/
    input [4:0] 	     rRD, rRA;   
    input [1:0] 	     rMXLDST;   
    
-   input 	     nclk, nrst, drun, nrun;   
+   input 	     nclk, prst, drun, prun;   
 
    reg [31:0] 	    rRESULT, xRESULT;
    reg 		    rMSR_C, xMSR_C;
@@ -258,15 +261,15 @@ module aeMB_aslu (/*AUTOARG*/
    
    // PIPELINE REGISTER //////////////////////////////////////////////////
    
-   always @(negedge nclk or negedge nrst)
-     if (!nrst) begin
+   always @(negedge nclk)
+     if (prst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	rDWBSEL <= 4'h0;
 	rMSR_C <= 1'h0;
 	rRESULT <= 32'h0;
 	// End of automatics
-     end else if (nrun) begin
+     end else if (prun) begin
 	rRESULT <= #1 xRESULT;
 	rMSR_C <= #1 xMSR_C;
 	rDWBSEL <= #1 xDWBSEL;	
