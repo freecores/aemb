@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_regfile.v,v 1.17 2007-05-17 09:08:21 sybreon Exp $
+ * $Id: aeMB_regfile.v,v 1.18 2007-05-30 18:44:30 sybreon Exp $
  * 
  * AEMB Register File
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -27,6 +27,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.17  2007/05/17 09:08:21  sybreon
+ * Removed asynchronous reset signal.
+ *
  * Revision 1.16  2007/05/15 22:44:57  sybreon
  * Corrected speed issues after rev 1.9 update.
  *
@@ -118,10 +121,17 @@ module aeMB_regfile(/*AUTOARG*/
    
    reg [31:2] 	 rPC_, xPC_;
    reg [4:0] 	 rRD_, xRD_;
+   reg 		 rINT, xINT;
    
-   always @(/*AUTOSENSE*/rPC or rRD) begin
-      xPC_ <= rPC[31:2];
-      xRD_ <= rRD;      
+   always @(/*AUTOSENSE*/rFSM or rPC or rRD) begin
+      xPC_ <= rPC[31:2];      
+      xINT <= (rFSM != 2'o0);
+      
+      case (rFSM)
+	2'o1: xRD_ <= 5'd14; // HWINT
+	//2'o2: xRD_ <= 5'd17; // HWEXC
+	default: xRD_ <= rRD;
+      endcase // case (rFSM)      
    end
 
    /**
@@ -165,9 +175,10 @@ module aeMB_regfile(/*AUTOARG*/
    
    reg [31:0]  rMEMA[0:31], rMEMB[0:31], rMEMD[0:31];
    wire [31:0] wDDAT, wREGA, wREGB, wREGD, wWBDAT;   
-   wire        wDWE = (fLD | fLNK | fWE) & |rRD_ & prun;
-   assign      wDDAT = (fLD) ? sDWBDAT :
-		       (fLNK) ? {rPC_,2'd0} :
+   wire        wDWE = (fLD | fLNK | fWE | rINT) & |rRD_ & prun;
+   assign      wDDAT = (rINT|fLNK) ? {rPC_,2'd0} :
+		       (fLD) ? sDWBDAT :
+		       //(fLNK) ? {rPC_,2'd0} :
 		       rRESULT;		       
    
    assign      rREGA = rMEMA[rRA];
@@ -224,13 +235,15 @@ module aeMB_regfile(/*AUTOARG*/
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	rDWBDAT <= 32'h0;
+	rINT <= 1'h0;
 	rPC_ <= 30'h0;
 	rRD_ <= 5'h0;
 	// End of automatics
      end else if (prun) begin
 	rDWBDAT <= #1 xDWBDAT;
 	rPC_ <= xPC_;
-	rRD_ <= xRD_;	
+	rRD_ <= xRD_;
+	rINT <= xINT;	
      end
 
    // SIMULATION ONLY ///////////////////////////////////////////////////

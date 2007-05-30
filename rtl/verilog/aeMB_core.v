@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_core.v,v 1.6 2007-05-17 09:08:21 sybreon Exp $
+ * $Id: aeMB_core.v,v 1.7 2007-05-30 18:44:30 sybreon Exp $
  * 
  * AEMB 32-bit Microblaze Compatible Core
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -26,6 +26,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.6  2007/05/17 09:08:21  sybreon
+ * Removed asynchronous reset signal.
+ *
  * Revision 1.5  2007/04/27 00:23:55  sybreon
  * Added code documentation.
  * Improved size & speed of rtl/verilog/aeMB_aslu.v
@@ -95,6 +98,7 @@ module aeMB_core (/*AUTOARG*/
    wire [15:0]		rIMM;			// From decode of aeMB_decode.v
    wire			rIWBSTB;		// From fetch of aeMB_fetch.v
    wire			rLNK;			// From decode of aeMB_decode.v
+   wire			rMSR_IE;		// From aslu of aeMB_aslu.v
    wire [1:0]		rMXALU;			// From decode of aeMB_decode.v
    wire [1:0]		rMXLDST;		// From decode of aeMB_decode.v
    wire [1:0]		rMXSRC;			// From decode of aeMB_decode.v
@@ -175,7 +179,9 @@ module aeMB_core (/*AUTOARG*/
 	      .rDWBSTB			(rDWBSTB),
 	      .dwb_ack_i		(dwb_ack_i),
 	      .rBRA			(rBRA),
-	      .rDLY			(rDLY));
+	      .rDLY			(rDLY),
+	      .iwb_dat_i		(iwb_dat_i[31:0]),
+	      .rMSR_IE			(rMSR_IE));
 
    aeMB_aslu #(DSIZ)
      aslu (/*AUTOINST*/
@@ -184,6 +190,7 @@ module aeMB_core (/*AUTOARG*/
 	   .dwb_sel_o			(dwb_sel_o[3:0]),
 	   .rRESULT			(rRESULT[31:0]),
 	   .rDWBSEL			(rDWBSEL[3:0]),
+	   .rMSR_IE			(rMSR_IE),
 	   // Inputs
 	   .sDWBDAT			(sDWBDAT[31:0]),
 	   .rBRA			(rBRA),
@@ -200,6 +207,7 @@ module aeMB_core (/*AUTOARG*/
 	   .rRD				(rRD[4:0]),
 	   .rRA				(rRA[4:0]),
 	   .rMXLDST			(rMXLDST[1:0]),
+	   .rFSM			(rFSM[1:0]),
 	   .nclk			(nclk),
 	   .prst			(prst),
 	   .drun			(drun),
@@ -231,6 +239,7 @@ module aeMB_core (/*AUTOARG*/
 	     .rDWBSEL			(rDWBSEL[3:0]),
 	     .rREGA			(rREGA[31:0]),
 	     .rRESULT			(rRESULT[31:0]),
+	     .rFSM			(rFSM[1:0]),
 	     .iwb_dat_i			(iwb_dat_i[31:0]),
 	     .nclk			(nclk),
 	     .prst			(prst),

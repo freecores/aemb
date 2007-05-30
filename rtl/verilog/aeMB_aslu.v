@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_aslu.v,v 1.9 2007-05-17 09:08:21 sybreon Exp $
+ * $Id: aeMB_aslu.v,v 1.10 2007-05-30 18:44:30 sybreon Exp $
  *
  * AEMB Arithmetic Shift Logic Unit 
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -25,6 +25,9 @@
  * 
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.9  2007/05/17 09:08:21  sybreon
+ * Removed asynchronous reset signal.
+ *
  * Revision 1.8  2007/04/30 15:56:50  sybreon
  * Removed byte acrobatics.
  *
@@ -55,10 +58,10 @@
 
 module aeMB_aslu (/*AUTOARG*/
    // Outputs
-   dwb_adr_o, dwb_sel_o, rRESULT, rDWBSEL,
+   dwb_adr_o, dwb_sel_o, rRESULT, rDWBSEL, rMSR_IE,
    // Inputs
    sDWBDAT, rBRA, rDLY, rREGA, rREGB, rSIMM, rMXSRC, rMXTGT, rMXALU,
-   rOPC, rPC, rIMM, rRD, rRA, rMXLDST, nclk, prst, drun, prun
+   rOPC, rPC, rIMM, rRD, rRA, rMXLDST, rFSM, nclk, prst, drun, prun
    );
    parameter DSIZ = 32;
 
@@ -67,6 +70,8 @@ module aeMB_aslu (/*AUTOARG*/
    
    output [31:0]     rRESULT;
    output [3:0]      rDWBSEL;
+   output 	     rMSR_IE;
+   
    input [31:0]      sDWBDAT;   
    input 	     rBRA, rDLY;      
    input [31:0]      rREGA, rREGB;
@@ -78,6 +83,7 @@ module aeMB_aslu (/*AUTOARG*/
    input [15:0]      rIMM;
    input [4:0] 	     rRD, rRA;   
    input [1:0] 	     rMXLDST;   
+   input [1:0] 	     rFSM;
    
    input 	     nclk, prst, drun, prun;   
 
@@ -170,7 +176,6 @@ module aeMB_aslu (/*AUTOARG*/
     Performs shift instructions as well as sign extension. This is
     done in parallel with the other operations.
     */
-   
    wire 	    wSRAC, wSRCC, wSRLC, wRES_SC;
    wire [31:0] 	    wSRA,wSRC, wSRL, wSEXT8, wSEXT16, wRES_S;
    assign 	    {wSRAC,wSRA} = {wOPA[0],wOPA[0],wOPA[31:1]};
@@ -198,9 +203,13 @@ module aeMB_aslu (/*AUTOARG*/
     done in parallel with other operations.
     */
    
+   wire [31:0] 	    wMSR = {rMSR_C, 23'hae33, 5'b0, rMSR_C, rMSR_IE, 1'b0};      
+   wire 	    fMFS = (rOPC == 6'o45) & !rIMM[14];
    reg [31:0] 	    rRES_M;
-   always @(/*AUTOSENSE*/rRA or wOPA or wOPB)
-     rRES_M <= #1 (rRA[3]) ? wOPB : wOPA;   
+   always @(/*AUTOSENSE*/fMFS or rRA or wMSR or wOPA or wOPB)
+     rRES_M <= (fMFS) ? wMSR : 
+	       (rRA[3]) ? wOPB : 
+	       wOPA;   
 
    /**
     Data WISHBONE Bus
@@ -230,16 +239,40 @@ module aeMB_aslu (/*AUTOARG*/
      endcase // case (wADD[1:0])
    
    /**
-    RESULT + C
-    ----------
+    STATUS REGISTER
+    ---------------
+
+    FIXME: rMSR[C] might need to be blocked (drun) during a branch.
+    TODO: MTS/MFS instruction    
+    */
+  
+   reg 		    rMSR_IE, xMSR_IE;   
+   wire 	    fMTS = (rOPC == 6'o45) & rIMM[14];      
+   always @(/*AUTOSENSE*/fMTS or rMSR_C or rMXALU or rOPC or rRES_AC
+	    or rRES_SC or wOPA)
+	case (rMXALU)
+	  2'o0: xMSR_C <= #1 (rOPC[2]) ? rMSR_C : rRES_AC;
+	  2'o2: xMSR_C <= #1 rRES_SC;
+	  2'o1: xMSR_C <= #1 (fMTS) ? wOPA[2] : rMSR_C;
+	  default: xMSR_C <= #1 rMSR_C;
+	endcase // case (rMXALU)
+
+   wire 	    fRTID = (rOPC == 6'o55) & rRD[0];   
+   always @(/*AUTOSENSE*/fMTS or fRTID or rFSM or rMSR_IE or wOPA) begin
+      xMSR_IE <= (rFSM == 2'o1) ? 1'b0 :
+		 (fRTID) ? 1'b1 : 
+		 (fMTS) ? wOPA[1] :
+		 rMSR_IE;      
+   end
+   
+   /**
+    RESULT
+    ------
     The RESULT and MSR[C] are collected at the end of the pipeline,
     depending on the operation selected. This was done in order to
-    allow the operations to proceed in parallel for faster speed.
-    
-    FIXME: rMSR[C] might need to be blocked (drun) during a branch.
-    TODO: MTS/MFS instruction
+    allow the operations to proceed in parallel for faster speed.    
     */
-   
+
    always @(/*AUTOSENSE*/rMXALU or rRES_A or rRES_L or rRES_M
 	    or rRES_S) begin
       case (rMXALU)
@@ -249,20 +282,12 @@ module aeMB_aslu (/*AUTOARG*/
 	2'o3: xRESULT <= #1 rRES_M;	  
       endcase // case (rMXALU)
    end
-   
-   always @(/*AUTOSENSE*/rMSR_C or rMXALU or rOPC or rRES_AC
-	    or rRES_SC) begin
-      case (rMXALU)
-	2'o0: xMSR_C <= #1 (rOPC[2]) ? rMSR_C : rRES_AC;
-	2'o2: xMSR_C <= #1 rRES_SC;
-	default: xMSR_C <= #1 rMSR_C;
-      endcase // case (rMXALU)
-   end
-   
+      
    // PIPELINE REGISTER //////////////////////////////////////////////////
    
    always @(negedge nclk)
      if (prst) begin
+	rMSR_IE <= 1'b1;	
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	rDWBSEL <= 4'h0;
@@ -272,6 +297,7 @@ module aeMB_aslu (/*AUTOARG*/
      end else if (prun) begin
 	rRESULT <= #1 xRESULT;
 	rMSR_C <= #1 xMSR_C;
+	rMSR_IE <= #1 xMSR_IE;	
 	rDWBSEL <= #1 xDWBSEL;	
      end
    

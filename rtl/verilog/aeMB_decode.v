@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_decode.v,v 1.9 2007-05-17 09:08:21 sybreon Exp $
+ * $Id: aeMB_decode.v,v 1.10 2007-05-30 18:44:30 sybreon Exp $
  * 
  * AEMB Instruction Decoder
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -24,6 +24,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.9  2007/05/17 09:08:21  sybreon
+ * Removed asynchronous reset signal.
+ *
  * Revision 1.8  2007/04/30 15:58:31  sybreon
  * Fixed minor data hazard bug spotted by Matt Ettus.
  *
@@ -57,8 +60,8 @@ module aeMB_decode (/*AUTOARG*/
    rSIMM, rMXALU, rMXSRC, rMXTGT, rRA, rRB, rRD, rOPC, rIMM, rDWBSTB,
    rDWBWE, rDLY, rLNK, rBRA, rRWE, rMXLDST, dwb_stb_o, dwb_we_o,
    // Inputs
-   sDWBDAT, rDWBSEL, rREGA, rRESULT, iwb_dat_i, nclk, prst, drun,
-   frun, prun
+   sDWBDAT, rDWBSEL, rREGA, rRESULT, rFSM, iwb_dat_i, nclk, prst,
+   drun, frun, prun
    );
    // Internal I/F
    output [31:0] rSIMM;
@@ -73,6 +76,7 @@ module aeMB_decode (/*AUTOARG*/
    input [31:0]  sDWBDAT;   
    input [3:0] 	 rDWBSEL;   
    input [31:0]  rREGA, rRESULT;
+   input [1:0] 	 rFSM;
    
    // External I/F
    input [31:0]  iwb_dat_i;
@@ -123,7 +127,7 @@ module aeMB_decode (/*AUTOARG*/
 	xRB <= wRB;
 	xIMM <= wIMM;	
      end else begin
-	xOPC <= 6'o40;	
+	xOPC <= 6'o44;	
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	xIMM <= 16'h0;
@@ -188,11 +192,11 @@ module aeMB_decode (/*AUTOARG*/
     */
    
    reg [1:0] 	 rMXALU, xMXALU;
-   always @(/*AUTOSENSE*/fBRA or fLOGIC or fSHIFT) begin // frun
+   always @(/*AUTOSENSE*/fBRA or fLOGIC or fMISC or fSHIFT) begin // frun
       xMXALU <= //(!fNBR) ? 2'o0 :
 		(fSHIFT) ? 2'o2 :
 		(fLOGIC) ? 2'o1 :
-		(fBRA) ? 2'o3 :
+		(fBRA|fMISC) ? 2'o3 :
 		2'o0;	
    end
    
@@ -243,6 +247,7 @@ module aeMB_decode (/*AUTOARG*/
 	xMXLDST <= //(!fNBR) ? 2'o0 :
 		   (fLD) ? 2'o2 :
 		   (fST) ? 2'o3 :
+		   //(fMISC) ? 2'o1 :
 		   2'o0;	
      end else begin
 	/*UTORESET*/
@@ -336,7 +341,7 @@ module aeMB_decode (/*AUTOARG*/
     This controls the generation of the BRANCH, DELAY and LINK
     signals.
     */
-   
+   wire        fXCE = |rFSM;   
    reg 	       rBRA, rDLY, rLNK, xBRA, xDLY, xLNK;
    always @(/*AUTOSENSE*/drun or rBCC or rMXBRA or rMXDLY or rMXLNK)
      if (drun) begin
@@ -399,10 +404,10 @@ module aeMB_decode (/*AUTOARG*/
    assign dwb_stb_o = rDWBSTB;
    assign dwb_we_o = rDWBWE;
 
-   always @(/*AUTOSENSE*/drun or rMXLDST)
+   always @(/*AUTOSENSE*/drun or fXCE or rMXLDST)
      if (drun) begin
-	xDWBSTB <= rMXLDST[1];
-	xDWBWE <= rMXLDST[0];
+	xDWBSTB <= rMXLDST[1] & !fXCE;
+	xDWBWE <= rMXLDST[0] & !fXCE;
      end else begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops

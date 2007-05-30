@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_control.v,v 1.6 2007-05-17 09:08:21 sybreon Exp $
+ * $Id: aeMB_control.v,v 1.7 2007-05-30 18:44:30 sybreon Exp $
  * 
  * AE68 System Control Unit
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -24,6 +24,9 @@
  * 
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.6  2007/05/17 09:08:21  sybreon
+ * Removed asynchronous reset signal.
+ *
  * Revision 1.5  2007/05/16 12:32:21  sybreon
  * Added async BRA/DLY signals for future clock, reset, and interrupt features.
  *
@@ -48,7 +51,7 @@ module aeMB_control (/*AUTOARG*/
    rFSM, nclk, prst, prun, frun, drun,
    // Inputs
    sys_rst_i, sys_clk_i, sys_int_i, sys_exc_i, rIWBSTB, iwb_ack_i,
-   rDWBSTB, dwb_ack_i, rBRA, rDLY
+   rDWBSTB, dwb_ack_i, rBRA, rDLY, iwb_dat_i, rMSR_IE
    );
    // System
    input 	sys_rst_i, sys_clk_i;
@@ -64,7 +67,10 @@ module aeMB_control (/*AUTOARG*/
    input 	dwb_ack_i;   
 
    // Internal
-   input 	rBRA, rDLY;   
+   input 	rBRA, rDLY;
+   input [31:0] iwb_dat_i;
+   input 	rMSR_IE;
+   
    output [1:0] rFSM;
    //, rLDST;
    output 	nclk, prst, prun;   
@@ -76,7 +82,7 @@ module aeMB_control (/*AUTOARG*/
     This master run signal will pause or run the entire pipeline. It
     will pause for any incomplete bus transaction.
     */
-   
+
    assign 	prun = ~((rDWBSTB ^ dwb_ack_i) | ((rIWBSTB ^ iwb_ack_i)));
 
    /**
@@ -84,9 +90,11 @@ module aeMB_control (/*AUTOARG*/
     --------
     The following external signals are debounced and synchronised:
     - Interrupt
+    
+    TODO: Exceptions
     */
-   
-   reg [2:0] rEXC, rINT;
+   wire 	fINT;   
+   reg [2:0] 	rEXC, rINT;
    always @(negedge nclk)
      if (prst) begin
 	/*AUTORESET*/
@@ -105,7 +113,7 @@ module aeMB_control (/*AUTOARG*/
     exception and software exceptions. Only interrupts are
     implemented.
     
-    TODO: Implement exceptions.
+    TODO: Implement Exceptions
     */
    parameter [1:0]
 		FSM_RUN = 2'o0,
@@ -124,28 +132,64 @@ module aeMB_control (/*AUTOARG*/
 	rFSM <= #1 rNXT;
      end
 
-   always @(/*AUTOSENSE*/rFSM or rINT)
+   always @(/*AUTOSENSE*/fINT or rFSM)
      case (rFSM)
        FSM_HWEXC: rNXT <= FSM_RUN;       
        //FSM_SWEXC: rNXT <= FSM_RUN;     
        FSM_HWINT: rNXT <= FSM_RUN;      
        default: begin
 	  rNXT <= //(rEXC == 3'h3) ? FSM_HWEXC :
-		  (rINT == 3'h3) ? FSM_HWINT :
+		  (fINT) ? FSM_HWINT :
 		  FSM_RUN;	  
        end
      endcase // case (rFSM)
+
+   /**
+    Interrupt Check
+    ---------------
+    It checks to make sure that all the instructions in the pipeline
+    are atomic before allowing the detection of interrupts. Empirical
+    response latency is 3-7 cycles.
+    */
+
+   wire [5:0] 	rOPC = iwb_dat_i[31:26];   
+   reg [2:0] 	rHWINT;
+   reg [1:0] 	rNCLR;   
+   wire 	fCLR = ~|rNCLR;   
+   wire 	fNCLR = ({rOPC[5:4],rOPC[2:1]} == 4'b1011) | (rOPC == 6'o54) | (rOPC == 6'o55);
+   assign 	fINT = (rHWINT == 3'o3) & fCLR;
+   
+   always @(negedge nclk)
+     if (prst) begin
+	/*AUTORESET*/
+	// Beginning of autoreset for uninitialized flops
+	rHWINT <= 3'h0;
+	// End of automatics
+     end else if (fINT) begin
+	rHWINT <= 3'o0;	
+     end else if (prun & fCLR & rMSR_IE) begin
+	rHWINT <= {rHWINT[1:0],sys_int_i};	
+     end
+
+   always @(negedge nclk)
+     if (prst) begin
+	/*AUTORESET*/
+	// Beginning of autoreset for uninitialized flops
+	rNCLR <= 2'h0;
+	// End of automatics
+     end else if (prun) begin
+	rNCLR <= {rNCLR[0], fNCLR};	
+     end
       
    /**
     Bubble
     ------
     Pipeline bubbles are introduced during a branch or interrupt.
-    
-    TODO: Implement interrupt bubble.
     */
-   
+
    reg [1:0]    rRUN, xRUN;   
-   assign 	{drun,frun} = xRUN;
+   wire 	fXCE = ~|rFSM;   
+   assign 	{drun,frun} = {xRUN[1] & fXCE , xRUN[0] & fXCE};
 
    always @(/*AUTOSENSE*/rBRA or rDLY) begin
        xRUN <= {~(rBRA ^ rDLY), ~rBRA};

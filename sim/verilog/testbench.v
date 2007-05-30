@@ -1,5 +1,5 @@
 /*
- * $Id: testbench.v,v 1.4 2007-04-30 15:56:50 sybreon Exp $
+ * $Id: testbench.v,v 1.5 2007-05-30 18:44:45 sybreon Exp $
  * 
  * AEMB Generic Testbench
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -24,6 +24,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.4  2007/04/30 15:56:50  sybreon
+ * Removed byte acrobatics.
+ *
  * Revision 1.3  2007/04/27 15:18:43  sybreon
  * Minor updates as sw/c/aeMB_testbench.c got updated.
  *
@@ -44,6 +47,9 @@ module testbench ();
    // INITIAL SETUP //////////////////////////////////////////////////////
    
    reg 	     sys_clk_i, sys_rst_i, sys_int_i, sys_exc_i;
+   reg 	     svc;
+   integer   inttime;
+   
    always #5 sys_clk_i = ~sys_clk_i;   
 
    initial begin
@@ -52,16 +58,19 @@ module testbench ();
    end
    
    initial begin
+      inttime = ($random % 143 * 7) + 2000;      
+      svc = 0;      
       sys_clk_i = 1;
       sys_rst_i = 0;
       sys_int_i = 0;
       sys_exc_i = 0;      
       #10 sys_rst_i = 1;
-      #10000 sys_int_i = 1;
-      #100 sys_int_i = 0;      
    end
-   
-   initial fork	
+
+   initial fork
+      //inttime $display("FSADFASDFSDAF");      
+      //#1010 sys_int_i = 1;
+      //#1000 sys_int_i = 0;
       //#100000 $displayh("\nTest Completed."); 
       //#11000 $finish;
    join   
@@ -117,31 +126,45 @@ module testbench ();
    end
 
    // DISPLAY OUTPUTS ///////////////////////////////////////////////////
-   
+
    always @(negedge sys_clk_i) begin
-      
-      $write("\nT: ",$stime);
+
+      // Time
+      $write("\nT: ",($stime / 10));
+            
+      // Data Monitors
       if (iwb_stb_o & iwb_ack_i)
-	$writeh("\tPC: 0x",iwb_adr_o,"=0x",iwb_dat_i);      
+	$writeh("\t @",iwb_adr_o,":",iwb_dat_i);      
       if (dwb_stb_o & dwb_we_o & dwb_ack_i) 
-	$writeh("\tST: 0x",dwb_adr_o,"=0x",dwb_dat_o," S=0x",dwb_sel_o);     
+	$writeh("\t @",dwb_adr_o,"<-",dwb_dat_o,"#",dwb_sel_o);     
       if (dwb_stb_o & ~dwb_we_o & dwb_ack_i)
-	$writeh("\tLD: 0x",dwb_adr_o,"=0x",dwb_dat_i," S=0x",dwb_sel_o);
+	$writeh("\t @",dwb_adr_o,"->",dwb_dat_i,"#",dwb_sel_o);
       if (dut.regfile.wDWE)
-	$writeh("\tR",dut.regfile.rRD_,"=",dut.regfile.wDDAT,";");
-      
-      if (dwb_we_o & (dwb_dat_o == "INTR"))
-	$display("\t*** SERVICE ***");      
-      if (dut.control.rFSM == 2'o1)
-	$display("\t*** INTERRUPT ***");
-      
+	$writeh("\t R",dut.regfile.rRD_,"=",dut.regfile.wDDAT,";");
+
+      // Interrupt Monitors
+      if ($stime > inttime) begin
+	 sys_int_i = 1;
+	 svc = 0;	 
+      end      
+      if (($stime > inttime+500) && !svc) begin
+	 $display("\n\t*** INTERRUPT TIMEOUT ***", inttime);	 
+	 $finish;	 
+      end      
+      if (dwb_we_o & (dwb_dat_o == "RTNI")) begin
+	 sys_int_i = 0;	 
+      end      
+      if (dut.control.rFSM == 2'o1) begin
+	 $writeh("\tINTR: ",(($stime-inttime)/10), " cycles");
+	 inttime = ($random % 181 * 11) + $stime + 5000;	 
+	 svc = 1;
+      end
+
+      // Pass/Fail Monitors
       if (dwb_we_o & (dwb_dat_o == "FAIL")) begin
-	 $display("\tFAIL");	 
+	 $display("\n\tFAIL");	 
 	 $finish;
       end      
-      if (dwb_we_o & (dwb_dat_o == "PASS")) begin
-	 $display("\tPASS");
-      end
       if (iwb_dat_i == 32'hb8000000) begin
 	 $display("\n\t*** PASSED ALL TESTS ***");
 	 $finish;	 
