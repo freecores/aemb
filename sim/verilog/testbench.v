@@ -1,5 +1,5 @@
 /*
- * $Id: testbench.v,v 1.5 2007-05-30 18:44:45 sybreon Exp $
+ * $Id: testbench.v,v 1.6 2007-10-22 19:13:46 sybreon Exp $
  * 
  * AEMB Generic Testbench
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -24,6 +24,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.5  2007/05/30 18:44:45  sybreon
+ * Added interrupt support.
+ *
  * Revision 1.4  2007/04/30 15:56:50  sybreon
  * Removed byte acrobatics.
  *
@@ -53,12 +56,12 @@ module testbench ();
    always #5 sys_clk_i = ~sys_clk_i;   
 
    initial begin
-      //$dumpfile("dump.vcd");
-      //$dumpvars(1,dut);
+      $dumpfile("dump.vcd");
+      $dumpvars(1,dut);
    end
    
    initial begin
-      inttime = ($random % 143 * 7) + 2000;      
+      inttime = ($random % 143 * 7) + 3210;      
       svc = 0;      
       sys_clk_i = 1;
       sys_rst_i = 0;
@@ -131,7 +134,13 @@ module testbench ();
 
       // Time
       $write("\nT: ",($stime / 10));
-            
+
+      $writeh("\t(",dut.control.rFSM,")", dut.rATOM);      
+      $writeh("\t [",{dut.regfile.rPC_[13:2],2'd0},"]",{dut.frun,dut.drun});
+
+      $writeh("\t {",dut.aslu.rMSR_C,",",dut.aslu.rMSR_IE,",",dut.rMXALU,"}");      
+      $writeo(dut.rOPC);
+      
       // Data Monitors
       if (iwb_stb_o & iwb_ack_i)
 	$writeh("\t @",iwb_adr_o,":",iwb_dat_i);      
@@ -154,9 +163,9 @@ module testbench ();
       if (dwb_we_o & (dwb_dat_o == "RTNI")) begin
 	 sys_int_i = 0;	 
       end      
-      if (dut.control.rFSM == 2'o1) begin
+      if (dut.control.rFSM[2]) begin
 	 $writeh("\tINTR: ",(($stime-inttime)/10), " cycles");
-	 inttime = ($random % 181 * 11) + $stime + 5000;	 
+	 inttime = ($random % 181 * 11) + $stime + 5430;	 
 	 svc = 1;
       end
 
@@ -175,7 +184,7 @@ module testbench ();
    
    aeMB_core #(ISIZ,DSIZ)
      dut (
-	  .sys_int_i(sys_int_i),.sys_exc_i(sys_exc_i),
+	  .sys_int_i(sys_int_i),//.sys_exc_i(sys_exc_i),
 	  .dwb_ack_i(dwb_ack_i),.dwb_stb_o(dwb_stb_o),.dwb_adr_o(dwb_adr_o),
 	  .dwb_dat_o(dwb_dat_o),.dwb_dat_i(dwb_dat_i),.dwb_we_o(dwb_we_o),
 	  .dwb_sel_o(dwb_sel_o),

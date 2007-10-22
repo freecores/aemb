@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_core.v,v 1.7 2007-05-30 18:44:30 sybreon Exp $
+ * $Id: aeMB_core.v,v 1.8 2007-10-22 19:12:59 sybreon Exp $
  * 
  * AEMB 32-bit Microblaze Compatible Core
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -26,6 +26,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.7  2007/05/30 18:44:30  sybreon
+ * Added interrupt support.
+ *
  * Revision 1.6  2007/05/17 09:08:21  sybreon
  * Removed asynchronous reset signal.
  *
@@ -53,8 +56,8 @@ module aeMB_core (/*AUTOARG*/
    iwb_stb_o, iwb_adr_o, dwb_we_o, dwb_stb_o, dwb_sel_o, dwb_dat_o,
    dwb_adr_o,
    // Inputs
-   sys_rst_i, sys_int_i, sys_exc_i, sys_clk_i, iwb_dat_i, iwb_ack_i,
-   dwb_dat_i, dwb_ack_i
+   sys_rst_i, sys_int_i, sys_clk_i, iwb_dat_i, iwb_ack_i, dwb_dat_i,
+   dwb_ack_i
    );
    // Instruction WB address space
    parameter ISIZ = 32;
@@ -78,7 +81,6 @@ module aeMB_core (/*AUTOARG*/
    input		iwb_ack_i;		// To control of aeMB_control.v
    input [31:0]		iwb_dat_i;		// To fetch of aeMB_fetch.v, ...
    input		sys_clk_i;		// To control of aeMB_control.v
-   input		sys_exc_i;		// To control of aeMB_control.v
    input		sys_int_i;		// To control of aeMB_control.v
    input		sys_rst_i;		// To control of aeMB_control.v
    // End of automatics
@@ -89,12 +91,13 @@ module aeMB_core (/*AUTOARG*/
    wire			nclk;			// From control of aeMB_control.v
    wire			prst;			// From control of aeMB_control.v
    wire			prun;			// From control of aeMB_control.v
+   wire [1:0]		rATOM;			// From decode of aeMB_decode.v
    wire			rBRA;			// From decode of aeMB_decode.v
    wire			rDLY;			// From decode of aeMB_decode.v
    wire [3:0]		rDWBSEL;		// From aslu of aeMB_aslu.v
    wire			rDWBSTB;		// From decode of aeMB_decode.v
    wire			rDWBWE;			// From decode of aeMB_decode.v
-   wire [1:0]		rFSM;			// From control of aeMB_control.v
+   wire [2:0]		rFSM;			// From control of aeMB_control.v
    wire [15:0]		rIMM;			// From decode of aeMB_decode.v
    wire			rIWBSTB;		// From fetch of aeMB_fetch.v
    wire			rLNK;			// From decode of aeMB_decode.v
@@ -133,7 +136,7 @@ module aeMB_core (/*AUTOARG*/
 	      .rRB			(rRB[4:0]),
 	      .rRD			(rRD[4:0]),
 	      .rRESULT			(rRESULT[31:0]),
-	      .rFSM			(rFSM[1:0]),
+	      .rFSM			(rFSM[2:0]),
 	      .rPC			(rPC[31:0]),
 	      .rOPC			(rOPC[5:0]),
 	      .rDWBSEL			(rDWBSEL[3:0]),
@@ -156,14 +159,14 @@ module aeMB_core (/*AUTOARG*/
 	    .nclk			(nclk),
 	    .prst			(prst),
 	    .prun			(prun),
-	    .rFSM			(rFSM[1:0]),
+	    .rFSM			(rFSM[2:0]),
 	    .rBRA			(rBRA),
 	    .rRESULT			(rRESULT[31:0]));
 
    aeMB_control
      control (/*AUTOINST*/
 	      // Outputs
-	      .rFSM			(rFSM[1:0]),
+	      .rFSM			(rFSM[2:0]),
 	      .nclk			(nclk),
 	      .prst			(prst),
 	      .prun			(prun),
@@ -173,15 +176,14 @@ module aeMB_core (/*AUTOARG*/
 	      .sys_rst_i		(sys_rst_i),
 	      .sys_clk_i		(sys_clk_i),
 	      .sys_int_i		(sys_int_i),
-	      .sys_exc_i		(sys_exc_i),
 	      .rIWBSTB			(rIWBSTB),
 	      .iwb_ack_i		(iwb_ack_i),
 	      .rDWBSTB			(rDWBSTB),
 	      .dwb_ack_i		(dwb_ack_i),
 	      .rBRA			(rBRA),
 	      .rDLY			(rDLY),
-	      .iwb_dat_i		(iwb_dat_i[31:0]),
-	      .rMSR_IE			(rMSR_IE));
+	      .rMSR_IE			(rMSR_IE),
+	      .rATOM			(rATOM[1:0]));
 
    aeMB_aslu #(DSIZ)
      aslu (/*AUTOINST*/
@@ -207,7 +209,7 @@ module aeMB_core (/*AUTOARG*/
 	   .rRD				(rRD[4:0]),
 	   .rRA				(rRA[4:0]),
 	   .rMXLDST			(rMXLDST[1:0]),
-	   .rFSM			(rFSM[1:0]),
+	   .rFSM			(rFSM[2:0]),
 	   .nclk			(nclk),
 	   .prst			(prst),
 	   .drun			(drun),
@@ -232,6 +234,7 @@ module aeMB_core (/*AUTOARG*/
 	     .rBRA			(rBRA),
 	     .rRWE			(rRWE),
 	     .rMXLDST			(rMXLDST[1:0]),
+	     .rATOM			(rATOM[1:0]),
 	     .dwb_stb_o			(dwb_stb_o),
 	     .dwb_we_o			(dwb_we_o),
 	     // Inputs
@@ -239,7 +242,7 @@ module aeMB_core (/*AUTOARG*/
 	     .rDWBSEL			(rDWBSEL[3:0]),
 	     .rREGA			(rREGA[31:0]),
 	     .rRESULT			(rRESULT[31:0]),
-	     .rFSM			(rFSM[1:0]),
+	     .rFSM			(rFSM[2:0]),
 	     .iwb_dat_i			(iwb_dat_i[31:0]),
 	     .nclk			(nclk),
 	     .prst			(prst),

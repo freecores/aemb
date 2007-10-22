@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_decode.v,v 1.10 2007-05-30 18:44:30 sybreon Exp $
+ * $Id: aeMB_decode.v,v 1.11 2007-10-22 19:12:59 sybreon Exp $
  * 
  * AEMB Instruction Decoder
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -24,6 +24,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.10  2007/05/30 18:44:30  sybreon
+ * Added interrupt support.
+ *
  * Revision 1.9  2007/05/17 09:08:21  sybreon
  * Removed asynchronous reset signal.
  *
@@ -58,7 +61,8 @@
 module aeMB_decode (/*AUTOARG*/
    // Outputs
    rSIMM, rMXALU, rMXSRC, rMXTGT, rRA, rRB, rRD, rOPC, rIMM, rDWBSTB,
-   rDWBWE, rDLY, rLNK, rBRA, rRWE, rMXLDST, dwb_stb_o, dwb_we_o,
+   rDWBWE, rDLY, rLNK, rBRA, rRWE, rMXLDST, rATOM, dwb_stb_o,
+   dwb_we_o,
    // Inputs
    sDWBDAT, rDWBSEL, rREGA, rRESULT, rFSM, iwb_dat_i, nclk, prst,
    drun, frun, prun
@@ -73,10 +77,12 @@ module aeMB_decode (/*AUTOARG*/
    output 	 rDWBSTB, rDWBWE;
    output 	 rDLY, rLNK, rBRA, rRWE;
    output [1:0]  rMXLDST;
+   output [1:0]  rATOM;
+   
    input [31:0]  sDWBDAT;   
    input [3:0] 	 rDWBSEL;   
    input [31:0]  rREGA, rRESULT;
-   input [1:0] 	 rFSM;
+   input [2:0] 	 rFSM;
    
    // External I/F
    input [31:0]  iwb_dat_i;
@@ -119,7 +125,7 @@ module aeMB_decode (/*AUTOARG*/
    assign 	 rIMM = wIMM;   
    */
    
-   always @(/*AUTOSENSE*/frun or wIMM or wOPC or wRA or wRB or wRD)
+   always @(/*AUTOSENSE*/frun or wIMM or wOPC or wRA or wRB or wRD)    
      if (frun) begin
 	xOPC <= wOPC;
 	xRD <= wRD;
@@ -127,7 +133,7 @@ module aeMB_decode (/*AUTOARG*/
 	xRB <= wRB;
 	xIMM <= wIMM;	
      end else begin
-	xOPC <= 6'o44;	
+	xOPC <= 6'o40;	
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	xIMM <= 16'h0;
@@ -341,7 +347,8 @@ module aeMB_decode (/*AUTOARG*/
     This controls the generation of the BRANCH, DELAY and LINK
     signals.
     */
-   wire        fXCE = |rFSM;   
+
+   wire        fXCE = rFSM[2];   
    reg 	       rBRA, rDLY, rLNK, xBRA, xDLY, xLNK;
    always @(/*AUTOSENSE*/drun or rBCC or rMXBRA or rMXDLY or rMXLNK)
      if (drun) begin
@@ -415,6 +422,17 @@ module aeMB_decode (/*AUTOARG*/
 	xDWBWE <= 1'h0;
 	// End of automatics
      end
+
+
+   /**
+    Atomicity Check
+    ---------------
+    Checks that the current instruction being executed is ATOMIC
+    */
+   
+   wire 	fATOM = ~(({wOPC[5:4],wOPC[2:1]} == 4'b1011) | (wOPC == 6'o55) | (wOPC == 6'o54) );
+   reg [1:0] 	rATOM;
+   
    
    // PIPELINE REGISTERS ///////////////////////////////////////////////
 
@@ -423,6 +441,7 @@ module aeMB_decode (/*AUTOARG*/
 	//rOPC <= 6'o40;	
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
+	rATOM <= 2'h0;
 	rBRA <= 1'h0;
 	rDLY <= 1'h0;
 	rDWBSTB <= 1'h0;
@@ -447,6 +466,8 @@ module aeMB_decode (/*AUTOARG*/
 	rSIMM <= 32'h0;
 	// End of automatics
      end else if (prun) begin // if (prst)
+	rATOM <= #1 {rATOM[0], fATOM};	
+	
 	rIMM <= #1 xIMM;
 	rOPC <= #1 xOPC;
 	rRA <= #1 xRA;

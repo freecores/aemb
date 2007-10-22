@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_regfile.v,v 1.18 2007-05-30 18:44:30 sybreon Exp $
+ * $Id: aeMB_regfile.v,v 1.19 2007-10-22 19:12:59 sybreon Exp $
  * 
  * AEMB Register File
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -27,6 +27,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.18  2007/05/30 18:44:30  sybreon
+ * Added interrupt support.
+ *
  * Revision 1.17  2007/05/17 09:08:21  sybreon
  * Removed asynchronous reset signal.
  *
@@ -103,7 +106,7 @@ module aeMB_regfile(/*AUTOARG*/
    input 	 rDWBSTB, rDWBWE;   
    input [4:0] 	 rRA, rRB, rRD;   
    input [31:0]  rRESULT;
-   input [1:0] 	 rFSM;   
+   input [2:0] 	 rFSM;   
    input [31:0]  rPC;
    input [5:0] 	 rOPC;   
    input [3:0] 	 rDWBSEL;   
@@ -125,11 +128,10 @@ module aeMB_regfile(/*AUTOARG*/
    
    always @(/*AUTOSENSE*/rFSM or rPC or rRD) begin
       xPC_ <= rPC[31:2];      
-      xINT <= (rFSM != 2'o0);
+      xINT <= (rFSM[2]);
       
       case (rFSM)
-	2'o1: xRD_ <= 5'd14; // HWINT
-	//2'o2: xRD_ <= 5'd17; // HWEXC
+	3'o4: xRD_ <= 5'd14; // HWINT
 	default: xRD_ <= rRD;
       endcase // case (rFSM)      
    end

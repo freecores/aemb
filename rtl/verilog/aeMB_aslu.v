@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_aslu.v,v 1.10 2007-05-30 18:44:30 sybreon Exp $
+ * $Id: aeMB_aslu.v,v 1.11 2007-10-22 19:12:59 sybreon Exp $
  *
  * AEMB Arithmetic Shift Logic Unit 
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -25,6 +25,9 @@
  * 
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.10  2007/05/30 18:44:30  sybreon
+ * Added interrupt support.
+ *
  * Revision 1.9  2007/05/17 09:08:21  sybreon
  * Removed asynchronous reset signal.
  *
@@ -83,7 +86,7 @@ module aeMB_aslu (/*AUTOARG*/
    input [15:0]      rIMM;
    input [4:0] 	     rRD, rRA;   
    input [1:0] 	     rMXLDST;   
-   input [1:0] 	     rFSM;
+   input [2:0] 	     rFSM;
    
    input 	     nclk, prst, drun, prun;   
 
@@ -176,6 +179,7 @@ module aeMB_aslu (/*AUTOARG*/
     Performs shift instructions as well as sign extension. This is
     done in parallel with the other operations.
     */
+   
    wire 	    wSRAC, wSRCC, wSRLC, wRES_SC;
    wire [31:0] 	    wSRA,wSRC, wSRL, wSEXT8, wSEXT16, wRES_S;
    assign 	    {wSRAC,wSRA} = {wOPA[0],wOPA[0],wOPA[31:1]};
@@ -248,10 +252,10 @@ module aeMB_aslu (/*AUTOARG*/
   
    reg 		    rMSR_IE, xMSR_IE;   
    wire 	    fMTS = (rOPC == 6'o45) & rIMM[14];      
-   always @(/*AUTOSENSE*/fMTS or rMSR_C or rMXALU or rOPC or rRES_AC
-	    or rRES_SC or wOPA)
+   always @(/*AUTOSENSE*/drun or fMTS or rMSR_C or rMXALU or rOPC
+	    or rRES_AC or rRES_SC or wOPA)
 	case (rMXALU)
-	  2'o0: xMSR_C <= #1 (rOPC[2]) ? rMSR_C : rRES_AC;
+	  2'o0: xMSR_C <= #1 !(rOPC[5] | rOPC[2] | !drun) ? rRES_AC : rMSR_C;
 	  2'o2: xMSR_C <= #1 rRES_SC;
 	  2'o1: xMSR_C <= #1 (fMTS) ? wOPA[2] : rMSR_C;
 	  default: xMSR_C <= #1 rMSR_C;
@@ -259,7 +263,7 @@ module aeMB_aslu (/*AUTOARG*/
 
    wire 	    fRTID = (rOPC == 6'o55) & rRD[0];   
    always @(/*AUTOSENSE*/fMTS or fRTID or rFSM or rMSR_IE or wOPA) begin
-      xMSR_IE <= (rFSM == 2'o1) ? 1'b0 :
+      xMSR_IE <= (rFSM == 3'o4) ? 1'b0 :
 		 (fRTID) ? 1'b1 : 
 		 (fMTS) ? wOPA[1] :
 		 rMSR_IE;      

@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_fetch.v,v 1.6 2007-05-30 18:44:30 sybreon Exp $
+ * $Id: aeMB_fetch.v,v 1.7 2007-10-22 19:12:59 sybreon Exp $
  * 
  * AEMB Instruction Fetch
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -25,6 +25,9 @@
  *
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.6  2007/05/30 18:44:30  sybreon
+ * Added interrupt support.
+ *
  * Revision 1.5  2007/05/17 09:08:21  sybreon
  * Removed asynchronous reset signal.
  *
@@ -63,7 +66,7 @@ module aeMB_fetch (/*AUTOARG*/
    // Internal
    output [31:0]     rPC;
    output 	     rIWBSTB;   
-   input [1:0] 	     rFSM;   
+   input [2:0] 	     rFSM;   
    input 	     rBRA;
    input [31:0]      rRESULT;
       
@@ -83,13 +86,14 @@ module aeMB_fetch (/*AUTOARG*/
      begin	
 	// PC Sources - ALU, Direct, Next
 	case (rFSM)
-	  2'b01: xIWBADR <= 32'h00000010; // HWINT
-	  //2'b10: xIWBADR <= 32'h00000020; // HWEXC
-	  //2'b11: xIWBADR <= #1 32'h00000008; // SWEXC
+	  3'o4: xIWBADR <= 32'h00000010; // HWINT
 	  default: xIWBADR <= (rBRA) ? rRESULT : wPCNXT;
 	endcase // case (rFSM)
-	
-	xPC <= {rIWBADR[31:2],2'd0};	
+
+	case (rFSM)
+	  3'o2: xPC <= (rBRA) ? rRESULT : {rIWBADR[31:2],2'd0};	  
+	  default: xPC <= {rIWBADR[31:2],2'd0};
+	endcase // case (rFSM)	
      end // always @ (...
 
    // PIPELINE REGISTERS //////////////////////////////////////////////////
