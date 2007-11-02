@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_testbench.c,v 1.6 2007-04-30 15:57:10 sybreon Exp $
+ * $Id: aeMB_testbench.c,v 1.7 2007-11-02 18:32:19 sybreon Exp $
  * 
  * AEMB Function Verification C Testbench
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -25,6 +25,9 @@
  * 
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.6  2007/04/30 15:57:10  sybreon
+ * Removed byte acrobatics.
+ *
  * Revision 1.5  2007/04/27 15:17:59  sybreon
  * Added code documentation.
  * Added new tests that test floating point, modulo arithmetic and multiplication/division.
@@ -50,14 +53,15 @@
    - Pointer addressing
    - Interrupt handling
  */
-void int_call_func (); // __attribute__((save_volatiles));
-void int_handler_func () __attribute__ ((interrupt_handler));
+void int_call_func (void); // __attribute__((save_volatiles));
+void int_handler_func (void) __attribute__ ((interrupt_handler));
 
-void int_handler_func () {
+
+void int_handler_func (void) {
   int_call_func();
 }
 
-void int_call_func () {
+void int_call_func (void) {
   int* pio = (int*)0xFFFFFFFF;
   *pio = 0x52544E49; // "INTR"
 }
@@ -248,13 +252,31 @@ int newton_test (int max) {
    MPI port that is checked by the testbench.
  */
 
+
+void int_enable()
+{
+  asm ("mfs r14, rmsr");
+  asm ("ori r14, r14, 0x0002");
+  asm ("mts rmsr, r14");
+}
+
+void int_disable()
+{
+  asm ("mfs r14, rmsr");
+  asm ("andi r14, r14, 0x00FD");
+  asm ("mts rmsr, r14");
+}
+
 int main () 
 {
   // Message Passing Port
   int* mpi = (int*)0xFFFFFFFF;
-
+  
   // Number of each test to run
   int max = 3;
+
+  // Enable Global Interrupts
+  int_enable();
 
   // Fibonacci Test
   if (fib_test(max) == -1) { *mpi = 0x4641494C; }
@@ -265,6 +287,8 @@ int main ()
   // Newton-Rhapson Test
   if (newton_test(max) == -1) { *mpi = 0x4641494C; }
   
+  // Disable Global Interrupts
+  int_disable();
   // ALL PASSED
   return 0;
 }
