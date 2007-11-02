@@ -1,4 +1,4 @@
-// $Id: aeMB_ctrl.v,v 1.1 2007-11-02 03:25:40 sybreon Exp $
+// $Id: aeMB_ctrl.v,v 1.2 2007-11-02 19:20:58 sybreon Exp $
 //
 // AEMB CONTROL UNIT
 // 
@@ -20,14 +20,19 @@
 // USA
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2007/11/02 03:25:40  sybreon
+// New EDK 3.2 compatible design with optional barrel-shifter and multiplier.
+// Fixed various minor data hazard bugs.
+// Code compatible with -O0/1/2/3/s generated code.
+//
 
 module aeMB_ctrl (/*AUTOARG*/
    // Outputs
-   rMXDST, rMXSRC, rMXTGT, rMXALT, rMXALU, rRW, rDWBSTB, rXCE,
-   dwb_stb_o, dwb_wre_o,
+   rMXDST, rMXSRC, rMXTGT, rMXALT, rMXALU, rRW, rDWBSTB, dwb_stb_o,
+   dwb_wre_o,
    // Inputs
-   rDLY, rIMM, rALT, rOPC, rRD, rRA, rRB, rPC, rBRA, rMSR_IE, gclk,
-   grst, gena, sys_int_i
+   rXCE, rDLY, rIMM, rALT, rOPC, rRD, rRA, rRB, rPC, rBRA, rMSR_IE,
+   gclk, grst, gena
    );
    // INTERNAL   
    //output [31:2] rPCLNK;
@@ -36,7 +41,7 @@ module aeMB_ctrl (/*AUTOARG*/
    output [2:0]  rMXALU;   
    output [4:0]  rRW;
    output 	 rDWBSTB;   
-   output [1:0]  rXCE;   
+   input [1:0] 	 rXCE;
    input 	 rDLY;
    input [15:0]  rIMM;
    input [10:0]  rALT;
@@ -52,7 +57,6 @@ module aeMB_ctrl (/*AUTOARG*/
    
    // SYSTEM
    input 	 gclk, grst, gena;
-   input 	 sys_int_i;   
 
    // --- DECODE INSTRUCTIONS
    // TODO: Simplify
@@ -129,24 +133,22 @@ module aeMB_ctrl (/*AUTOARG*/
    reg [1:0] 	 rMXDST, xMXDST;
    reg [4:0] 	 rRW, xRW;   
    
-   wire 	 fSKIP = rBRA & !rDLY;   
+   wire 	 fSKIP = (rBRA & !rDLY);   
 
-   always @(/*AUTOSENSE*/fLOD or fSKIP or fSTR)
-     if (fSKIP) begin
+   always @(/*AUTOSENSE*/fLOD or fSKIP or fSTR or rXCE)
+     if (fSKIP | |rXCE) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	xDWBSTB <= 1'h0;
 	xDWBWRE <= 1'h0;
 	// End of automatics
      end else begin
-
 	xDWBSTB <= fLOD | fSTR;
 	xDWBWRE <= fSTR;	
-	
      end
    
    always @(/*AUTOSENSE*/fBCC or fBRU or fLOD or fRTD or fSKIP or fSTR
-	    or rRD)
+	    or rRD or rXCE)
      if (fSKIP) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
@@ -154,59 +156,21 @@ module aeMB_ctrl (/*AUTOARG*/
 	xRW <= 5'h0;
 	// End of automatics
      end else begin
-
-	//xPCLNK <= rPC;
-
-	/*
 	case (rXCE)
-	  2'o1: xMXDST <= 2'o1;
+	  2'o2: xMXDST <= 2'o1;	  
 	  default: xMXDST <= (fSTR | fRTD | fBCC) ? 2'o3 :
 			     (fLOD) ? 2'o2 :
 			     (fBRU) ? 2'o1 :
 			     2'o0;
-	endcase // case (rXCE)
-	 
+	endcase
+
 	case (rXCE)
-	  2'o1: xRW <= 5'd14;	  
+	  2'o2: xRW <= 5'd14;	  
 	  default: xRW <= rRD;
-	endcase // case (rXCE)
-	*/
+	endcase
 	
-	xMXDST <= (fSTR | fRTD | fBCC) ? 2'o3 :
-		  (fLOD) ? 2'o2 :
-		  (fBRU) ? 2'o1 :
-		  2'o0;
-
-	xRW <= rRD;
-	
-     end
-
-   // --- INTERRUPT CONTROL ---------------------------------
-   wire 	fNCLR;
-   assign 	fNCLR = (rOPC == 6'o46) | (rOPC == 6'o56) | // BRU
-			(rOPC == 6'o47) | (rOPC == 6'o57) | // BCC
-			(rOPC == 6'o55) | // RTD
-			(rOPC == 6'o54); // IMM
-   reg [2:0] 	rINT;
-   reg [1:0] 	rXCE, xXCE;
-   //wire 	fINT = rINT[0] & rINT[1] & !rINT[2] & rMSR_IE; // +Edge
-   wire 	fINT = rINT[2] & rMSR_IE;   
+     end // else: !if(fSKIP)
    
-   always @(/*AUTOSENSE*/fINT or fNCLR or rXCE)
-     case (rXCE)
-       2'o0: xXCE <= (fINT & !fNCLR) ? 2'o1 : 2'o0;       
-       default: xXCE <= 2'o0;
-     endcase // case (rXCE)
-
-   always @(posedge gclk)
-     if (grst) begin
-	/*AUTORESET*/
-	// Beginning of autoreset for uninitialized flops
-	rINT <= 3'h0;
-	// End of automatics
-     end else if (gena) begin
-	rINT <= #1 {rINT[1:0], sys_int_i & rMSR_IE};
-     end
    
    // --- PIPELINE CONTROL DELAY ----------------------------
 
@@ -218,7 +182,6 @@ module aeMB_ctrl (/*AUTOARG*/
 	rDWBWRE <= 1'h0;
 	rMXDST <= 2'h0;
 	rRW <= 5'h0;
-	rXCE <= 2'h0;
 	// End of automatics
      end else if (gena) begin
 	//rPCLNK <= #1 xPCLNK;
@@ -226,9 +189,7 @@ module aeMB_ctrl (/*AUTOARG*/
 	rRW <= #1 xRW;
 	rDWBSTB <= #1 xDWBSTB;
 	rDWBWRE <= #1 xDWBWRE;	
-	rXCE <= #1 xXCE;	
      end
    
-
    
 endmodule // aeMB_ctrl

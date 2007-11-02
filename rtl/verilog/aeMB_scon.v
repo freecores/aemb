@@ -1,4 +1,4 @@
-// $Id: aeMB_scon.v,v 1.1 2007-11-02 03:25:41 sybreon Exp $
+// $Id: aeMB_scon.v,v 1.2 2007-11-02 19:20:58 sybreon Exp $
 //
 // AEMB SYSTEM CONTROL UNIT
 // 
@@ -20,77 +20,93 @@
 // USA
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2007/11/02 03:25:41  sybreon
+// New EDK 3.2 compatible design with optional barrel-shifter and multiplier.
+// Fixed various minor data hazard bugs.
+// Code compatible with -O0/1/2/3/s generated code.
+//
 
 module aeMB_scon (/*AUTOARG*/
    // Outputs
-   grst, gclk, gena,
+   rXCE, grst, gclk, gena,
    // Inputs
-   rOPC, rDWBSTB, dwb_ack_i, iwb_ack_i, rMSR_IE, rBRA, rDLY,
-   sys_clk_i, sys_rst_i, sys_int_i
+   rOPC, rATOM, rDWBSTB, dwb_ack_i, iwb_ack_i, rMSR_IE, rMSR_BIP,
+   rBRA, rDLY, sys_clk_i, sys_rst_i, sys_int_i
    );
 
    // INTERNAL
-   //output [1:0] rXCE;
+   output [1:0] rXCE;
    input [5:0] 	rOPC;
+   input [1:0] 	rATOM;   
    
    input 	rDWBSTB;
    input 	dwb_ack_i;
    input 	iwb_ack_i; 
    input 	rMSR_IE;
+   input 	rMSR_BIP;
+   
    input 	rBRA, rDLY;   
    
    // SYSTEM
    output 	grst, gclk, gena;
    input 	sys_clk_i, sys_rst_i;
    input 	sys_int_i;   
-   
-   assign 	grst = sys_rst_i;
+
+      
    assign 	gclk = sys_clk_i;
    
    assign 	gena = !((rDWBSTB ^ dwb_ack_i) | !iwb_ack_i);
-   
-   // --- EXCEPTION CONTROL
 
-   reg [1:0] 	rXCE, xXCE;
-   
-   reg [2:0] 	rINT;
-   reg 		rNCLR;   
-   wire 	fINT = sys_int_i & rMSR_IE;
-   
-   wire 	fNCLR;
-   assign 	fNCLR = (rOPC == 6'o46) | (rOPC == 6'o56) | // BRU
-			(rOPC == 6'o47) | (rOPC == 6'o57) | // BCC
-			(rOPC == 6'o55) | // RTD
-			(rOPC == 6'o54); // IMM
+   // --- INTERRUPT LATCH ---------------------------------
 
-   wire [1:0] 	wATOM = {rNCLR, fNCLR};
-   wire 	fATOM = (wATOM == 2'o0) | (wATOM == 2'o2);
+   reg 		rFINT;
+   reg [1:0] 	rDINT;
+   wire 	wSHOT = rDINT[0] & !rDINT[1] & sys_int_i; // +Edge   
 
-
-   always @(/*AUTOSENSE*/fATOM or fINT or rXCE) begin
-      case (rXCE)
-	2'o0: xXCE <= (fATOM & fINT) ? 2'o1 : 2'o0;
-	2'o1: xXCE <= 2'o0;
-	default xXCE <= 2'oX;	
-      endcase // case (rXCE)      
-   end
-   
-
-   // --- SYNCHRONOUS ----------------------------------
+   always @(posedge gclk)
+     if (grst) begin
+	/*AUTORESET*/
+	// Beginning of autoreset for uninitialized flops
+	rDINT <= 2'h0;
+	// End of automatics
+     end else if (rMSR_IE) begin
+	rDINT <= #1 {rDINT[0], sys_int_i};	
+     end
    
    always @(posedge gclk)
      if (grst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
-	rINT <= 3'h0;
-	rNCLR <= 1'h0;
-	rXCE <= 2'h0;
+	rFINT <= 1'h0;
 	// End of automatics
      end else if (gena) begin
-	rINT <= #1 {rINT[1:0], fINT};
-	rNCLR <= #1 fNCLR;
-	rXCE <= #1 xXCE;	
+	rFINT <= (rXCE == 2'o2) ? 1'b0 : (rFINT | wSHOT);
      end
+
+   // --- EXCEPTION PROCESSING ----------------------------
+
+   reg [1:0] rXCE;
+
+   always @(/*AUTOSENSE*/rATOM or rFINT or rMSR_BIP or rMSR_IE)
+     case (rATOM)
+       default: rXCE <= (!rMSR_BIP & rMSR_IE & rFINT) ? 2'o2 :
+			2'o0;      
+       2'o0, 2'o3: rXCE <= 0;       
+     endcase // case (rATOM)
    
+   
+   // --- RESET SYNCHRONISER ------------------------------
+   
+   reg [1:0] 	rRST;   
+   assign 	grst = sys_rst_i;
+
+   always @(posedge sys_clk_i)
+     if (!sys_rst_i) begin
+	rRST <= 2'o3;	
+	/*AUTORESET*/
+     end else begin
+	rRST <= #1 {rRST[0], !sys_rst_i};	
+     end
+
    
 endmodule // aeMB_scon

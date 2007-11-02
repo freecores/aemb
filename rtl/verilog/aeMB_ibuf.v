@@ -1,4 +1,4 @@
-// $Id: aeMB_ibuf.v,v 1.1 2007-11-02 03:25:40 sybreon Exp $
+// $Id: aeMB_ibuf.v,v 1.2 2007-11-02 19:20:58 sybreon Exp $
 //
 // AEMB INSTRUCTION BUFFER
 // 
@@ -20,6 +20,11 @@
 // USA
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2007/11/02 03:25:40  sybreon
+// New EDK 3.2 compatible design with optional barrel-shifter and multiplier.
+// Fixed various minor data hazard bugs.
+// Code compatible with -O0/1/2/3/s generated code.
+//
 
 module aeMB_ibuf (/*AUTOARG*/
    // Outputs
@@ -56,32 +61,16 @@ module aeMB_ibuf (/*AUTOARG*/
    assign 	iwb_stb_o = 1'b1;
 
    reg [31:0] 	rSIMM, xSIMM;
-   wire [31:0] 	wSIMM = (fIMM) ? {rIMM, wIDAT[15:0]} : { {(16){wIDAT[15]}}, wIDAT[15:0]}; // TODO: Factor
    wire 	fIMM = (rOPC == 6'o54);
    
    reg [31:0] 	xIREG;
 
    // DELAY SLOT
-   always @(/*AUTOSENSE*/rBRA or wIDAT)
-     if (rBRA) begin
-	xIREG <= 32'h88000000;
-	/*AUTORESET*/
-     end else begin
-	xIREG <= wIDAT; // FIXME: Simplify
-	//xSIMM <= wSIMM;
-     end
+   always @(/*AUTOSENSE*/fIMM or rBRA or rIMM or rXCE or wIDAT) begin
+      xIREG <= (rBRA | |rXCE) ? 32'h88000000 : wIDAT;
+      xSIMM <= (fIMM) ? {rIMM, wIDAT[15:0]} : { {(16){wIDAT[15]}}, wIDAT[15:0]};
+   end
 
-   always @(/*AUTOSENSE*/fIMM or rBRA or rIMM or xIREG)
-     if (rBRA) begin
-	/*AUTORESET*/
-	// Beginning of autoreset for uninitialized flops
-	xSIMM <= 32'h0;
-	// End of automatics
-     end else begin
-	//xIREG <= wIDAT; // FIXME: Simplify
-	xSIMM <= (fIMM) ? {rIMM, xIREG[15:0]} : { {(16){xIREG[15]}}, xIREG[15:0]}; // TODO: Factor
-     end
-   
    // Synchronous
    always @(posedge gclk)
      if (grst) begin

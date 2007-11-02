@@ -1,4 +1,4 @@
-// $Id: aeMB_bpcu.v,v 1.1 2007-11-02 03:25:39 sybreon Exp $
+// $Id: aeMB_bpcu.v,v 1.2 2007-11-02 19:20:58 sybreon Exp $
 //
 // AEMB BRANCH PROGRAMME COUNTER UNIT
 // 
@@ -20,10 +20,15 @@
 // USA
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2007/11/02 03:25:39  sybreon
+// New EDK 3.2 compatible design with optional barrel-shifter and multiplier.
+// Fixed various minor data hazard bugs.
+// Code compatible with -O0/1/2/3/s generated code.
+//
 
 module aeMB_bpcu (/*AUTOARG*/
    // Outputs
-   iwb_adr_o, rPC, rPCLNK, rBRA, rDLY,
+   iwb_adr_o, rPC, rPCLNK, rBRA, rDLY, rATOM,
    // Inputs
    rMXALT, rOPC, rRD, rRA, rRESULT, rDWBDI, rREGA, rXCE, gclk, grst,
    gena
@@ -37,18 +42,21 @@ module aeMB_bpcu (/*AUTOARG*/
    output [31:2]   rPC, rPCLNK;
    output 	   rBRA;
    output 	   rDLY;
+   output [1:0]    rATOM;   
    input [1:0] 	   rMXALT;   
    input [5:0] 	   rOPC;
    input [4:0] 	   rRD, rRA;  
    input [31:0]    rRESULT; // ALU
    input [31:0]    rDWBDI; // RAM
-   input [31:0]    rREGA;    
+   input [31:0]    rREGA;
    input [1:0] 	   rXCE;   
    
    // SYSTEM
    input 	   gclk, grst, gena;
 
-   // BRANCH
+   // --- BRANCH CONTROL --------------------------------------------
+   // Controls the branch and delay flags
+   
    wire 	   fRTD = (rOPC == 6'o55);
    wire 	   fBCC = (rOPC == 6'o47) | (rOPC == 6'o57);
    wire 	   fBRU = (rOPC == 6'o46) | (rOPC == 6'o56);
@@ -78,14 +86,13 @@ module aeMB_bpcu (/*AUTOARG*/
        default: xXCC <= 1'bX;
      endcase // case (rRD[2:0])
 
-   // DELAY SLOT
    reg 		   rBRA, xBRA;
    reg 		   rDLY, xDLY;
    wire 	   fSKIP = rBRA & !rDLY;   
    
    always @(/*AUTOSENSE*/fBCC or fBRU or fRTD or rBRA or rRA or rRD
-	    or xXCC)
-     if (rBRA) begin
+	    or rXCE or xXCC)
+     if (rBRA | |rXCE) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	xBRA <= 1'h0;
@@ -96,49 +103,54 @@ module aeMB_bpcu (/*AUTOARG*/
 	xBRA <= (fRTD | fBRU) ? 1'b1 :
 		(fBCC) ? xXCC :
 		1'b0;
-	/*
-	case (rXCE)
-	  2'o1: xBRA <= 1'b0;
-	  default: xBRA <= (fRTD | fBRU) ? 1'b1 :
-			   (fBCC) ? xXCC :
-			   1'b0;
-	endcase // case (rXCE)	
-	 */
      end
 
-   reg [31:2] rPCLNK, xPCLNK;
-   always @(/*AUTOSENSE*/fSKIP or rBRA or rPC or rRESULT)
-     if (fSKIP) begin
-	/*AUTORESET*/
-	// Beginning of autoreset for uninitialized flops
-	xPCLNK <= 30'h0;
-	// End of automatics
-     end else begin
-	xPCLNK <= (rBRA) ? rRESULT[31:2] : rPC;	
-     end
+   // --- PC PIPELINE ------------------------------------------------
+   // PC and related changes
    
-   // PC Changes - (NXT, BRA, INT)
    reg [31:2] 	   rIPC, xIPC;
    reg [31:2] 	   rPC, xPC;
+   reg [31:2] 	   rPCLNK, xPCLNK;
    
    assign 	   iwb_adr_o = rIPC[IW-1:2];
-   always @(/*AUTOSENSE*/rBRA or rIPC or rRESULT) begin
-      xIPC <= (rBRA) ? rRESULT[31:2] : (rIPC + 1);
-      /*
-      case (rXCE)
-	2'o1: xIPC <= 32'h04;	
-	default: xIPC <= (rBRA) ? rRESULT[31:2] : (rIPC + 1);
-      endcase // case (rXCE)
-       */
-      xPC <= rIPC;	
-   end
    
+   always @(/*AUTOSENSE*/rATOM or rBRA or rIPC or rPC or rRESULT
+	    or rXCE) begin
+      xPCLNK <= (^rATOM) ? rPC : rPC;
+      //xPCLNK <= rPC;
+      //xPC <= (^rATOM) ? rIPC : rRESULT[31:2];	
+      xPC <= rIPC;
+      //xIPC <= (rBRA) ? rRESULT[31:2] : (rIPC + 1);
+     case (rXCE)
+       2'o1: xIPC <= 30'h2;       
+       2'o2: xIPC <= 30'h4;       
+       2'o3: xIPC <= 30'h6;       
+       default: xIPC <= (rBRA) ? rRESULT[31:2] : (rIPC + 1);
+     endcase // case (rXCE)      
+   end   			   
 
-   // SYNC
+   // --- ATOMIC CONTROL ---------------------------------------------
+   // This is used to indicate 'safe' instruction borders.
+   
+   wire 	wIMM = (rOPC == 6'o54) & !fSKIP;
+   wire 	wRTD = (rOPC == 6'o55) & !fSKIP;
+   wire 	wBCC = xXCC & ((rOPC == 6'o47) | (rOPC == 6'o57)) & !fSKIP;
+   wire 	wBRU = ((rOPC == 6'o46) | (rOPC == 6'o56)) & !fSKIP;   
+   
+   wire 	fATOM = ~(wIMM | wRTD | wBCC | wBRU | rBRA);   
+   reg [1:0] 	rATOM, xATOM;
+
+   always @(/*AUTOSENSE*/fATOM or rATOM)
+     xATOM <= {rATOM[0], (rATOM[0] ^ fATOM)};   
+     
+   
+   // --- SYNC PIPELINE ----------------------------------------------
+    
    always @(posedge gclk)
      if (grst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
+	rATOM <= 2'h0;
 	rBRA <= 1'h0;
 	rDLY <= 1'h0;
 	rIPC <= 30'h0;
@@ -150,12 +162,8 @@ module aeMB_bpcu (/*AUTOARG*/
 	rBRA <= #1 xBRA;
 	rPC <= #1 xPC;
 	rPCLNK <= #1 xPCLNK;
-	rDLY <= #1 xDLY;	
+	rDLY <= #1 xDLY;
+	rATOM <= #1 xATOM;	
      end
-   
-   // synopsys translate_off
-
-   
-   // synopsys translate_on
-   
+      
 endmodule // aeMB_bpcu

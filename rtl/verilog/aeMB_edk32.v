@@ -1,4 +1,4 @@
-// $Id: aeMB_edk32.v,v 1.1 2007-11-02 03:25:40 sybreon Exp $
+// $Id: aeMB_edk32.v,v 1.2 2007-11-02 19:20:58 sybreon Exp $
 //
 // AEMB EDK 3.2 Compatible Core
 //
@@ -20,6 +20,11 @@
 // USA
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2007/11/02 03:25:40  sybreon
+// New EDK 3.2 compatible design with optional barrel-shifter and multiplier.
+// Fixed various minor data hazard bugs.
+// Code compatible with -O0/1/2/3/s generated code.
+//
 
 module aeMB_edk32 (/*AUTOARG*/
    // Outputs
@@ -50,7 +55,7 @@ module aeMB_edk32 (/*AUTOARG*/
    input		iwb_ack_i;		// To scon of aeMB_scon.v, ...
    input [31:0]		iwb_dat_i;		// To ibuf of aeMB_ibuf.v
    input		sys_clk_i;		// To scon of aeMB_scon.v
-   input		sys_int_i;		// To scon of aeMB_scon.v, ...
+   input		sys_int_i;		// To scon of aeMB_scon.v
    input		sys_rst_i;		// To scon of aeMB_scon.v
    // End of automatics
    /*AUTOWIRE*/
@@ -59,12 +64,14 @@ module aeMB_edk32 (/*AUTOARG*/
    wire			gena;			// From scon of aeMB_scon.v
    wire			grst;			// From scon of aeMB_scon.v
    wire [10:0]		rALT;			// From ibuf of aeMB_ibuf.v
+   wire [1:0]		rATOM;			// From bpcu of aeMB_bpcu.v
    wire			rBRA;			// From bpcu of aeMB_bpcu.v
    wire			rDLY;			// From bpcu of aeMB_bpcu.v
    wire [31:0]		rDWBDI;			// From regf of aeMB_regf.v
    wire [3:0]		rDWBSEL;		// From xecu of aeMB_xecu.v
    wire			rDWBSTB;		// From ctrl of aeMB_ctrl.v
    wire [15:0]		rIMM;			// From ibuf of aeMB_ibuf.v
+   wire			rMSR_BIP;		// From xecu of aeMB_xecu.v
    wire			rMSR_IE;		// From xecu of aeMB_xecu.v
    wire [1:0]		rMXALT;			// From ctrl of aeMB_ctrl.v
    wire [2:0]		rMXALU;			// From ctrl of aeMB_ctrl.v
@@ -82,11 +89,14 @@ module aeMB_edk32 (/*AUTOARG*/
    wire [31:0]		rRESULT;		// From xecu of aeMB_xecu.v
    wire [4:0]		rRW;			// From ctrl of aeMB_ctrl.v
    wire [31:0]		rSIMM;			// From ibuf of aeMB_ibuf.v
-   wire [1:0]		rXCE;			// From ctrl of aeMB_ctrl.v
+   wire [1:0]		rXCE;			// From scon of aeMB_scon.v
    // End of automatics
    
    wire [31:0] 		rOPA, rOPB;   
    wire [31:0] 		rRES_MUL, rRES_BSF;
+
+   // --- OPTIONAL COMPONENTS -----------------------------------
+   // Trade off hardware size/speed for software speed
    
    /*
    aeMB_mult
@@ -97,6 +107,7 @@ module aeMB_edk32 (/*AUTOARG*/
 	   .rOPA			(rOPA[31:0]),
 	   .rOPB			(rOPB[31:0]));   
     */
+   /*
    aeMB_bsft
      bsft (
 	   // Outputs
@@ -105,22 +116,26 @@ module aeMB_edk32 (/*AUTOARG*/
 	   .rOPA			(rOPA[31:0]),
 	   .rOPB			(rOPB[31:0]),
 	   .rALT			(rALT[10:0]));
-
+    */
        
    // --- NON-OPTIONAL COMPONENTS -------------------------------
+   // These components make up the main AEMB processor.
    
    aeMB_scon
      scon (/*AUTOINST*/
 	   // Outputs
+	   .rXCE			(rXCE[1:0]),
 	   .grst			(grst),
 	   .gclk			(gclk),
 	   .gena			(gena),
 	   // Inputs
 	   .rOPC			(rOPC[5:0]),
+	   .rATOM			(rATOM[1:0]),
 	   .rDWBSTB			(rDWBSTB),
 	   .dwb_ack_i			(dwb_ack_i),
 	   .iwb_ack_i			(iwb_ack_i),
 	   .rMSR_IE			(rMSR_IE),
+	   .rMSR_BIP			(rMSR_BIP),
 	   .rBRA			(rBRA),
 	   .rDLY			(rDLY),
 	   .sys_clk_i			(sys_clk_i),
@@ -157,10 +172,10 @@ module aeMB_edk32 (/*AUTOARG*/
 	   .rMXALU			(rMXALU[2:0]),
 	   .rRW				(rRW[4:0]),
 	   .rDWBSTB			(rDWBSTB),
-	   .rXCE			(rXCE[1:0]),
 	   .dwb_stb_o			(dwb_stb_o),
 	   .dwb_wre_o			(dwb_wre_o),
 	   // Inputs
+	   .rXCE			(rXCE[1:0]),
 	   .rDLY			(rDLY),
 	   .rIMM			(rIMM[15:0]),
 	   .rALT			(rALT[10:0]),
@@ -173,8 +188,7 @@ module aeMB_edk32 (/*AUTOARG*/
 	   .rMSR_IE			(rMSR_IE),
 	   .gclk			(gclk),
 	   .grst			(grst),
-	   .gena			(gena),
-	   .sys_int_i			(sys_int_i));
+	   .gena			(gena));
 
    aeMB_bpcu #(IW)
      bpcu (/*AUTOINST*/
@@ -184,6 +198,7 @@ module aeMB_edk32 (/*AUTOARG*/
 	   .rPCLNK			(rPCLNK[31:2]),
 	   .rBRA			(rBRA),
 	   .rDLY			(rDLY),
+	   .rATOM			(rATOM[1:0]),
 	   // Inputs
 	   .rMXALT			(rMXALT[1:0]),
 	   .rOPC			(rOPC[5:0]),
@@ -232,7 +247,9 @@ module aeMB_edk32 (/*AUTOARG*/
 	   .rRESULT			(rRESULT[31:0]),
 	   .rDWBSEL			(rDWBSEL[3:0]),
 	   .rMSR_IE			(rMSR_IE),
+	   .rMSR_BIP			(rMSR_BIP),
 	   // Inputs
+	   .rXCE			(rXCE[1:0]),
 	   .rREGA			(rREGA[31:0]),
 	   .rREGB			(rREGB[31:0]),
 	   .rMXSRC			(rMXSRC[1:0]),
@@ -241,7 +258,6 @@ module aeMB_edk32 (/*AUTOARG*/
 	   .rMXALU			(rMXALU[2:0]),
 	   .rBRA			(rBRA),
 	   .rDLY			(rDLY),
-	   .rXCE			(rXCE[1:0]),
 	   .rSIMM			(rSIMM[31:0]),
 	   .rIMM			(rIMM[15:0]),
 	   .rOPC			(rOPC[5:0]),
