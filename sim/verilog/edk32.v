@@ -1,4 +1,4 @@
-// $Id: edk32.v,v 1.1 2007-11-02 03:25:45 sybreon Exp $
+// $Id: edk32.v,v 1.2 2007-11-02 19:16:10 sybreon Exp $
 //
 // AEMB EDK 3.2 Compatible Core TEST
 //
@@ -20,6 +20,11 @@
 // USA
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2007/11/02 03:25:45  sybreon
+// New EDK 3.2 compatible design with optional barrel-shifter and multiplier.
+// Fixed various minor data hazard bugs.
+// Code compatible with -O0/1/2/3/s generated code.
+//
 
 module edk32 ();
 
@@ -38,7 +43,6 @@ module edk32 ();
    end
    
    initial begin
-      inttime = ($random % 143 * 7) + 3210;      
       svc = 0;      
       sys_clk_i = 1;
       sys_rst_i = 1;
@@ -49,7 +53,7 @@ module edk32 ();
 
    initial fork
       //inttime $display("FSADFASDFSDAF");      
-      #1000 sys_int_i = 1;
+      //#10000 sys_int_i = 1;
       //#1100 sys_int_i = 0;
       //#100000 $displayh("\nTest Completed."); 
       //#4000 $finish;
@@ -81,7 +85,7 @@ module edk32 ();
    
    always @(negedge sys_clk_i) begin
       iwb_ack_i <= #1 iwb_stb_o;
-      dwb_ack_i <= #1 dwb_stb_o & $random;
+      dwb_ack_i <= #1 dwb_stb_o;
       iadr <= #1 iwb_adr_o;
       dadr <= dwb_adr_o;
       
@@ -94,29 +98,46 @@ module edk32 ();
 	   4'h3: ram[dwb_adr_o] <= {dwb_dat_o[7:0],dwb_dat_o[15:8],dwb_dat_t[15:0]};	   
 	   4'hC: ram[dwb_adr_o] <= {dwb_dat_t[31:16],dwb_dat_o[23:16],dwb_dat_o[31:24]};	   	  
 	   4'hF: ram[dwb_adr_o] <= {dwb_dat_o[7:0],dwb_dat_o[15:8],dwb_dat_o[23:16],dwb_dat_o[31:24]};	   
-	 endcase // case (dwb_sel_o)	 
-      end
-   end
+	 endcase // case (dwb_sel_o)
+      end // if (dwb_we_o & dwb_stb_o)
+   end // always @ (negedge sys_clk_i)
 
    integer i;   
    initial begin
       for (i=0;i<65535;i=i+1) begin
 	 ram[i] <= $random;
-      end      
+      end
       #1 $readmemh("aeMB.rom",ram);
    end
 
    // DISPLAY OUTPUTS ///////////////////////////////////////////////////
 
    //assign dut.rRESULT = dut.rSIMM;   
-   
+
+   integer rnd;   
    always @(posedge sys_clk_i) begin
+
+      // Interrupt Monitors
+      if (!dut.rMSR_IE) begin
+	 rnd = $random % 30;	 
+	 inttime = $stime + 1000 + (rnd*rnd * 10);
+      end
+      if ($stime > inttime) begin
+	 sys_int_i = 1;
+	 svc = 0;	 
+      end
+      if (($stime > inttime + 500) && !svc) begin
+	 $display("\n\t*** INTERRUPT TIMEOUT ***", inttime);	 
+	 $finish;	 
+      end
+      if (dwb_we_o & (dwb_dat_o == "RTNI")) sys_int_i = 0;	 
+      if (|dut.rXCE) svc = 1;
       
       // Pass/Fail Monitors
       if (dwb_we_o & (dwb_dat_o == "FAIL")) begin
 	 $display("\n\tFAIL");	 
 	 $finish;
-      end      
+      end
       if (iwb_dat_i == 32'hb8000000) begin
 	 $display("\n\t*** PASSED ALL TESTS ***");
 	 $finish;	 
@@ -126,10 +147,16 @@ module edk32 ();
 
    always @(posedge sys_clk_i) if (dut.gena) begin
       $write ("\n", ($stime/10));
-      $writeh ("\tPC=", {iwb_adr_o,2'd0}, "[", iwb_dat_i, "]");
+      $writeh ("\tPC=", {iwb_adr_o,2'd0});
 
       // DECODE
       $writeh ("\t");
+      
+      case (dut.bpcu.rATOM)
+	2'o2, 2'o1: $write("/");
+	2'o0, 2'o3: $write("\\");
+      endcase // case (dut.bpcu.rATOM)
+
 
       case ({dut.rBRA, dut.rDLY})
 	2'b00: $write(" ");
@@ -149,7 +176,7 @@ module edk32 ();
 		 2'o1: $write("CMP");	
 		 2'o3: $write("CMPU");	
 		 default: $write("XXX");
-	       endcase
+	       endcase // case (dut.rIMM[1:0])
 	6'o06: $write("ADDKC");	
 	6'o07: $write("RSUBKC");	
 
@@ -168,7 +195,7 @@ module edk32 ();
 		 2'o1: $write("BSRA");		 
 		 2'o2: $write("BSLL");		 
 		 default: $write("XXX");		 
-	       endcase 
+	       endcase // case (dut.rALT[10:9])
 	6'o22: $write("IDIV");	
 
 	6'o30: $write("MULI");	
@@ -177,16 +204,28 @@ module edk32 ();
 		 2'o1: $write("BSRAI");		 
 		 2'o2: $write("BSLLI");		 
 		 default: $write("XXX");		 
-	       endcase 
+	       endcase // case (dut.rALT[10:9])
 	6'o33: $write("GETPUT");
 
 	6'o40: $write("OR");
 	6'o41: $write("AND");	
 	6'o42: if (dut.rRD == 0) $write("   "); else $write("XOR");
 	6'o43: $write("ANDN");	
-	6'o44: $write("SRX");
+	6'o44: case (dut.rIMM[6:5])
+		 2'o0: $write("SRA");
+		 2'o1: $write("SRC");
+		 2'o2: $write("SRL");
+		 2'o3: if (dut.rIMM[0]) $write("SEXT16"); else $write("SEXT8");		 
+	       endcase // case (dut.rIMM[6:5])
+	
 	6'o45: $write("MOV");	
-	6'o46: $write("BRX");	
+	6'o46: case (dut.rRA[3:2])
+		 3'o0: $write("BR");		 
+		 3'o1: $write("BRL");		 
+		 3'o2: $write("BRA");		 
+		 3'o3: $write("BRAL");		 
+	       endcase // case (dut.rRA[3:2])
+	
 	6'o47: case (dut.rRD[2:0])
 		 3'o0: $write("BEQ");	
 		 3'o1: $write("BNE");	
@@ -202,8 +241,18 @@ module edk32 ();
 	6'o52: $write("XORI");	
 	6'o53: $write("ANDNI");	
 	6'o54: $write("IMMI");	
-	6'o55: $write("RTXI");	
-	6'o56: $write("BRXI");	
+	6'o55: case (dut.rRD[1:0])
+		 2'o0: $write("RTSD");
+		 2'o1: $write("RTID");
+		 2'o2: $write("RTBD");
+		 default: $write("XXX");		 
+	       endcase
+	6'o56: case (dut.rRA[3:2])
+		 3'o0: $write("BRI");		 
+		 3'o1: $write("BRLI");		 
+		 3'o2: $write("BRAI");		 
+		 3'o3: $write("BRALI");		 
+	       endcase // case (dut.rRA[3:2])
 	6'o57: case (dut.rRD[2:0])
 		 3'o0: $write("BEQI");	
 		 3'o1: $write("BNEI");	
@@ -229,17 +278,17 @@ module edk32 ();
 	6'o76: $write("SWI");
 
 	default: $write("XXX");	
-      endcase // case (rOPC)
+      endcase // case (dut.rOPC)
 
       case (dut.rOPC[3])
 	1'b1: $writeh("\tr",dut.rRD,", r",dut.rRA,", h",dut.rIMM);
 	1'b0: $writeh("\tr",dut.rRD,", r",dut.rRA,", r",dut.rRB,"  ");	
-      endcase // case (rOPC[3])
+      endcase // case (dut.rOPC[3])
 
 
       // ALU
       $write("\t");
-      $writeh(" I=",dut.rSIMM);
+      //$writeh(" I=",dut.rSIMM);
       $writeh(" A=",dut.rOPA);
       $writeh(" B=",dut.rOPB);
       
@@ -251,25 +300,24 @@ module edk32 ();
 	3'o4: $write(" MUL");
 	3'o5: $write(" BSF");
 	default: $write(" XXX");
-      endcase // case (rMXALU)      
+      endcase // case (dut.rMXALU)
       $writeh("=h",dut.xecu.xRESULT);
 
       // WRITEBACK
-      $writeh("\tSR=", {dut.xecu.rMSR_C, dut.xecu.rMSR_IE}," ");
+      $writeh("\tSR=", {dut.xecu.rMSR_BIP, dut.xecu.rMSR_C, dut.xecu.rMSR_IE, dut.xecu.rMSR_BE}," ");
       
       if (dut.regf.fRDWE) begin
 	 case (dut.rMXDST)
 	   2'o2: $writeh("R",dut.rRW,"=RAM(h",dut.regf.xWDAT,")");
 	   2'o1: $writeh("R",dut.rRW,"=LNK(h",dut.regf.xWDAT,")");
 	   2'o0: $writeh("R",dut.rRW,"=ALU(h",dut.regf.xWDAT,")");
-	 endcase // case (rMXDST)
+	 endcase // case (dut.rMXDST)
       end
 
       // STORE
       if (dwb_stb_o & dwb_we_o) $writeh("RAM(",{dwb_adr_o,2'd0},")=",dwb_dat_o,":",dwb_sel_o);      
       
-      
-   end
+   end // if (dut.gena)
    
    
    // INTERNAL WIRING ////////////////////////////////////////////////////
@@ -296,4 +344,4 @@ module edk32 ();
 
 
    
-endmodule // testbench
+endmodule // edk32
