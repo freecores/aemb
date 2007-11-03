@@ -1,4 +1,4 @@
-// $Id: aeMB_xecu.v,v 1.2 2007-11-02 19:20:58 sybreon Exp $
+// $Id: aeMB_xecu.v,v 1.3 2007-11-03 08:34:55 sybreon Exp $
 //
 // AEMB MAIN EXECUTION ALU
 //
@@ -20,6 +20,10 @@
 // USA
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2007/11/02 19:20:58  sybreon
+// Added better (beta) interrupt support.
+// Changed MSR_IE to disabled at reset as per MB docs.
+//
 // Revision 1.1  2007/11/02 03:25:41  sybreon
 // New EDK 3.2 compatible design with optional barrel-shifter and multiplier.
 // Fixed various minor data hazard bugs.
@@ -52,6 +56,7 @@ module aeMB_xecu (/*AUTOARG*/
    input [4:0] 	   rRA;
    input [2:0] 	   rMXALU;
    input 	   rBRA, rDLY;
+   
    //input [1:0] 	   rXCE;   
    input [31:0]    rSIMM;
    input [15:0]    rIMM;
@@ -243,24 +248,10 @@ module aeMB_xecu (/*AUTOARG*/
        default: xDWBSEL <= 4'hX;       
      endcase // case (rOPC[1:0])
    
-     /*
-     case (wADD[1:0])
-       2'o0: case (rOPC[1:0])
-	       2'o0: xDWBSEL <= 4'h8;
-	       2'o1: xDWBSEL <= 4'hC;
-	       default: xDWBSEL <= 4'hF;
-	     endcase // case (rOPC[1:0])
-       2'o1: xDWBSEL <= 4'h4;
-       2'o2: xDWBSEL <= (rOPC[0]) ? 4'h3 : 4'h2;       
-       2'o3: xDWBSEL <= 4'h1;      
-     endcase // case (wADD[1:0])
-      */
-   
    // --- SYNC ---
 
    always @(posedge gclk)
      if (grst) begin
-	//rMSR_IE <= 1'b1;	
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	rDWBSEL <= 4'h0;

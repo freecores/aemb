@@ -1,4 +1,4 @@
-// $Id: aeMB_edk32.v,v 1.2 2007-11-02 19:20:58 sybreon Exp $
+// $Id: aeMB_edk32.v,v 1.3 2007-11-03 08:34:55 sybreon Exp $
 //
 // AEMB EDK 3.2 Compatible Core
 //
@@ -20,6 +20,10 @@
 // USA
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2007/11/02 19:20:58  sybreon
+// Added better (beta) interrupt support.
+// Changed MSR_IE to disabled at reset as per MB docs.
+//
 // Revision 1.1  2007/11/02 03:25:40  sybreon
 // New EDK 3.2 compatible design with optional barrel-shifter and multiplier.
 // Fixed various minor data hazard bugs.
@@ -98,7 +102,6 @@ module aeMB_edk32 (/*AUTOARG*/
    // --- OPTIONAL COMPONENTS -----------------------------------
    // Trade off hardware size/speed for software speed
    
-   /*
    aeMB_mult
      mult (
 	   // Outputs
@@ -106,8 +109,7 @@ module aeMB_edk32 (/*AUTOARG*/
 	   // Inputs
 	   .rOPA			(rOPA[31:0]),
 	   .rOPB			(rOPB[31:0]));   
-    */
-   /*
+     
    aeMB_bsft
      bsft (
 	   // Outputs
@@ -116,7 +118,7 @@ module aeMB_edk32 (/*AUTOARG*/
 	   .rOPA			(rOPA[31:0]),
 	   .rOPB			(rOPB[31:0]),
 	   .rALT			(rALT[10:0]));
-    */
+   
        
    // --- NON-OPTIONAL COMPONENTS -------------------------------
    // These components make up the main AEMB processor.

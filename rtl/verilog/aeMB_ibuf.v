@@ -1,4 +1,4 @@
-// $Id: aeMB_ibuf.v,v 1.2 2007-11-02 19:20:58 sybreon Exp $
+// $Id: aeMB_ibuf.v,v 1.3 2007-11-03 08:34:55 sybreon Exp $
 //
 // AEMB INSTRUCTION BUFFER
 // 
@@ -20,6 +20,10 @@
 // USA
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2007/11/02 19:20:58  sybreon
+// Added better (beta) interrupt support.
+// Changed MSR_IE to disabled at reset as per MB docs.
+//
 // Revision 1.1  2007/11/02 03:25:40  sybreon
 // New EDK 3.2 compatible design with optional barrel-shifter and multiplier.
 // Fixed various minor data hazard bugs.
@@ -68,7 +72,7 @@ module aeMB_ibuf (/*AUTOARG*/
    // DELAY SLOT
    always @(/*AUTOSENSE*/fIMM or rBRA or rIMM or rXCE or wIDAT) begin
       xIREG <= (rBRA | |rXCE) ? 32'h88000000 : wIDAT;
-      xSIMM <= (fIMM) ? {rIMM, wIDAT[15:0]} : { {(16){wIDAT[15]}}, wIDAT[15:0]};
+      xSIMM <= (!fIMM | rBRA | |rXCE) ? { {(16){wIDAT[15]}}, wIDAT[15:0]} : {rIMM, wIDAT[15:0]};
    end
 
    // Synchronous
