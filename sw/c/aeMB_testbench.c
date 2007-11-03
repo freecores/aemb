@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_testbench.c,v 1.7 2007-11-02 18:32:19 sybreon Exp $
+ * $Id: aeMB_testbench.c,v 1.8 2007-11-03 08:40:18 sybreon Exp $
  * 
  * AEMB Function Verification C Testbench
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -25,6 +25,9 @@
  * 
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.7  2007/11/02 18:32:19  sybreon
+ * Enable MSR_IE with software.
+ *
  * Revision 1.6  2007/04/30 15:57:10  sybreon
  * Removed byte acrobatics.
  *
@@ -53,18 +56,34 @@
    - Pointer addressing
    - Interrupt handling
  */
-void int_call_func (void); // __attribute__((save_volatiles));
-void int_handler_func (void) __attribute__ ((interrupt_handler));
+// void int_service (void) __attribute__((save_volatiles));
+void int_handler (void) __attribute__ ((interrupt_handler));
 
-
-void int_handler_func (void) {
-  int_call_func();
+void int_enable()
+{
+  asm ("mfs r14, rmsr");
+  asm ("ori r14, r14, 0x0002");
+  asm ("mts rmsr, r14");
 }
 
-void int_call_func (void) {
-  int* pio = (int*)0xFFFFFFFF;
+void int_disable()
+{
+  asm ("mfs r14, rmsr");
+  asm ("andi r14, r14, 0x00FD");
+  asm ("mts rmsr, r14");
+}
+
+void int_service() 
+{
+  int* pio = (int*)0xFFFFFFFC;
   *pio = 0x52544E49; // "INTR"
 }
+
+void int_handler()
+{
+  int_service();
+}
+
 
 /**
    FIBONACCI TEST
@@ -253,27 +272,13 @@ int newton_test (int max) {
  */
 
 
-void int_enable()
-{
-  asm ("mfs r14, rmsr");
-  asm ("ori r14, r14, 0x0002");
-  asm ("mts rmsr, r14");
-}
-
-void int_disable()
-{
-  asm ("mfs r14, rmsr");
-  asm ("andi r14, r14, 0x00FD");
-  asm ("mts rmsr, r14");
-}
-
 int main () 
 {
   // Message Passing Port
   int* mpi = (int*)0xFFFFFFFF;
   
   // Number of each test to run
-  int max = 3;
+  int max = 10;
 
   // Enable Global Interrupts
   int_enable();
