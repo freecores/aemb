@@ -1,4 +1,4 @@
-// $Id: aeMB_scon.v,v 1.2 2007-11-02 19:20:58 sybreon Exp $
+// $Id: aeMB_scon.v,v 1.3 2007-11-04 05:24:59 sybreon Exp $
 //
 // AEMB SYSTEM CONTROL UNIT
 // 
@@ -20,6 +20,10 @@
 // USA
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2007/11/02 19:20:58  sybreon
+// Added better (beta) interrupt support.
+// Changed MSR_IE to disabled at reset as per MB docs.
+//
 // Revision 1.1  2007/11/02 03:25:41  sybreon
 // New EDK 3.2 compatible design with optional barrel-shifter and multiplier.
 // Fixed various minor data hazard bugs.
@@ -57,45 +61,50 @@ module aeMB_scon (/*AUTOARG*/
    
    assign 	gena = !((rDWBSTB ^ dwb_ack_i) | !iwb_ack_i);
 
-   // --- INTERRUPT LATCH ---------------------------------
-
+   // --- INTERRUPT LATCH --------------------------------------
+   // Debounce and latch onto the positive edge. This is independent
+   // of the pipeline so that stalls do not affect it.
+   
    reg 		rFINT;
    reg [1:0] 	rDINT;
-   wire 	wSHOT = rDINT[0] & !rDINT[1] & sys_int_i; // +Edge   
+   wire 	wSHOT = rDINT[0] & !rDINT[1] & sys_int_i;
 
    always @(posedge gclk)
      if (grst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	rDINT <= 2'h0;
+	rFINT <= 1'h0;
 	// End of automatics
      end else if (rMSR_IE) begin
 	rDINT <= #1 {rDINT[0], sys_int_i};	
+	rFINT <= (rXCE == 2'o2) ? 1'b0 : (rFINT | wSHOT);
      end
    
+
+   // --- EXCEPTION PROCESSING ---------------------------------
+   // Process the independent priority flags to determine which
+   // interrupt/exception/break to handle.
+
+   reg [1:0] rXCE;
+   reg 	     rENA;   
+   wire      fINT = rENA & ^rATOM & !rMSR_BIP & rMSR_IE & rFINT;   
+
+   always @(/*AUTOSENSE*/fINT)
+     rXCE <= (fINT) ? 2'o2 : 2'o0;
+
    always @(posedge gclk)
      if (grst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
-	rFINT <= 1'h0;
+	rENA <= 1'h0;
 	// End of automatics
-     end else if (gena) begin
-	rFINT <= (rXCE == 2'o2) ? 1'b0 : (rFINT | wSHOT);
+     end else begin
+	rENA <= #1 gena;	
      end
-
-   // --- EXCEPTION PROCESSING ----------------------------
-
-   reg [1:0] rXCE;
-
-   always @(/*AUTOSENSE*/rATOM or rFINT or rMSR_BIP or rMSR_IE)
-     case (rATOM)
-       default: rXCE <= (!rMSR_BIP & rMSR_IE & rFINT) ? 2'o2 :
-			2'o0;      
-       2'o0, 2'o3: rXCE <= 0;       
-     endcase // case (rATOM)
    
-   
-   // --- RESET SYNCHRONISER ------------------------------
+   // --- RESET SYNCHRONISER -----------------------------------
+   // Synchronise the reset signal to a clock edge.
    
    reg [1:0] 	rRST;   
    assign 	grst = sys_rst_i;
