@@ -1,4 +1,4 @@
-// $Id: edk32.v,v 1.2 2007-11-02 19:16:10 sybreon Exp $
+// $Id: edk32.v,v 1.3 2007-11-05 10:59:31 sybreon Exp $
 //
 // AEMB EDK 3.2 Compatible Core TEST
 //
@@ -20,6 +20,10 @@
 // USA
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2007/11/02 19:16:10  sybreon
+// Added interrupt simulation.
+// Changed "human readable" simulation output.
+//
 // Revision 1.1  2007/11/02 03:25:45  sybreon
 // New EDK 3.2 compatible design with optional barrel-shifter and multiplier.
 // Fixed various minor data hazard bugs.
@@ -27,13 +31,15 @@
 //
 
 module edk32 ();
-
-
+   
+`include "random.v"
+  
    // INITIAL SETUP //////////////////////////////////////////////////////
    
    reg 	     sys_clk_i, sys_rst_i, sys_int_i, sys_exc_i;
    reg 	     svc;
    integer   inttime;
+   integer   seed;   
    
    always #5 sys_clk_i = ~sys_clk_i;   
 
@@ -43,8 +49,9 @@ module edk32 ();
    end
    
    initial begin
+      seed = randseed;      
       svc = 0;      
-      sys_clk_i = 1;
+      sys_clk_i = $random(seed);
       sys_rst_i = 1;
       sys_int_i = 0;
       sys_exc_i = 0;      
