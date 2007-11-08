@@ -1,4 +1,4 @@
-// $Id: edk32.v,v 1.3 2007-11-05 10:59:31 sybreon Exp $
+// $Id: edk32.v,v 1.4 2007-11-08 14:18:00 sybreon Exp $
 //
 // AEMB EDK 3.2 Compatible Core TEST
 //
@@ -20,6 +20,9 @@
 // USA
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2007/11/05 10:59:31  sybreon
+// Added random seed for simulation.
+//
 // Revision 1.2  2007/11/02 19:16:10  sybreon
 // Added interrupt simulation.
 // Changed "human readable" simulation output.
@@ -44,8 +47,8 @@ module edk32 ();
    always #5 sys_clk_i = ~sys_clk_i;   
 
    initial begin
-      //$dumpfile("dump.vcd");
-      //$dumpvars(1,dut);
+      $dumpfile("dump.vcd");
+      $dumpvars(1,dut);
    end
    
    initial begin
@@ -296,8 +299,8 @@ module edk32 ();
       // ALU
       $write("\t");
       //$writeh(" I=",dut.rSIMM);
-      $writeh(" A=",dut.rOPA);
-      $writeh(" B=",dut.rOPB);
+      $writeh(" A=",dut.xecu.rOPA);
+      $writeh(" B=",dut.xecu.rOPB);
       
       case (dut.rMXALU)
 	3'o0: $write(" ADD");

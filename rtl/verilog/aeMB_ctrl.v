@@ -1,4 +1,4 @@
-// $Id: aeMB_ctrl.v,v 1.2 2007-11-02 19:20:58 sybreon Exp $
+// $Id: aeMB_ctrl.v,v 1.3 2007-11-08 14:17:47 sybreon Exp $
 //
 // AEMB CONTROL UNIT
 // 
@@ -20,6 +20,10 @@
 // USA
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2007/11/02 19:20:58  sybreon
+// Added better (beta) interrupt support.
+// Changed MSR_IE to disabled at reset as per MB docs.
+//
 // Revision 1.1  2007/11/02 03:25:40  sybreon
 // New EDK 3.2 compatible design with optional barrel-shifter and multiplier.
 // Fixed various minor data hazard bugs.
@@ -32,7 +36,7 @@ module aeMB_ctrl (/*AUTOARG*/
    dwb_wre_o,
    // Inputs
    rXCE, rDLY, rIMM, rALT, rOPC, rRD, rRA, rRB, rPC, rBRA, rMSR_IE,
-   gclk, grst, gena
+   dwb_ack_i, gclk, grst, gena
    );
    // INTERNAL   
    //output [31:2] rPCLNK;
@@ -54,6 +58,7 @@ module aeMB_ctrl (/*AUTOARG*/
    // DATA WISHBONE
    output 	 dwb_stb_o;
    output 	 dwb_wre_o;
+   input 	 dwb_ack_i;   
    
    // SYSTEM
    input 	 gclk, grst, gena;
@@ -133,7 +138,7 @@ module aeMB_ctrl (/*AUTOARG*/
    reg [1:0] 	 rMXDST, xMXDST;
    reg [4:0] 	 rRW, xRW;   
    
-   wire 	 fSKIP = (rBRA & !rDLY);   
+   wire 	 fSKIP = (rBRA & !rDLY);
 
    always @(/*AUTOSENSE*/fLOD or fSKIP or fSTR or rXCE)
      if (fSKIP | |rXCE) begin
@@ -143,7 +148,7 @@ module aeMB_ctrl (/*AUTOARG*/
 	xDWBWRE <= 1'h0;
 	// End of automatics
      end else begin
-	xDWBSTB <= fLOD | fSTR;
+	xDWBSTB <= (fLOD | fSTR);
 	xDWBWRE <= fSTR;	
      end
    

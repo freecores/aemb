@@ -1,4 +1,4 @@
-// $Id: aeMB_xecu.v,v 1.3 2007-11-03 08:34:55 sybreon Exp $
+// $Id: aeMB_xecu.v,v 1.4 2007-11-08 14:17:47 sybreon Exp $
 //
 // AEMB MAIN EXECUTION ALU
 //
@@ -20,6 +20,9 @@
 // USA
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2007/11/03 08:34:55  sybreon
+// Minor code cleanup.
+//
 // Revision 1.2  2007/11/02 19:20:58  sybreon
 // Added better (beta) interrupt support.
 // Changed MSR_IE to disabled at reset as per MB docs.
@@ -32,13 +35,15 @@
 
 module aeMB_xecu (/*AUTOARG*/
    // Outputs
-   dwb_adr_o, dwb_sel_o, rRESULT, rOPA, rOPB, rDWBSEL, rMSR_IE,
-   rMSR_BIP,
+   dwb_adr_o, dwb_sel_o, rRESULT, rDWBSEL, rMSR_IE, rMSR_BIP,
    // Inputs
-   rXCE, rREGA, rREGB, rMXSRC, rMXTGT, rRA, rMXALU, rBRA, rDLY, rSIMM,
-   rIMM, rOPC, rRD, rDWBDI, rPC, rRES_MUL, rRES_BSF, gclk, grst, gena
+   rXCE, rREGA, rREGB, rMXSRC, rMXTGT, rRA, rMXALU, rBRA, rDLY, rALT,
+   rSIMM, rIMM, rOPC, rRD, rDWBDI, rPC, gclk, grst, gena
    );
    parameter DW=32;
+
+   parameter MUL=0;
+   parameter BSF=0;   
    
    // DATA WISHBONE
    output [DW-1:2] dwb_adr_o;
@@ -46,7 +51,6 @@ module aeMB_xecu (/*AUTOARG*/
    
    // INTERNAL
    output [31:0]   rRESULT;
-   output [31:0]   rOPA, rOPB;
    output [3:0]    rDWBSEL;   
    output 	   rMSR_IE;
    output 	   rMSR_BIP;
@@ -56,16 +60,16 @@ module aeMB_xecu (/*AUTOARG*/
    input [4:0] 	   rRA;
    input [2:0] 	   rMXALU;
    input 	   rBRA, rDLY;
+   input [10:0]    rALT;   
    
-   //input [1:0] 	   rXCE;   
    input [31:0]    rSIMM;
    input [15:0]    rIMM;
    input [5:0] 	   rOPC;
    input [4:0] 	   rRD;   
    input [31:0]    rDWBDI;
    input [31:2]    rPC;   
-   input [31:0]    rRES_MUL; // External Multiplier
-   input [31:0]    rRES_BSF; // External Barrel Shifter
+   //input [31:0]    rRES_MUL; // External Multiplier
+   //input [31:0]    rRES_BSF; // External Barrel Shifter
    
    // SYSTEM
    input 	   gclk, grst, gena;
@@ -97,6 +101,7 @@ module aeMB_xecu (/*AUTOARG*/
      endcase // case (rMXTGT)
 
    // --- ADD/SUB SELECTOR ----
+   // FIXME: Redesign
    // TODO: Refactor
    // TODO: Verify signed compare
  
@@ -124,7 +129,7 @@ module aeMB_xecu (/*AUTOARG*/
        default: {rRES_ADDC,rRES_ADD} <= #1 {wADDC,wADD};       
      endcase // case ({rOPC[3],rOPC[0],rIMM[0]})
    
-   // --- LOGIC SELECTOR ---
+   // --- LOGIC SELECTOR --------------------------------------
 
    reg [31:0] 	    rRES_LOG;
    always @(/*AUTOSENSE*/rOPA or rOPB or rOPC)
@@ -135,7 +140,7 @@ module aeMB_xecu (/*AUTOARG*/
        2'o3: rRES_LOG <= #1 rOPA & ~rOPB;       
      endcase // case (rOPC[1:0])
 
-   // --- SHIFT SELECTOR ---
+   // --- SHIFTER SELECTOR ------------------------------------
    
    reg [31:0] 	    rRES_SFT;
    reg 		    rRES_SFTC;
@@ -149,7 +154,7 @@ module aeMB_xecu (/*AUTOARG*/
 				      { {(24){rOPA[7]}}, rOPA[7:0], rMSR_C};
      endcase // case (rIMM[6:5])
 
-   // --- MOVE SELECTOR ---
+   // --- MOVE SELECTOR ---------------------------------------
    
    wire [31:0] 	    wMSR = {rMSR_C, 3'o0, 
 			    20'h0ED32, 
@@ -163,6 +168,71 @@ module aeMB_xecu (/*AUTOARG*/
 		 (fMFPC) ? rPC :
 		 (rRA[3]) ? rOPB : 
 		 rOPA;   
+   
+   // --- MULTIPLIER ------------------------------------------
+
+   reg [31:0] 	    rRES_MUL;
+   always @(/*AUTOSENSE*/rOPA or rOPB) begin
+      rRES_MUL <= (rOPA * rOPB);
+   end
+
+   // --- BARREL SHIFTER --------------------------------------
+
+   reg [31:0] 	 rRES_BSF;
+   reg [31:0] 	 xBSRL, xBSRA, xBSLL;
+   
+   // Infer a logical left barrel shifter.   
+   always @(/*AUTOSENSE*/rOPA or rOPB)
+     xBSLL <= rOPA << rOPB[4:0];
+   
+   // Infer a logical right barrel shifter.
+   always @(/*AUTOSENSE*/rOPA or rOPB)
+     xBSRL <= rOPA >> rOPB[4:0];
+
+   // Infer a arithmetic right barrel shifter.
+   always @(/*AUTOSENSE*/rOPA or rOPB)
+     case (rOPB[4:0])
+       5'd00: xBSRA <= rOPA;
+       5'd01: xBSRA <= {{(1){rOPA[31]}}, rOPA[31:1]};
+       5'd02: xBSRA <= {{(2){rOPA[31]}}, rOPA[31:2]};
+       5'd03: xBSRA <= {{(3){rOPA[31]}}, rOPA[31:3]};
+       5'd04: xBSRA <= {{(4){rOPA[31]}}, rOPA[31:4]};
+       5'd05: xBSRA <= {{(5){rOPA[31]}}, rOPA[31:5]};
+       5'd06: xBSRA <= {{(6){rOPA[31]}}, rOPA[31:6]};
+       5'd07: xBSRA <= {{(7){rOPA[31]}}, rOPA[31:7]};
+       5'd08: xBSRA <= {{(8){rOPA[31]}}, rOPA[31:8]};
+       5'd09: xBSRA <= {{(9){rOPA[31]}}, rOPA[31:9]};
+       5'd10: xBSRA <= {{(10){rOPA[31]}}, rOPA[31:10]};
+       5'd11: xBSRA <= {{(11){rOPA[31]}}, rOPA[31:11]};
+       5'd12: xBSRA <= {{(12){rOPA[31]}}, rOPA[31:12]};
+       5'd13: xBSRA <= {{(13){rOPA[31]}}, rOPA[31:13]};
+       5'd14: xBSRA <= {{(14){rOPA[31]}}, rOPA[31:14]};
+       5'd15: xBSRA <= {{(15){rOPA[31]}}, rOPA[31:15]};
+       5'd16: xBSRA <= {{(16){rOPA[31]}}, rOPA[31:16]};
+       5'd17: xBSRA <= {{(17){rOPA[31]}}, rOPA[31:17]};
+       5'd18: xBSRA <= {{(18){rOPA[31]}}, rOPA[31:18]};
+       5'd19: xBSRA <= {{(19){rOPA[31]}}, rOPA[31:19]};
+       5'd20: xBSRA <= {{(20){rOPA[31]}}, rOPA[31:20]};
+       5'd21: xBSRA <= {{(21){rOPA[31]}}, rOPA[31:21]};
+       5'd22: xBSRA <= {{(22){rOPA[31]}}, rOPA[31:22]};
+       5'd23: xBSRA <= {{(23){rOPA[31]}}, rOPA[31:23]};
+       5'd24: xBSRA <= {{(24){rOPA[31]}}, rOPA[31:24]};
+       5'd25: xBSRA <= {{(25){rOPA[31]}}, rOPA[31:25]};
+       5'd26: xBSRA <= {{(26){rOPA[31]}}, rOPA[31:26]};
+       5'd27: xBSRA <= {{(27){rOPA[31]}}, rOPA[31:27]};
+       5'd28: xBSRA <= {{(28){rOPA[31]}}, rOPA[31:28]};
+       5'd29: xBSRA <= {{(29){rOPA[31]}}, rOPA[31:29]};
+       5'd30: xBSRA <= {{(30){rOPA[31]}}, rOPA[31:30]};
+       5'd31: xBSRA <= {{(31){rOPA[31]}}, rOPA[31]};
+     endcase // case (rOPB[4:0])
+
+   always @(/*AUTOSENSE*/rALT or xBSLL or xBSRA or xBSRL)
+     case (rALT[10:9])
+       2'd0: rRES_BSF <= xBSRL;
+       2'd1: rRES_BSF <= xBSRA;       
+       2'd2: rRES_BSF <= xBSLL;
+       default: rRES_BSF <= 32'hX;       
+     endcase // case (rALT[10:9])
    
    
    // --- MSR REGISTER -----------------
@@ -206,8 +276,8 @@ module aeMB_xecu (/*AUTOARG*/
    always @(/*AUTOSENSE*/fMTS or rMSR_BE or rOPA)
      xMSR_BE <= (fMTS) ? rOPA[0] : rMSR_BE;      
 
-   // --- RESULT SELECTOR
-   
+   // --- RESULT SELECTOR -------------------------------------------
+   // Selects results from functional units. 
    reg [31:0] 	   rRESULT, xRESULT;
 
    // RESULT
@@ -224,8 +294,8 @@ module aeMB_xecu (/*AUTOARG*/
 	 3'o1: xRESULT <= rRES_LOG;
 	 3'o2: xRESULT <= rRES_SFT;
 	 3'o3: xRESULT <= rRES_MOV;
-	 3'o4: xRESULT <= rRES_MUL;	 
-	 3'o5: xRESULT <= rRES_BSF;	 
+	 3'o4: xRESULT <= (MUL) ? rRES_MUL : 32'hX;	 
+	 3'o5: xRESULT <= (BSF) ? rRES_BSF : 32'hX;	 
 	 default: xRESULT <= 32'hX;       
        endcase // case (rMXALU)
 
