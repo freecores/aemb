@@ -1,4 +1,4 @@
-// $Id: aeMB_edk32.v,v 1.4 2007-11-08 14:17:47 sybreon Exp $
+// $Id: aeMB_edk32.v,v 1.5 2007-11-08 17:48:14 sybreon Exp $
 //
 // AEMB EDK 3.2 Compatible Core
 //
@@ -20,6 +20,9 @@
 // USA
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.4  2007/11/08 14:17:47  sybreon
+// Parameterised optional components.
+//
 // Revision 1.3  2007/11/03 08:34:55  sybreon
 // Minor code cleanup.
 //
@@ -169,6 +172,7 @@ module aeMB_edk32 (/*AUTOARG*/
 	   .rBRA			(rBRA),
 	   .rMSR_IE			(rMSR_IE),
 	   .dwb_ack_i			(dwb_ack_i),
+	   .iwb_ack_i			(iwb_ack_i),
 	   .gclk			(gclk),
 	   .grst			(grst),
 	   .gena			(gena));

@@ -1,4 +1,4 @@
-// $Id: aeMB_ctrl.v,v 1.3 2007-11-08 14:17:47 sybreon Exp $
+// $Id: aeMB_ctrl.v,v 1.4 2007-11-08 17:48:14 sybreon Exp $
 //
 // AEMB CONTROL UNIT
 // 
@@ -20,6 +20,9 @@
 // USA
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2007/11/08 14:17:47  sybreon
+// Parameterised optional components.
+//
 // Revision 1.2  2007/11/02 19:20:58  sybreon
 // Added better (beta) interrupt support.
 // Changed MSR_IE to disabled at reset as per MB docs.
@@ -36,7 +39,7 @@ module aeMB_ctrl (/*AUTOARG*/
    dwb_wre_o,
    // Inputs
    rXCE, rDLY, rIMM, rALT, rOPC, rRD, rRA, rRB, rPC, rBRA, rMSR_IE,
-   dwb_ack_i, gclk, grst, gena
+   dwb_ack_i, iwb_ack_i, gclk, grst, gena
    );
    // INTERNAL   
    //output [31:2] rPCLNK;
@@ -58,7 +61,10 @@ module aeMB_ctrl (/*AUTOARG*/
    // DATA WISHBONE
    output 	 dwb_stb_o;
    output 	 dwb_wre_o;
-   input 	 dwb_ack_i;   
+   input 	 dwb_ack_i;
+
+   // INST WISHBONE
+   input 	 iwb_ack_i;   
    
    // SYSTEM
    input 	 gclk, grst, gena;
@@ -139,8 +145,9 @@ module aeMB_ctrl (/*AUTOARG*/
    reg [4:0] 	 rRW, xRW;   
    
    wire 	 fSKIP = (rBRA & !rDLY);
-
-   always @(/*AUTOSENSE*/fLOD or fSKIP or fSTR or rXCE)
+   wire 	 fDACK = !(rDWBSTB ^ dwb_ack_i);
+   
+   always @(/*AUTOSENSE*/fLOD or fSKIP or fSTR or iwb_ack_i or rXCE)
      if (fSKIP | |rXCE) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
@@ -148,8 +155,8 @@ module aeMB_ctrl (/*AUTOARG*/
 	xDWBWRE <= 1'h0;
 	// End of automatics
      end else begin
-	xDWBSTB <= (fLOD | fSTR);
-	xDWBWRE <= fSTR;	
+	xDWBSTB <= (fLOD | fSTR) & iwb_ack_i;
+	xDWBWRE <= fSTR & iwb_ack_i;	
      end
    
    always @(/*AUTOSENSE*/fBCC or fBRU or fLOD or fRTD or fSKIP or fSTR
@@ -183,8 +190,6 @@ module aeMB_ctrl (/*AUTOARG*/
      if (grst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
-	rDWBSTB <= 1'h0;
-	rDWBWRE <= 1'h0;
 	rMXDST <= 2'h0;
 	rRW <= 5'h0;
 	// End of automatics
@@ -192,9 +197,19 @@ module aeMB_ctrl (/*AUTOARG*/
 	//rPCLNK <= #1 xPCLNK;
 	rMXDST <= #1 xMXDST;
 	rRW <= #1 xRW;
+     end
+
+   always @(posedge gclk)
+     if (grst) begin
+	/*AUTORESET*/
+	// Beginning of autoreset for uninitialized flops
+	rDWBSTB <= 1'h0;
+	rDWBWRE <= 1'h0;
+	// End of automatics
+     end else if (fDACK) begin
 	rDWBSTB <= #1 xDWBSTB;
 	rDWBWRE <= #1 xDWBWRE;	
-     end
+     end	
    
    
 endmodule // aeMB_ctrl
