@@ -1,4 +1,4 @@
-// $Id: edk32.v,v 1.4 2007-11-08 14:18:00 sybreon Exp $
+// $Id: edk32.v,v 1.5 2007-11-09 20:51:53 sybreon Exp $
 //
 // AEMB EDK 3.2 Compatible Core TEST
 //
@@ -20,6 +20,9 @@
 // USA
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.4  2007/11/08 14:18:00  sybreon
+// Parameterised optional components.
+//
 // Revision 1.3  2007/11/05 10:59:31  sybreon
 // Added random seed for simulation.
 //
@@ -71,13 +74,19 @@ module edk32 ();
 
    
    // FAKE MEMORY ////////////////////////////////////////////////////////
+
+   wire [14:2] fsl_adr_o;
+   wire        fsl_stb_o;
+   wire        fsl_wre_o;
+   wire [31:0] fsl_dat_o;
+   wire [31:0] fsl_dat_i;   
    
    wire [15:2] iwb_adr_o;
    wire        iwb_stb_o;
    wire        dwb_stb_o;
    reg [31:0]  rom [0:65535];
    wire [31:0] iwb_dat_i;
-   reg 	       iwb_ack_i, dwb_ack_i;
+   reg 	       iwb_ack_i, dwb_ack_i, fsl_ack_i;
 
    reg [31:0]  ram[0:65535];
    wire [31:0] dwb_dat_i;
@@ -92,10 +101,14 @@ module edk32 ();
    assign      {dwb_dat_i[7:0],dwb_dat_i[15:8],dwb_dat_i[23:16],dwb_dat_i[31:24]} = ram[dadr];
    assign      {iwb_dat_i[7:0],iwb_dat_i[15:8],iwb_dat_i[23:16],iwb_dat_i[31:24]} = ram[iadr];
    assign      {dwb_dat_t} = ram[dwb_adr_o];
+
+   assign      fsl_dat_i = fsl_adr_o;   
    
    always @(negedge sys_clk_i) begin
       iwb_ack_i <= #1 iwb_stb_o;
       dwb_ack_i <= #1 dwb_stb_o;
+      fsl_ack_i <= #1 fsl_stb_o;      
+      
       iadr <= #1 iwb_adr_o;
       dadr <= dwb_adr_o;
       
@@ -215,7 +228,17 @@ module edk32 ();
 		 2'o2: $write("BSLLI");		 
 		 default: $write("XXX");		 
 	       endcase // case (dut.rALT[10:9])
-	6'o33: $write("GETPUT");
+	6'o33: case (dut.rRB[4:2])
+		 3'o0: $write("GET");
+		 3'o4: $write("PUT");		 
+		 3'o2: $write("NGET");
+		 3'o6: $write("NPUT");		 
+		 3'o1: $write("CGET");
+		 3'o5: $write("CPUT");		 
+		 3'o3: $write("NCGET");
+		 3'o7: $write("NCPUT");		 
+	       endcase // case (dut.rRB[4:2])
+	
 
 	6'o40: $write("OR");
 	6'o41: $write("AND");	
@@ -318,7 +341,10 @@ module edk32 ();
       
       if (dut.regf.fRDWE) begin
 	 case (dut.rMXDST)
-	   2'o2: $writeh("R",dut.rRW,"=RAM(h",dut.regf.xWDAT,")");
+	   2'o2: begin
+	      if (dut.dwb_stb_o) $writeh("R",dut.rRW,"=RAM(h",dut.regf.xWDAT,")");
+	      if (dut.fsl_stb_o) $writeh("R",dut.rRW,"=FSL(h",dut.regf.xWDAT,")");
+	   end
 	   2'o1: $writeh("R",dut.rRW,"=LNK(h",dut.regf.xWDAT,")");
 	   2'o0: $writeh("R",dut.rRW,"=ALU(h",dut.regf.xWDAT,")");
 	 endcase // case (dut.rMXDST)
@@ -342,6 +368,14 @@ module edk32 ();
 	  .dwb_dat_i(dwb_dat_i),
 	  .dwb_wre_o(dwb_we_o),
 	  .dwb_sel_o(dwb_sel_o),
+
+	  .fsl_ack_i(fsl_ack_i),
+	  .fsl_stb_o(fsl_stb_o),
+	  .fsl_adr_o(fsl_adr_o),
+	  .fsl_dat_o(fsl_dat_o),
+	  .fsl_dat_i(fsl_dat_i),
+	  .fsl_wre_o(fsl_we_o),
+
 	  .iwb_adr_o(iwb_adr_o),
 	  .iwb_dat_i(iwb_dat_i),
 	  .iwb_stb_o(iwb_stb_o),

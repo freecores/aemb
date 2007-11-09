@@ -1,4 +1,4 @@
-// $Id: aeMB_xecu.v,v 1.4 2007-11-08 14:17:47 sybreon Exp $
+// $Id: aeMB_xecu.v,v 1.5 2007-11-09 20:51:52 sybreon Exp $
 //
 // AEMB MAIN EXECUTION ALU
 //
@@ -20,6 +20,9 @@
 // USA
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.4  2007/11/08 14:17:47  sybreon
+// Parameterised optional components.
+//
 // Revision 1.3  2007/11/03 08:34:55  sybreon
 // Minor code cleanup.
 //
@@ -35,10 +38,11 @@
 
 module aeMB_xecu (/*AUTOARG*/
    // Outputs
-   dwb_adr_o, dwb_sel_o, rRESULT, rDWBSEL, rMSR_IE, rMSR_BIP,
+   dwb_adr_o, dwb_sel_o, fsl_adr_o, rRESULT, rDWBSEL, rMSR_IE,
+   rMSR_BIP,
    // Inputs
-   rXCE, rREGA, rREGB, rMXSRC, rMXTGT, rRA, rMXALU, rBRA, rDLY, rALT,
-   rSIMM, rIMM, rOPC, rRD, rDWBDI, rPC, gclk, grst, gena
+   rXCE, rREGA, rREGB, rMXSRC, rMXTGT, rRA, rRB, rMXALU, rBRA, rDLY,
+   rALT, rSIMM, rIMM, rOPC, rRD, rDWBDI, rPC, gclk, grst, gena
    );
    parameter DW=32;
 
@@ -48,6 +52,9 @@ module aeMB_xecu (/*AUTOARG*/
    // DATA WISHBONE
    output [DW-1:2] dwb_adr_o;
    output [3:0]    dwb_sel_o;
+
+   // FSL WISHBONE
+   output [14:2]   fsl_adr_o;
    
    // INTERNAL
    output [31:0]   rRESULT;
@@ -57,7 +64,7 @@ module aeMB_xecu (/*AUTOARG*/
    input [1:0] 	   rXCE;   
    input [31:0]    rREGA, rREGB;
    input [1:0] 	   rMXSRC, rMXTGT;
-   input [4:0] 	   rRA;
+   input [4:0] 	   rRA, rRB;
    input [2:0] 	   rMXALU;
    input 	   rBRA, rDLY;
    input [10:0]    rALT;   
@@ -307,16 +314,26 @@ module aeMB_xecu (/*AUTOARG*/
 
    always @(/*AUTOSENSE*/rOPC or wADD)
      case (rOPC[1:0])
-       2'o0: case (wADD[1:0])
+       2'o0: case (wADD[1:0]) // 8'bit
 	       2'o0: xDWBSEL <= 4'h8;	       
 	       2'o1: xDWBSEL <= 4'h4;	       
 	       2'o2: xDWBSEL <= 4'h2;	       
 	       2'o3: xDWBSEL <= 4'h1;	       
 	     endcase // case (wADD[1:0])
-       2'o1: xDWBSEL <= (wADD[1]) ? 4'h3 : 4'hC;       
-       2'o2: xDWBSEL <= 4'hF;       
-       default: xDWBSEL <= 4'hX;       
+       2'o1: xDWBSEL <= (wADD[1]) ? 4'h3 : 4'hC; // 16'bit
+       2'o2: xDWBSEL <= 4'hF; // 32'bit
+       2'o3: xDWBSEL <= 4'h0; // FSL
      endcase // case (rOPC[1:0])
+
+   // --- FSL WISHBONE --------------------
+
+   reg [14:2] 	    rFSLADR, xFSLADR;   
+   
+   assign 	    fsl_adr_o = rFSLADR[14:2];
+
+   always @(/*AUTOSENSE*/rALT or rRB) begin
+      xFSLADR <= {rALT, rRB[3:2]};      
+   end
    
    // --- SYNC ---
 
@@ -325,6 +342,7 @@ module aeMB_xecu (/*AUTOARG*/
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	rDWBSEL <= 4'h0;
+	rFSLADR <= 13'h0;
 	rMSR_BE <= 1'h0;
 	rMSR_BIP <= 1'h0;
 	rMSR_C <= 1'h0;
@@ -337,7 +355,8 @@ module aeMB_xecu (/*AUTOARG*/
 	rMSR_C <= #1 xMSR_C;
 	rMSR_IE <= #1 xMSR_IE;	
 	rMSR_BE <= #1 xMSR_BE;	
-	rMSR_BIP <= #1 xMSR_BIP;	
+	rMSR_BIP <= #1 xMSR_BIP;
+	rFSLADR <= #1 xFSLADR;	
      end
 
 endmodule // aeMB_xecu

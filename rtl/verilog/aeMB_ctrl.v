@@ -1,4 +1,4 @@
-// $Id: aeMB_ctrl.v,v 1.4 2007-11-08 17:48:14 sybreon Exp $
+// $Id: aeMB_ctrl.v,v 1.5 2007-11-09 20:51:52 sybreon Exp $
 //
 // AEMB CONTROL UNIT
 // 
@@ -20,6 +20,9 @@
 // USA
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.4  2007/11/08 17:48:14  sybreon
+// Fixed data WISHBONE arbitration problem (reported by J Lee).
+//
 // Revision 1.3  2007/11/08 14:17:47  sybreon
 // Parameterised optional components.
 //
@@ -35,11 +38,11 @@
 
 module aeMB_ctrl (/*AUTOARG*/
    // Outputs
-   rMXDST, rMXSRC, rMXTGT, rMXALT, rMXALU, rRW, rDWBSTB, dwb_stb_o,
-   dwb_wre_o,
+   rMXDST, rMXSRC, rMXTGT, rMXALT, rMXALU, rRW, rDWBSTB, rFSLSTB,
+   dwb_stb_o, dwb_wre_o, fsl_stb_o, fsl_wre_o,
    // Inputs
    rXCE, rDLY, rIMM, rALT, rOPC, rRD, rRA, rRB, rPC, rBRA, rMSR_IE,
-   dwb_ack_i, iwb_ack_i, gclk, grst, gena
+   dwb_ack_i, iwb_ack_i, fsl_ack_i, gclk, grst, gena
    );
    // INTERNAL   
    //output [31:2] rPCLNK;
@@ -47,7 +50,9 @@ module aeMB_ctrl (/*AUTOARG*/
    output [1:0]  rMXSRC, rMXTGT, rMXALT;
    output [2:0]  rMXALU;   
    output [4:0]  rRW;
-   output 	 rDWBSTB;   
+   output 	 rDWBSTB;
+   output 	 rFSLSTB;
+   
    input [1:0] 	 rXCE;
    input 	 rDLY;
    input [15:0]  rIMM;
@@ -65,6 +70,11 @@ module aeMB_ctrl (/*AUTOARG*/
 
    // INST WISHBONE
    input 	 iwb_ack_i;   
+   
+   // FSL WISHBONE
+   output 	 fsl_stb_o;
+   output 	 fsl_wre_o;
+   input 	 fsl_ack_i;   
    
    // SYSTEM
    input 	 gclk, grst, gena;
@@ -91,6 +101,8 @@ module aeMB_ctrl (/*AUTOARG*/
    wire 	 fSTR = ({rOPC[5:4],rOPC[2]} == 3'o7);
    wire 	 fLDST = (&rOPC[5:4]);   
 
+   wire          fPUT = (rOPC == 6'o33) & rRB[4];
+   wire 	 fGET = (rOPC == 6'o33) & !rRB[4];   
    
    // --- OPERAND SELECTOR ---------------------------------
 
@@ -130,14 +142,6 @@ module aeMB_ctrl (/*AUTOARG*/
    end
 			   
    
-   // --- RAM CONTROL ---------------------------------------
-
-   reg 		 rDWBSTB, xDWBSTB;
-   reg 		 rDWBWRE, xDWBWRE;
-
-   assign 	 dwb_stb_o = rDWBSTB;
-   assign 	 dwb_wre_o = rDWBWRE;
-   
    // --- DELAY SLOT REGISTERS ------------------------------
    
    reg [31:2] 	 rPCLNK, xPCLNK;
@@ -145,7 +149,42 @@ module aeMB_ctrl (/*AUTOARG*/
    reg [4:0] 	 rRW, xRW;   
    
    wire 	 fSKIP = (rBRA & !rDLY);
+   
+   always @(/*AUTOSENSE*/fBCC or fBRU or fGET or fLOD or fRTD or fSKIP
+	    or fSTR or rRD or rXCE)
+     if (fSKIP) begin
+	/*AUTORESET*/
+	// Beginning of autoreset for uninitialized flops
+	xMXDST <= 2'h0;
+	xRW <= 5'h0;
+	// End of automatics
+     end else begin
+	case (rXCE)
+	  2'o2: xMXDST <= 2'o1;	  
+	  default: xMXDST <= (fSTR | fRTD | fBCC) ? 2'o3 :
+			     (fLOD | fGET) ? 2'o2 :
+			     (fBRU) ? 2'o1 :
+			     2'o0;
+	endcase
+
+	case (rXCE)
+	  2'o2: xRW <= 5'd14;	  
+	  default: xRW <= rRD;
+	endcase
+	
+     end // else: !if(fSKIP)
+
+
+   // --- DATA WISHBONE ----------------------------------
+
    wire 	 fDACK = !(rDWBSTB ^ dwb_ack_i);
+   
+   reg 		 rDWBSTB, xDWBSTB;
+   reg 		 rDWBWRE, xDWBWRE;
+
+   assign 	 dwb_stb_o = rDWBSTB;
+   assign 	 dwb_wre_o = rDWBWRE;
+   
    
    always @(/*AUTOSENSE*/fLOD or fSKIP or fSTR or iwb_ack_i or rXCE)
      if (fSKIP | |rXCE) begin
@@ -159,30 +198,52 @@ module aeMB_ctrl (/*AUTOARG*/
 	xDWBWRE <= fSTR & iwb_ack_i;	
      end
    
-   always @(/*AUTOSENSE*/fBCC or fBRU or fLOD or fRTD or fSKIP or fSTR
-	    or rRD or rXCE)
-     if (fSKIP) begin
+   always @(posedge gclk)
+     if (grst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
-	xMXDST <= 2'h0;
-	xRW <= 5'h0;
+	rDWBSTB <= 1'h0;
+	rDWBWRE <= 1'h0;
+	// End of automatics
+     end else if (fDACK) begin
+	rDWBSTB <= #1 xDWBSTB;
+	rDWBWRE <= #1 xDWBWRE;	
+     end	
+   
+
+   // --- FSL WISHBONE -----------------------------------
+
+   wire 	 fFACK = !(rFSLSTB ^ fsl_ack_i);   
+	 
+   reg 		 rFSLSTB, xFSLSTB;
+   reg 		 rFSLWRE, xFSLWRE;
+
+   assign 	 fsl_stb_o = rFSLSTB;
+   assign 	 fsl_wre_o = rFSLWRE;   
+
+   always @(/*AUTOSENSE*/fGET or fPUT or fSKIP or iwb_ack_i or rXCE) 
+     if (fSKIP | |rXCE) begin
+	/*AUTORESET*/
+	// Beginning of autoreset for uninitialized flops
+	xFSLSTB <= 1'h0;
+	xFSLWRE <= 1'h0;
 	// End of automatics
      end else begin
-	case (rXCE)
-	  2'o2: xMXDST <= 2'o1;	  
-	  default: xMXDST <= (fSTR | fRTD | fBCC) ? 2'o3 :
-			     (fLOD) ? 2'o2 :
-			     (fBRU) ? 2'o1 :
-			     2'o0;
-	endcase
+	xFSLSTB <= (fPUT | fGET) & iwb_ack_i;
+	xFSLWRE <= fPUT & iwb_ack_i;	
+     end
 
-	case (rXCE)
-	  2'o2: xRW <= 5'd14;	  
-	  default: xRW <= rRD;
-	endcase
-	
-     end // else: !if(fSKIP)
-   
+   always @(posedge gclk)
+     if (grst) begin
+	/*AUTORESET*/
+	// Beginning of autoreset for uninitialized flops
+	rFSLSTB <= 1'h0;
+	rFSLWRE <= 1'h0;
+	// End of automatics
+     end else if (fFACK) begin
+	rFSLSTB <= #1 xFSLSTB;
+	rFSLWRE <= #1 xFSLWRE;	
+     end
    
    // --- PIPELINE CONTROL DELAY ----------------------------
 
@@ -199,17 +260,5 @@ module aeMB_ctrl (/*AUTOARG*/
 	rRW <= #1 xRW;
      end
 
-   always @(posedge gclk)
-     if (grst) begin
-	/*AUTORESET*/
-	// Beginning of autoreset for uninitialized flops
-	rDWBSTB <= 1'h0;
-	rDWBWRE <= 1'h0;
-	// End of automatics
-     end else if (fDACK) begin
-	rDWBSTB <= #1 xDWBSTB;
-	rDWBWRE <= #1 xDWBWRE;	
-     end	
-   
    
 endmodule // aeMB_ctrl

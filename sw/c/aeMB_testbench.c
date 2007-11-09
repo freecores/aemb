@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_testbench.c,v 1.8 2007-11-03 08:40:18 sybreon Exp $
+ * $Id: aeMB_testbench.c,v 1.9 2007-11-09 20:51:53 sybreon Exp $
  * 
  * AEMB Function Verification C Testbench
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -25,6 +25,9 @@
  * 
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.8  2007/11/03 08:40:18  sybreon
+ * Minor code cleanup.
+ *
  * Revision 1.7  2007/11/02 18:32:19  sybreon
  * Enable MSR_IE with software.
  *
@@ -264,6 +267,29 @@ int newton_test (int max) {
   return 0;
 }
 
+
+/**
+   FSL TEST ROUTINE
+*/
+
+int fsl_test ()
+{
+  // TEST FSL1 ONLY
+  int FSL = 0xCAFEF00D;
+
+  asm ("PUT %0, RFSL1" :: "r"(FSL));
+  asm ("GET %0, RFSL1" : "=r"(FSL));
+  
+  if (FSL != 0x04) return -1;
+  
+  asm ("PUT %0, RFSL31" :: "r"(FSL));
+  asm ("GET %0, RFSL31" : "=r"(FSL));
+  
+  if (FSL != 0x7C) return -1;
+  
+  return 0;  
+}
+
 /**
    MAIN TEST PROGRAMME
 
@@ -279,6 +305,9 @@ int main ()
   
   // Number of each test to run
   int max = 10;
+
+  // FSL TEST
+  if (fsl_test() == -1) { *mpi = 0x4641494C; }
 
   // Enable Global Interrupts
   int_enable();

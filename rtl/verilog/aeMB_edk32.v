@@ -1,4 +1,4 @@
-// $Id: aeMB_edk32.v,v 1.5 2007-11-08 17:48:14 sybreon Exp $
+// $Id: aeMB_edk32.v,v 1.6 2007-11-09 20:51:52 sybreon Exp $
 //
 // AEMB EDK 3.2 Compatible Core
 //
@@ -20,6 +20,9 @@
 // USA
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.5  2007/11/08 17:48:14  sybreon
+// Fixed data WISHBONE arbitration problem (reported by J Lee).
+//
 // Revision 1.4  2007/11/08 14:17:47  sybreon
 // Parameterised optional components.
 //
@@ -38,11 +41,11 @@
 
 module aeMB_edk32 (/*AUTOARG*/
    // Outputs
-   iwb_stb_o, iwb_adr_o, dwb_wre_o, dwb_stb_o, dwb_sel_o, dwb_dat_o,
-   dwb_adr_o,
+   iwb_stb_o, iwb_adr_o, fsl_wre_o, fsl_stb_o, fsl_dat_o, fsl_adr_o,
+   dwb_wre_o, dwb_stb_o, dwb_sel_o, dwb_dat_o, dwb_adr_o,
    // Inputs
-   sys_rst_i, sys_int_i, sys_clk_i, iwb_dat_i, iwb_ack_i, dwb_dat_i,
-   dwb_ack_i
+   sys_rst_i, sys_int_i, sys_clk_i, iwb_dat_i, iwb_ack_i, fsl_dat_i,
+   fsl_ack_i, dwb_dat_i, dwb_ack_i
    );
    // Bus widths
    parameter IW = 32; /// Instruction bus address width
@@ -59,6 +62,10 @@ module aeMB_edk32 (/*AUTOARG*/
    output [3:0]		dwb_sel_o;		// From xecu of aeMB_xecu.v
    output		dwb_stb_o;		// From ctrl of aeMB_ctrl.v
    output		dwb_wre_o;		// From ctrl of aeMB_ctrl.v
+   output [14:2]	fsl_adr_o;		// From xecu of aeMB_xecu.v
+   output [31:0]	fsl_dat_o;		// From regf of aeMB_regf.v
+   output		fsl_stb_o;		// From ctrl of aeMB_ctrl.v
+   output		fsl_wre_o;		// From ctrl of aeMB_ctrl.v
    output [IW-1:2]	iwb_adr_o;		// From bpcu of aeMB_bpcu.v
    output		iwb_stb_o;		// From ibuf of aeMB_ibuf.v
    // End of automatics
@@ -66,6 +73,8 @@ module aeMB_edk32 (/*AUTOARG*/
    // Beginning of automatic inputs (from unused autoinst inputs)
    input		dwb_ack_i;		// To scon of aeMB_scon.v, ...
    input [31:0]		dwb_dat_i;		// To regf of aeMB_regf.v
+   input		fsl_ack_i;		// To scon of aeMB_scon.v, ...
+   input [31:0]		fsl_dat_i;		// To regf of aeMB_regf.v
    input		iwb_ack_i;		// To scon of aeMB_scon.v, ...
    input [31:0]		iwb_dat_i;		// To ibuf of aeMB_ibuf.v
    input		sys_clk_i;		// To scon of aeMB_scon.v
@@ -84,6 +93,7 @@ module aeMB_edk32 (/*AUTOARG*/
    wire [31:0]		rDWBDI;			// From regf of aeMB_regf.v
    wire [3:0]		rDWBSEL;		// From xecu of aeMB_xecu.v
    wire			rDWBSTB;		// From ctrl of aeMB_ctrl.v
+   wire			rFSLSTB;		// From ctrl of aeMB_ctrl.v
    wire [15:0]		rIMM;			// From ibuf of aeMB_ibuf.v
    wire			rMSR_BIP;		// From xecu of aeMB_xecu.v
    wire			rMSR_IE;		// From xecu of aeMB_xecu.v
@@ -117,8 +127,10 @@ module aeMB_edk32 (/*AUTOARG*/
 	   .rOPC			(rOPC[5:0]),
 	   .rATOM			(rATOM[1:0]),
 	   .rDWBSTB			(rDWBSTB),
+	   .rFSLSTB			(rFSLSTB),
 	   .dwb_ack_i			(dwb_ack_i),
 	   .iwb_ack_i			(iwb_ack_i),
+	   .fsl_ack_i			(fsl_ack_i),
 	   .rMSR_IE			(rMSR_IE),
 	   .rMSR_BIP			(rMSR_BIP),
 	   .rBRA			(rBRA),
@@ -157,8 +169,11 @@ module aeMB_edk32 (/*AUTOARG*/
 	   .rMXALU			(rMXALU[2:0]),
 	   .rRW				(rRW[4:0]),
 	   .rDWBSTB			(rDWBSTB),
+	   .rFSLSTB			(rFSLSTB),
 	   .dwb_stb_o			(dwb_stb_o),
 	   .dwb_wre_o			(dwb_wre_o),
+	   .fsl_stb_o			(fsl_stb_o),
+	   .fsl_wre_o			(fsl_wre_o),
 	   // Inputs
 	   .rXCE			(rXCE[1:0]),
 	   .rDLY			(rDLY),
@@ -173,6 +188,7 @@ module aeMB_edk32 (/*AUTOARG*/
 	   .rMSR_IE			(rMSR_IE),
 	   .dwb_ack_i			(dwb_ack_i),
 	   .iwb_ack_i			(iwb_ack_i),
+	   .fsl_ack_i			(fsl_ack_i),
 	   .gclk			(gclk),
 	   .grst			(grst),
 	   .gena			(gena));
@@ -206,6 +222,7 @@ module aeMB_edk32 (/*AUTOARG*/
 	   .rREGB			(rREGB[31:0]),
 	   .rDWBDI			(rDWBDI[31:0]),
 	   .dwb_dat_o			(dwb_dat_o[31:0]),
+	   .fsl_dat_o			(fsl_dat_o[31:0]),
 	   // Inputs
 	   .rOPC			(rOPC[5:0]),
 	   .rRA				(rRA[4:0]),
@@ -219,6 +236,7 @@ module aeMB_edk32 (/*AUTOARG*/
 	   .rBRA			(rBRA),
 	   .rDLY			(rDLY),
 	   .dwb_dat_i			(dwb_dat_i[31:0]),
+	   .fsl_dat_i			(fsl_dat_i[31:0]),
 	   .gclk			(gclk),
 	   .grst			(grst),
 	   .gena			(gena));   
@@ -228,6 +246,7 @@ module aeMB_edk32 (/*AUTOARG*/
 	   // Outputs
 	   .dwb_adr_o			(dwb_adr_o[DW-1:2]),
 	   .dwb_sel_o			(dwb_sel_o[3:0]),
+	   .fsl_adr_o			(fsl_adr_o[14:2]),
 	   .rRESULT			(rRESULT[31:0]),
 	   .rDWBSEL			(rDWBSEL[3:0]),
 	   .rMSR_IE			(rMSR_IE),
@@ -239,6 +258,7 @@ module aeMB_edk32 (/*AUTOARG*/
 	   .rMXSRC			(rMXSRC[1:0]),
 	   .rMXTGT			(rMXTGT[1:0]),
 	   .rRA				(rRA[4:0]),
+	   .rRB				(rRB[4:0]),
 	   .rMXALU			(rMXALU[2:0]),
 	   .rBRA			(rBRA),
 	   .rDLY			(rDLY),

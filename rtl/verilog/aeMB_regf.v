@@ -1,4 +1,4 @@
-// $Id: aeMB_regf.v,v 1.1 2007-11-02 03:25:41 sybreon Exp $
+// $Id: aeMB_regf.v,v 1.2 2007-11-09 20:51:52 sybreon Exp $
 //
 // AEMB REGISTER FILE
 // 
@@ -20,13 +20,18 @@
 // USA
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2007/11/02 03:25:41  sybreon
+// New EDK 3.2 compatible design with optional barrel-shifter and multiplier.
+// Fixed various minor data hazard bugs.
+// Code compatible with -O0/1/2/3/s generated code.
+//
 
 module aeMB_regf (/*AUTOARG*/
    // Outputs
-   rREGA, rREGB, rDWBDI, dwb_dat_o,
+   rREGA, rREGB, rDWBDI, dwb_dat_o, fsl_dat_o,
    // Inputs
    rOPC, rRA, rRB, rRW, rRD, rMXDST, rPCLNK, rRESULT, rDWBSEL, rBRA,
-   rDLY, dwb_dat_i, gclk, grst, gena
+   rDLY, dwb_dat_i, fsl_dat_i, gclk, grst, gena
    );
    // INTERNAL
    output [31:0] rREGA, rREGB;
@@ -42,6 +47,10 @@ module aeMB_regf (/*AUTOARG*/
    // DATA WISHBONE
    output [31:0] dwb_dat_o;   
    input [31:0]  dwb_dat_i;   
+
+   // FSL WISHBONE
+   output [31:0] fsl_dat_o;
+   input [31:0]	 fsl_dat_i;   
    
    // SYSTEM
    input 	 gclk, grst, gena;   
@@ -50,10 +59,12 @@ module aeMB_regf (/*AUTOARG*/
    // Moves the data bytes around depending on the size of the
    // operation.
 
-   wire [31:0] 	 wDWBDI = dwb_dat_i; // FIXME: Endian   
+   wire [31:0] 	 wDWBDI = dwb_dat_i; // FIXME: Endian
+   wire [31:0] 	 wFSLDI = fsl_dat_i; // FIXME: Endian
+    
    reg [31:0] 	 rDWBDI;
    
-   always @(/*AUTOSENSE*/rDWBSEL or wDWBDI)
+   always @(/*AUTOSENSE*/rDWBSEL or wDWBDI or wFSLDI)
      case (rDWBSEL)
        // 8'bit
        4'h8: rDWBDI <= {24'd0, wDWBDI[31:24]};
@@ -65,6 +76,8 @@ module aeMB_regf (/*AUTOARG*/
        4'h3: rDWBDI <= {16'd0, wDWBDI[15:0]};
        // 32'bit
        4'hF: rDWBDI <= wDWBDI;
+       // FSL
+       4'h0: rDWBDI <= wFSLDI;       
        // Undefined
        default: rDWBDI <= 32'hX;       
      endcase
@@ -106,6 +119,15 @@ module aeMB_regf (/*AUTOARG*/
    // Replicates the data bytes across depending on the size of the
    // operation.
 
+   wire [31:0] 	 xFSL;   
+   wire 	 fFFWD_M = (rRA == rRW) & (rMXDST == 2'o2) & fRDWE;
+   wire 	 fFFWD_R = (rRA == rRW) & (rMXDST == 2'o0) & fRDWE;   
+   
+   assign 	 fsl_dat_o = rDWBDO;
+   assign 	 xFSL = (fFFWD_M) ? rDWBDI :
+			(fFFWD_R) ? rRESULT :
+			rREGA;   
+
    wire [31:0] 	 xDST;   
    wire 	 fDFWD_M = (rRW == rRD) & (rMXDST == 2'o2) & fRDWE;
    wire 	 fDFWD_R = (rRW == rRD) & (rMXDST == 2'o0) & fRDWE;   
@@ -116,7 +138,7 @@ module aeMB_regf (/*AUTOARG*/
 			(fDFWD_R) ? rRESULT :
 			rREGD;   
    
-   always @(/*AUTOSENSE*/rOPC or xDST)
+   always @(/*AUTOSENSE*/rOPC or xDST or xFSL)
      case (rOPC[1:0])
        // 8'bit
        2'h0: xDWBDO <= {(4){xDST[7:0]}};
@@ -124,7 +146,9 @@ module aeMB_regf (/*AUTOARG*/
        2'h1: xDWBDO <= {(2){xDST[15:0]}};
        // 32'bit
        2'h2: xDWBDO <= xDST;
-       default: xDWBDO <= 32'hX;       
+       // FSL
+       2'h3: xDWBDO <= xFSL;       
+       //default: xDWBDO <= 32'hX;       
      endcase // case (rOPC[1:0])   
 
    always @(posedge gclk)

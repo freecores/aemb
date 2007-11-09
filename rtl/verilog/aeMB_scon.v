@@ -1,4 +1,4 @@
-// $Id: aeMB_scon.v,v 1.3 2007-11-04 05:24:59 sybreon Exp $
+// $Id: aeMB_scon.v,v 1.4 2007-11-09 20:51:52 sybreon Exp $
 //
 // AEMB SYSTEM CONTROL UNIT
 // 
@@ -20,6 +20,9 @@
 // USA
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2007/11/04 05:24:59  sybreon
+// Fixed spurious interrupt latching during long bus cycles (spotted by J Lee).
+//
 // Revision 1.2  2007/11/02 19:20:58  sybreon
 // Added better (beta) interrupt support.
 // Changed MSR_IE to disabled at reset as per MB docs.
@@ -34,8 +37,8 @@ module aeMB_scon (/*AUTOARG*/
    // Outputs
    rXCE, grst, gclk, gena,
    // Inputs
-   rOPC, rATOM, rDWBSTB, dwb_ack_i, iwb_ack_i, rMSR_IE, rMSR_BIP,
-   rBRA, rDLY, sys_clk_i, sys_rst_i, sys_int_i
+   rOPC, rATOM, rDWBSTB, rFSLSTB, dwb_ack_i, iwb_ack_i, fsl_ack_i,
+   rMSR_IE, rMSR_BIP, rBRA, rDLY, sys_clk_i, sys_rst_i, sys_int_i
    );
 
    // INTERNAL
@@ -44,8 +47,11 @@ module aeMB_scon (/*AUTOARG*/
    input [1:0] 	rATOM;   
    
    input 	rDWBSTB;
+   input 	rFSLSTB;   
    input 	dwb_ack_i;
-   input 	iwb_ack_i; 
+   input 	iwb_ack_i;
+   input 	fsl_ack_i;
+   
    input 	rMSR_IE;
    input 	rMSR_BIP;
    
@@ -56,10 +62,9 @@ module aeMB_scon (/*AUTOARG*/
    input 	sys_clk_i, sys_rst_i;
    input 	sys_int_i;   
 
-      
    assign 	gclk = sys_clk_i;
    
-   assign 	gena = !((rDWBSTB ^ dwb_ack_i) | !iwb_ack_i);
+   assign 	gena = !((rDWBSTB ^ dwb_ack_i) | (rFSLSTB ^ fsl_ack_i) | !iwb_ack_i);
 
    // --- INTERRUPT LATCH --------------------------------------
    // Debounce and latch onto the positive edge. This is independent
