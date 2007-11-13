@@ -1,4 +1,4 @@
-// $Id: edk32.v,v 1.5 2007-11-09 20:51:53 sybreon Exp $
+// $Id: edk32.v,v 1.6 2007-11-13 23:37:28 sybreon Exp $
 //
 // AEMB EDK 3.2 Compatible Core TEST
 //
@@ -20,6 +20,9 @@
 // USA
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.5  2007/11/09 20:51:53  sybreon
+// Added GET/PUT support through a FSL bus.
+//
 // Revision 1.4  2007/11/08 14:18:00  sybreon
 // Parameterised optional components.
 //
@@ -46,16 +49,18 @@ module edk32 ();
    reg 	     svc;
    integer   inttime;
    integer   seed;   
+   integer   theend;
    
    always #5 sys_clk_i = ~sys_clk_i;   
 
    initial begin
-      $dumpfile("dump.vcd");
-      $dumpvars(1,dut);
+      //$dumpfile("dump.vcd");
+      //$dumpvars(1,dut);
    end
    
    initial begin
-      seed = randseed;      
+      seed = randseed;
+      theend = 0;      
       svc = 0;      
       sys_clk_i = $random(seed);
       sys_rst_i = 1;
@@ -137,7 +142,8 @@ module edk32 ();
 
    //assign dut.rRESULT = dut.rSIMM;   
 
-   integer rnd;   
+   integer rnd;
+   
    always @(posedge sys_clk_i) begin
 
       // Interrupt Monitors
@@ -161,7 +167,12 @@ module edk32 ();
 	 $display("\n\tFAIL");	 
 	 $finish;
       end
+      
       if (iwb_dat_i == 32'hb8000000) begin
+	 theend = theend + 1;	 
+      end
+
+      if (theend == 5) begin
 	 $display("\n\t*** PASSED ALL TESTS ***");
 	 $finish;	 
       end
