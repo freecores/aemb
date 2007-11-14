@@ -1,4 +1,4 @@
-// $Id: aeMB_ctrl.v,v 1.7 2007-11-14 22:14:34 sybreon Exp $
+// $Id: aeMB_ctrl.v,v 1.8 2007-11-14 23:19:24 sybreon Exp $
 //
 // AEMB CONTROL UNIT
 // 
@@ -20,6 +20,9 @@
 // License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.7  2007/11/14 22:14:34  sybreon
+// Changed interrupt handling system (reported by M. Ettus).
+//
 // Revision 1.6  2007/11/10 16:39:38  sybreon
 // Upgraded license to LGPLv3.
 // Significant performance optimisations.
@@ -45,8 +48,8 @@
 
 module aeMB_ctrl (/*AUTOARG*/
    // Outputs
-   rMXDST, rMXSRC, rMXTGT, rMXALT, rMXALU, rRW, rDWBSTB, rFSLSTB,
-   dwb_stb_o, dwb_wre_o, fsl_stb_o, fsl_wre_o,
+   rMXDST, rMXSRC, rMXTGT, rMXALT, rMXALU, rRW, dwb_stb_o, dwb_wre_o,
+   fsl_stb_o, fsl_wre_o,
    // Inputs
    rDLY, rIMM, rALT, rOPC, rRD, rRA, rRB, rPC, rBRA, rMSR_IE, xIREG,
    dwb_ack_i, iwb_ack_i, fsl_ack_i, gclk, grst, gena
@@ -57,8 +60,8 @@ module aeMB_ctrl (/*AUTOARG*/
    output [1:0]  rMXSRC, rMXTGT, rMXALT;
    output [2:0]  rMXALU;   
    output [4:0]  rRW;
-   output 	 rDWBSTB;
-   output 	 rFSLSTB;
+   //output 	 rDWBSTB;
+   //output 	 rFSLSTB;
    
    //input [1:0] 	 rXCE;
    input 	 rDLY;

@@ -1,4 +1,4 @@
-// $Id: aeMB_edk32.v,v 1.8 2007-11-14 22:14:34 sybreon Exp $
+// $Id: aeMB_edk32.v,v 1.9 2007-11-14 23:19:24 sybreon Exp $
 //
 // AEMB EDK 3.2 Compatible Core
 //
@@ -20,6 +20,9 @@
 // License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.8  2007/11/14 22:14:34  sybreon
+// Changed interrupt handling system (reported by M. Ettus).
+//
 // Revision 1.7  2007/11/10 16:39:38  sybreon
 // Upgraded license to LGPLv3.
 // Significant performance optimisations.
@@ -48,9 +51,8 @@
 
 module aeMB_edk32 (/*AUTOARG*/
    // Outputs
-   rFSLSTB, rDWBSTB, iwb_stb_o, iwb_adr_o, fsl_wre_o, fsl_stb_o,
-   fsl_dat_o, fsl_adr_o, dwb_wre_o, dwb_stb_o, dwb_sel_o, dwb_dat_o,
-   dwb_adr_o,
+   iwb_stb_o, iwb_adr_o, fsl_wre_o, fsl_stb_o, fsl_dat_o, fsl_adr_o,
+   dwb_wre_o, dwb_stb_o, dwb_sel_o, dwb_dat_o, dwb_adr_o,
    // Inputs
    sys_int_i, iwb_dat_i, iwb_ack_i, fsl_dat_i, fsl_ack_i, dwb_dat_i,
    dwb_ack_i, sys_clk_i, sys_rst_i
@@ -76,8 +78,6 @@ module aeMB_edk32 (/*AUTOARG*/
    output		fsl_wre_o;		// From ctrl of aeMB_ctrl.v
    output [IW-1:2]	iwb_adr_o;		// From bpcu of aeMB_bpcu.v
    output		iwb_stb_o;		// From ibuf of aeMB_ibuf.v
-   output		rDWBSTB;		// From ctrl of aeMB_ctrl.v
-   output		rFSLSTB;		// From ctrl of aeMB_ctrl.v
    // End of automatics
    /*AUTOINPUT*/
    // Beginning of automatic inputs (from unused autoinst inputs)
@@ -157,8 +157,6 @@ module aeMB_edk32 (/*AUTOARG*/
 	   .rMXALT			(rMXALT[1:0]),
 	   .rMXALU			(rMXALU[2:0]),
 	   .rRW				(rRW[4:0]),
-	   .rDWBSTB			(rDWBSTB),
-	   .rFSLSTB			(rFSLSTB),
 	   .dwb_stb_o			(dwb_stb_o),
 	   .dwb_wre_o			(dwb_wre_o),
 	   .fsl_stb_o			(fsl_stb_o),
