@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_testbench.c,v 1.10 2007-11-14 22:12:02 sybreon Exp $
+ * $Id: aeMB_testbench.c,v 1.11 2007-11-14 23:41:06 sybreon Exp $
  * 
  * AEMB Function Verification C Testbench
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -25,6 +25,9 @@
  * 
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.10  2007/11/14 22:12:02  sybreon
+ * Added interrupt test routine.
+ *
  * Revision 1.9  2007/11/09 20:51:53  sybreon
  * Added GET/PUT support through a FSL bus.
  *
@@ -102,7 +105,7 @@ int int_test ()
 {
   // Delay loop until hardware interrupt triggers
   int i;
-  for (i=0; i < 100; i++) {
+  for (i=0; i < 777; i++) {
     asm volatile ("nop;");
   }  
   return (service == 0) ? -1 : 1;
