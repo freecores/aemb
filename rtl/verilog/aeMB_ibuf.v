@@ -1,4 +1,4 @@
-// $Id: aeMB_ibuf.v,v 1.5 2007-11-14 22:14:34 sybreon Exp $
+// $Id: aeMB_ibuf.v,v 1.6 2007-11-14 23:39:51 sybreon Exp $
 //
 // AEMB INSTRUCTION BUFFER
 // 
@@ -20,6 +20,9 @@
 // License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.5  2007/11/14 22:14:34  sybreon
+// Changed interrupt handling system (reported by M. Ettus).
+//
 // Revision 1.4  2007/11/10 16:39:38  sybreon
 // Upgraded license to LGPLv3.
 // Significant performance optimisations.
@@ -97,7 +100,8 @@ module aeMB_ibuf (/*AUTOARG*/
    reg 		rFINT;
    reg [1:0] 	rDINT;
    //wire 	wSHOT = rDINT[0] & !rDINT[1] & sys_int_i;
-   wire 	wSHOT = !rDINT[0] & sys_int_i;
+   //wire 	wSHOT = !rDINT[0] & sys_int_i;
+   wire 	wSHOT = (rDINT == 2'o1);	
 
    always @(posedge gclk)
      if (grst) begin
@@ -108,7 +112,7 @@ module aeMB_ibuf (/*AUTOARG*/
 	// End of automatics
      end else if (rMSR_IE) begin
 	rDINT <= #1 {rDINT[0], sys_int_i};	
-	rFINT <= (wIREG == wINTOP) ? 1'b0 : (rFINT | wSHOT);
+	rFINT <= #1 (wIREG == wINTOP) ? 1'b0 : (rFINT | wSHOT);
      end
 
    wire 	fIMM = (rOPC == 6'o54);
