@@ -1,4 +1,4 @@
-// $Id: aeMB_scon.v,v 1.5 2007-11-10 16:39:38 sybreon Exp $
+// $Id: aeMB_scon.v,v 1.6 2007-11-14 22:14:34 sybreon Exp $
 //
 // AEMB SYSTEM CONTROL UNIT
 // 
@@ -20,6 +20,10 @@
 // License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.5  2007/11/10 16:39:38  sybreon
+// Upgraded license to LGPLv3.
+// Significant performance optimisations.
+//
 // Revision 1.4  2007/11/09 20:51:52  sybreon
 // Added GET/PUT support through a FSL bus.
 //
@@ -38,16 +42,17 @@
 
 module aeMB_scon (/*AUTOARG*/
    // Outputs
-   rXCE, grst, gclk, gena,
+   grst, gclk, gena,
    // Inputs
-   rOPC, rATOM, rDWBSTB, rFSLSTB, dwb_ack_i, iwb_ack_i, fsl_ack_i,
-   rMSR_IE, rMSR_BIP, rBRA, rDLY, sys_clk_i, sys_rst_i, sys_int_i
+   rOPC, rDWBSTB, rFSLSTB, dwb_ack_i, iwb_ack_i, fsl_ack_i, rMSR_IE,
+   rMSR_BIP, rBRA, rDLY, sys_clk_i, sys_rst_i, sys_int_i
    );
 
    // INTERNAL
-   output [1:0] rXCE;
+   //output [1:0] rXCE;
    input [5:0] 	rOPC;
-   input [1:0] 	rATOM;   
+   //input [1:0] 	rATOM;   
+   //input [1:0] 	xATOM;   
    
    input 	rDWBSTB;
    input 	rFSLSTB;   
@@ -72,6 +77,8 @@ module aeMB_scon (/*AUTOARG*/
    // --- INTERRUPT LATCH --------------------------------------
    // Debounce and latch onto the positive edge. This is independent
    // of the pipeline so that stalls do not affect it.
+
+   wire [1:0] 	rXCE;   
    
    reg 		rFINT;
    reg [1:0] 	rDINT;
@@ -86,7 +93,7 @@ module aeMB_scon (/*AUTOARG*/
 	// End of automatics
      end else if (rMSR_IE) begin
 	rDINT <= #1 {rDINT[0], sys_int_i};	
-	rFINT <= (rXCE == 2'o2) ? 1'b0 : (rFINT | wSHOT);
+	rFINT <= ((rXCE == 2'o2) & gena) ? 1'b0 : (rFINT | wSHOT);
      end
    
 
@@ -94,12 +101,15 @@ module aeMB_scon (/*AUTOARG*/
    // Process the independent priority flags to determine which
    // interrupt/exception/break to handle.
 
-   reg [1:0] rXCE;
+   wire [1:0] rATOM;
+   
+   reg [1:0] xXCE;
    reg 	     rENA;   
-   wire      fINT = rENA & ^rATOM & !rMSR_BIP & rMSR_IE & rFINT;   
+   //wire      fINT = rENA & ^rATOM & !rMSR_BIP & rMSR_IE & rFINT;   
+   wire      fINT = ^rATOM & !rMSR_BIP & rMSR_IE & rFINT;   
 
    always @(/*AUTOSENSE*/fINT)
-     rXCE <= (fINT) ? 2'o2 : 2'o0;
+     xXCE <= (fINT) ? 2'o0 : 2'o0;
 
    always @(posedge gclk)
      if (grst) begin

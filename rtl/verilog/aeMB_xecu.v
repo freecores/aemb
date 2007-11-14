@@ -1,4 +1,4 @@
-// $Id: aeMB_xecu.v,v 1.6 2007-11-10 16:39:38 sybreon Exp $
+// $Id: aeMB_xecu.v,v 1.7 2007-11-14 22:14:34 sybreon Exp $
 //
 // AEMB MAIN EXECUTION ALU
 //
@@ -20,6 +20,10 @@
 // License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.6  2007/11/10 16:39:38  sybreon
+// Upgraded license to LGPLv3.
+// Significant performance optimisations.
+//
 // Revision 1.5  2007/11/09 20:51:52  sybreon
 // Added GET/PUT support through a FSL bus.
 //
@@ -44,8 +48,8 @@ module aeMB_xecu (/*AUTOARG*/
    dwb_adr_o, dwb_sel_o, fsl_adr_o, rRESULT, rDWBSEL, rMSR_IE,
    rMSR_BIP,
    // Inputs
-   rXCE, rREGA, rREGB, rMXSRC, rMXTGT, rRA, rRB, rMXALU, rBRA, rDLY,
-   rALT, rSIMM, rIMM, rOPC, rRD, rDWBDI, rPC, gclk, grst, gena
+   rREGA, rREGB, rMXSRC, rMXTGT, rRA, rRB, rMXALU, rBRA, rDLY, rALT,
+   rSIMM, rIMM, rOPC, rRD, rDWBDI, rPC, gclk, grst, gena
    );
    parameter DW=32;
 
@@ -64,7 +68,7 @@ module aeMB_xecu (/*AUTOARG*/
    output [3:0]    rDWBSEL;   
    output 	   rMSR_IE;
    output 	   rMSR_BIP;
-   input [1:0] 	   rXCE;   
+   //input [1:0] 	   rXCE;   
    input [31:0]    rREGA, rREGB;
    input [1:0] 	   rMXSRC, rMXTGT;
    input [4:0] 	   rRA, rRB;
@@ -252,8 +256,9 @@ module aeMB_xecu (/*AUTOARG*/
    wire 	   fADDC = ({rOPC[5:4], rOPC[2]} == 3'o0);
    
    always @(/*AUTOSENSE*/fADDC or fMTS or fSKIP or rMSR_C or rMXALU
-	    or rOPA or rRES_ADDC or rRES_SFTC or rXCE)
-     if (fSKIP | |rXCE) begin
+	    or rOPA or rRES_ADDC or rRES_SFTC)
+     //if (fSKIP | |rXCE) begin
+     if (fSKIP) begin
 	xMSR_C <= rMSR_C;
      end else
        case (rMXALU)
@@ -269,10 +274,11 @@ module aeMB_xecu (/*AUTOARG*/
    // IE/BIP/BE
    wire 	    fRTID = (rOPC == 6'o55) & rRD[0];   
    wire 	    fRTBD = (rOPC == 6'o55) & rRD[1];
-   wire 	    fBRK = ((rOPC == 6'o56) | (rOPC == 6'o66)) & (rRA[4:2] == 3'o3);
+   wire 	    fBRK = ((rOPC == 6'o56) | (rOPC == 6'o66)) & (rRA == 5'hC);
+   wire 	    fXCE = ((rOPC == 6'o56) | (rOPC == 6'o66)) & (rRA == 5'hE);
    
-   always @(/*AUTOSENSE*/fMTS or fRTID or rMSR_IE or rOPA or rXCE)
-     xMSR_IE <= (rXCE == 2'o2) ? 1'b0 :
+   always @(/*AUTOSENSE*/fMTS or fRTID or fXCE or rMSR_IE or rOPA)
+     xMSR_IE <= (fXCE) ? 1'b0 :
 		(fRTID) ? 1'b1 : 
 		(fMTS) ? rOPA[1] :
 		rMSR_IE;      

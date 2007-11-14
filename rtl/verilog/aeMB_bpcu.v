@@ -1,4 +1,4 @@
-// $Id: aeMB_bpcu.v,v 1.3 2007-11-10 16:39:38 sybreon Exp $
+// $Id: aeMB_bpcu.v,v 1.4 2007-11-14 22:14:34 sybreon Exp $
 //
 // AEMB BRANCH PROGRAMME COUNTER UNIT
 // 
@@ -20,6 +20,10 @@
 // License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2007/11/10 16:39:38  sybreon
+// Upgraded license to LGPLv3.
+// Significant performance optimisations.
+//
 // Revision 1.2  2007/11/02 19:20:58  sybreon
 // Added better (beta) interrupt support.
 // Changed MSR_IE to disabled at reset as per MB docs.
@@ -32,10 +36,9 @@
 
 module aeMB_bpcu (/*AUTOARG*/
    // Outputs
-   iwb_adr_o, rPC, rPCLNK, rBRA, rDLY, rATOM,
+   iwb_adr_o, rPC, rPCLNK, rBRA, rDLY,
    // Inputs
-   rMXALT, rOPC, rRD, rRA, rRESULT, rDWBDI, rREGA, rXCE, gclk, grst,
-   gena
+   rMXALT, rOPC, rRD, rRA, rRESULT, rDWBDI, rREGA, gclk, grst, gena
    );
    parameter IW = 24;
 
@@ -46,14 +49,16 @@ module aeMB_bpcu (/*AUTOARG*/
    output [31:2]   rPC, rPCLNK;
    output 	   rBRA;
    output 	   rDLY;
-   output [1:0]    rATOM;   
+   //output [1:0]    rATOM;
+   //output [1:0]    xATOM;
+   
    input [1:0] 	   rMXALT;   
    input [5:0] 	   rOPC;
    input [4:0] 	   rRD, rRA;  
    input [31:0]    rRESULT; // ALU
    input [31:0]    rDWBDI; // RAM
    input [31:0]    rREGA;
-   input [1:0] 	   rXCE;   
+   //input [1:0] 	   rXCE;   
    
    // SYSTEM
    input 	   gclk, grst, gena;
@@ -95,8 +100,9 @@ module aeMB_bpcu (/*AUTOARG*/
    wire 	   fSKIP = rBRA & !rDLY;   
    
    always @(/*AUTOSENSE*/fBCC or fBRU or fRTD or rBRA or rRA or rRD
-	    or rXCE or xXCC)
-     if (rBRA | |rXCE) begin
+	    or xXCC)
+     //if (rBRA | |rXCE) begin
+     if (rBRA) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	xBRA <= 1'h0;
@@ -118,19 +124,21 @@ module aeMB_bpcu (/*AUTOARG*/
    
    assign 	   iwb_adr_o = rIPC[IW-1:2];
    
-   always @(/*AUTOSENSE*/rATOM or rBRA or rIPC or rPC or rRESULT
-	    or rXCE) begin
-      xPCLNK <= (^rATOM) ? rPC : rPC;
-      //xPCLNK <= rPC;
+   always @(/*AUTOSENSE*/rBRA or rIPC or rPC or rRESULT) begin
+      //xPCLNK <= (^rATOM) ? rPC : rPC;
+      xPCLNK <= rPC;
       //xPC <= (^rATOM) ? rIPC : rRESULT[31:2];	
       xPC <= rIPC;
       //xIPC <= (rBRA) ? rRESULT[31:2] : (rIPC + 1);
+      /*
      case (rXCE)
        2'o1: xIPC <= 30'h2;       
        2'o2: xIPC <= 30'h4;       
        2'o3: xIPC <= 30'h6;       
        default: xIPC <= (rBRA) ? rRESULT[31:2] : (rIPC + 1);
      endcase // case (rXCE)      
+       */
+      xIPC <= (rBRA) ? rRESULT[31:2] : (rIPC + 1);
    end   			   
 
    // --- ATOMIC CONTROL ---------------------------------------------

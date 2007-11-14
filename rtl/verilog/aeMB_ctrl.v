@@ -1,4 +1,4 @@
-// $Id: aeMB_ctrl.v,v 1.6 2007-11-10 16:39:38 sybreon Exp $
+// $Id: aeMB_ctrl.v,v 1.7 2007-11-14 22:14:34 sybreon Exp $
 //
 // AEMB CONTROL UNIT
 // 
@@ -20,6 +20,10 @@
 // License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.6  2007/11/10 16:39:38  sybreon
+// Upgraded license to LGPLv3.
+// Significant performance optimisations.
+//
 // Revision 1.5  2007/11/09 20:51:52  sybreon
 // Added GET/PUT support through a FSL bus.
 //
@@ -44,8 +48,8 @@ module aeMB_ctrl (/*AUTOARG*/
    rMXDST, rMXSRC, rMXTGT, rMXALT, rMXALU, rRW, rDWBSTB, rFSLSTB,
    dwb_stb_o, dwb_wre_o, fsl_stb_o, fsl_wre_o,
    // Inputs
-   rXCE, rDLY, rIMM, rALT, rOPC, rRD, rRA, rRB, rPC, rBRA, rMSR_IE,
-   dwb_ack_i, iwb_ack_i, iwb_dat_i, fsl_ack_i, gclk, grst, gena
+   rDLY, rIMM, rALT, rOPC, rRD, rRA, rRB, rPC, rBRA, rMSR_IE, xIREG,
+   dwb_ack_i, iwb_ack_i, fsl_ack_i, gclk, grst, gena
    );
    // INTERNAL   
    //output [31:2] rPCLNK;
@@ -56,7 +60,7 @@ module aeMB_ctrl (/*AUTOARG*/
    output 	 rDWBSTB;
    output 	 rFSLSTB;
    
-   input [1:0] 	 rXCE;
+   //input [1:0] 	 rXCE;
    input 	 rDLY;
    input [15:0]  rIMM;
    input [10:0]  rALT;
@@ -65,6 +69,7 @@ module aeMB_ctrl (/*AUTOARG*/
    input [31:2]  rPC;
    input 	 rBRA;
    input 	 rMSR_IE;
+   input [31:0]  xIREG;   
    
    // DATA WISHBONE
    output 	 dwb_stb_o;
@@ -73,7 +78,6 @@ module aeMB_ctrl (/*AUTOARG*/
 
    // INST WISHBONE
    input 	 iwb_ack_i;
-   input [31:0]  iwb_dat_i;   
    
    // FSL WISHBONE
    output 	 fsl_stb_o;
@@ -90,7 +94,7 @@ module aeMB_ctrl (/*AUTOARG*/
    wire [4:0] 	 wRD, wRA, wRB;
    wire [10:0] 	 wALT;   
    
-   assign 	 {wOPC, wRD, wRA, wRB, wALT} = iwb_dat_i; // FIXME: Endian
+   assign 	 {wOPC, wRD, wRA, wRB, wALT} = xIREG; // FIXME: Endian
 
    wire 	 fSFT = (rOPC == 6'o44);
    wire 	 fLOG = ({rOPC[5:4],rOPC[2]} == 3'o4);   
@@ -179,9 +183,10 @@ module aeMB_ctrl (/*AUTOARG*/
    wire 	 wAFWD_R = (xRW == wRA) & (xMXDST == 2'o0) & wRDWE;   
    wire 	 wBFWD_R = (xRW == wRB) & (xMXDST == 2'o0) & wRDWE;
 
-   always @(/*AUTOSENSE*/rBRA or rXCE or wAFWD_M or wAFWD_R or wBCC
-	    or wBFWD_M or wBFWD_R or wBRU or wOPC) 
-     if (rBRA | |rXCE) begin
+   always @(/*AUTOSENSE*/rBRA or wAFWD_M or wAFWD_R or wBCC or wBFWD_M
+	    or wBFWD_R or wBRU or wOPC) 
+     //if (rBRA | |rXCE) begin
+     if (rBRA) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	xMXALT <= 2'h0;
@@ -220,9 +225,10 @@ module aeMB_ctrl (/*AUTOARG*/
 
    reg [2:0]     rMXALU, xMXALU;
 
-   always @(/*AUTOSENSE*/rBRA or rXCE or wBRA or wBSF or wDIV or wLOG
-	    or wMOV or wMUL or wSFT)
-     if (rBRA | |rXCE) begin
+   always @(/*AUTOSENSE*/rBRA or wBRA or wBSF or wDIV or wLOG or wMOV
+	    or wMUL or wSFT)
+     //if (rBRA | |rXCE) begin
+     if (rBRA) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	xMXALU <= 3'h0;
@@ -242,7 +248,7 @@ module aeMB_ctrl (/*AUTOARG*/
    wire 	 fSKIP = (rBRA & !rDLY);
    
    always @(/*AUTOSENSE*/fBCC or fBRU or fGET or fLOD or fRTD or fSKIP
-	    or fSTR or rRD or rXCE)
+	    or fSTR or rRD)
      if (fSKIP) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
@@ -250,6 +256,7 @@ module aeMB_ctrl (/*AUTOARG*/
 	xRW <= 5'h0;
 	// End of automatics
      end else begin
+	/*
 	case (rXCE)
 	  2'o2: xMXDST <= 2'o1;	  
 	  default: xMXDST <= (fSTR | fRTD | fBCC) ? 2'o3 :
@@ -262,7 +269,12 @@ module aeMB_ctrl (/*AUTOARG*/
 	  2'o2: xRW <= 5'd14;	  
 	  default: xRW <= rRD;
 	endcase
-	
+	*/
+	xMXDST <= (fSTR | fRTD | fBCC) ? 2'o3 :
+		  (fLOD | fGET) ? 2'o2 :
+		  (fBRU) ? 2'o1 :
+		  2'o0;
+	xRW <= rRD;
      end // else: !if(fSKIP)
 
 
@@ -277,8 +289,9 @@ module aeMB_ctrl (/*AUTOARG*/
    assign 	 dwb_wre_o = rDWBWRE;
    
    
-   always @(/*AUTOSENSE*/fLOD or fSKIP or fSTR or iwb_ack_i or rXCE)
-     if (fSKIP | |rXCE) begin
+   always @(/*AUTOSENSE*/fLOD or fSKIP or fSTR or iwb_ack_i)
+     //if (fSKIP | |rXCE) begin
+     if (fSKIP) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	xDWBSTB <= 1'h0;
@@ -312,8 +325,9 @@ module aeMB_ctrl (/*AUTOARG*/
    assign 	 fsl_stb_o = rFSLSTB;
    assign 	 fsl_wre_o = rFSLWRE;   
 
-   always @(/*AUTOSENSE*/fGET or fPUT or fSKIP or iwb_ack_i or rXCE) 
-     if (fSKIP | |rXCE) begin
+   always @(/*AUTOSENSE*/fGET or fPUT or fSKIP or iwb_ack_i) 
+     //if (fSKIP | |rXCE) begin
+     if (fSKIP) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	xFSLSTB <= 1'h0;

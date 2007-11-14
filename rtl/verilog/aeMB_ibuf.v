@@ -1,4 +1,4 @@
-// $Id: aeMB_ibuf.v,v 1.4 2007-11-10 16:39:38 sybreon Exp $
+// $Id: aeMB_ibuf.v,v 1.5 2007-11-14 22:14:34 sybreon Exp $
 //
 // AEMB INSTRUCTION BUFFER
 // 
@@ -20,6 +20,10 @@
 // License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.4  2007/11/10 16:39:38  sybreon
+// Upgraded license to LGPLv3.
+// Significant performance optimisations.
+//
 // Revision 1.3  2007/11/03 08:34:55  sybreon
 // Minor code cleanup.
 //
@@ -35,9 +39,10 @@
 
 module aeMB_ibuf (/*AUTOARG*/
    // Outputs
-   rIMM, rRA, rRD, rRB, rALT, rOPC, rSIMM, iwb_stb_o,
+   rIMM, rRA, rRD, rRB, rALT, rOPC, rSIMM, xIREG, iwb_stb_o,
    // Inputs
-   rBRA, rXCE, iwb_dat_i, iwb_ack_i, gclk, grst, gena
+   rBRA, rMSR_IE, rMSR_BIP, iwb_dat_i, iwb_ack_i, sys_int_i, gclk,
+   grst, gena
    );
    // INTERNAL
    output [15:0] rIMM;
@@ -45,13 +50,20 @@ module aeMB_ibuf (/*AUTOARG*/
    output [10:0] rALT;
    output [5:0]  rOPC;
    output [31:0] rSIMM;
+   output [31:0] xIREG;
+   
    input 	 rBRA;
-   input [1:0] 	 rXCE;   
+   //input [1:0] 	 rXCE;
+   input 	 rMSR_IE;
+   input 	 rMSR_BIP;   
    
    // INST WISHBONE
    output 	 iwb_stb_o;
    input [31:0]  iwb_dat_i;
    input 	 iwb_ack_i;
+
+   // SYSTEM
+   input 	 sys_int_i;   
 
    // SYSTEM
    input 	 gclk, grst, gena;
@@ -68,17 +80,59 @@ module aeMB_ibuf (/*AUTOARG*/
    assign 	iwb_stb_o = 1'b1;
 
    reg [31:0] 	rSIMM, xSIMM;
-   wire 	fIMM = (rOPC == 6'o54);
+
+   wire [31:0] 	wXCEOP = 32'hB9CE0008;
+   wire [31:0] 	wINTOP = 32'hB9CE0010;
+   wire [31:0] 	wBRKOP = 32'hB9CE0018;
+   wire [31:0] 	wBRAOP = 32'h88000000;
    
+   wire [31:0] 	wIREG = {rOPC, rRD, rRA, rRB, rALT};   
    reg [31:0] 	xIREG;
 
-   // DELAY SLOT
-   always @(/*AUTOSENSE*/fIMM or rBRA or rIMM or rXCE or wIDAT) begin
-      xIREG <= (rBRA | |rXCE) ? 32'h88000000 : wIDAT;
-      xSIMM <= (!fIMM | rBRA | |rXCE) ? { {(16){wIDAT[15]}}, wIDAT[15:0]} : {rIMM, wIDAT[15:0]};
-   end
 
-   // Synchronous
+   // --- INTERRUPT LATCH --------------------------------------
+   // Debounce and latch onto the positive edge. This is independent
+   // of the pipeline so that stalls do not affect it.
+   
+   reg 		rFINT;
+   reg [1:0] 	rDINT;
+   //wire 	wSHOT = rDINT[0] & !rDINT[1] & sys_int_i;
+   wire 	wSHOT = !rDINT[0] & sys_int_i;
+
+   always @(posedge gclk)
+     if (grst) begin
+	/*AUTORESET*/
+	// Beginning of autoreset for uninitialized flops
+	rDINT <= 2'h0;
+	rFINT <= 1'h0;
+	// End of automatics
+     end else if (rMSR_IE) begin
+	rDINT <= #1 {rDINT[0], sys_int_i};	
+	rFINT <= (wIREG == wINTOP) ? 1'b0 : (rFINT | wSHOT);
+     end
+
+   wire 	fIMM = (rOPC == 6'o54);
+   wire 	fRTD = (rOPC == 6'o55);
+   wire 	fBRU = ((rOPC == 6'o46) | (rOPC == 6'o56));
+   wire 	fBCC = ((rOPC == 6'o47) | (rOPC == 6'o57));   
+   
+   // --- DELAY SLOT -------------------------------------------
+   
+   always @(/*AUTOSENSE*/fBCC or fBRU or fIMM or fRTD or rBRA or rFINT
+	    or wBRAOP or wIDAT or wINTOP) begin
+      xIREG <= (rBRA) ? wBRAOP : 
+	       (!fIMM & rFINT & !fRTD & !fBRU & !fBCC) ? wINTOP :
+	       wIDAT;
+   end
+   
+   always @(/*AUTOSENSE*/fIMM or rBRA or rIMM or wIDAT or xIREG) begin
+      //xSIMM <= (!fIMM | rBRA | |rXCE) ? { {(16){wIDAT[15]}}, wIDAT[15:0]} : {rIMM, wIDAT[15:0]};
+      xSIMM <= (!fIMM | rBRA) ? { {(16){xIREG[15]}}, xIREG[15:0]} :
+	       {rIMM, wIDAT[15:0]};
+   end   
+
+   // --- PIPELINE --------------------------------------------
+   
    always @(posedge gclk)
      if (grst) begin
 	/*AUTORESET*/

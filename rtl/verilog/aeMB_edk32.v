@@ -1,4 +1,4 @@
-// $Id: aeMB_edk32.v,v 1.7 2007-11-10 16:39:38 sybreon Exp $
+// $Id: aeMB_edk32.v,v 1.8 2007-11-14 22:14:34 sybreon Exp $
 //
 // AEMB EDK 3.2 Compatible Core
 //
@@ -20,6 +20,10 @@
 // License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.7  2007/11/10 16:39:38  sybreon
+// Upgraded license to LGPLv3.
+// Significant performance optimisations.
+//
 // Revision 1.6  2007/11/09 20:51:52  sybreon
 // Added GET/PUT support through a FSL bus.
 //
@@ -44,11 +48,12 @@
 
 module aeMB_edk32 (/*AUTOARG*/
    // Outputs
-   iwb_stb_o, iwb_adr_o, fsl_wre_o, fsl_stb_o, fsl_dat_o, fsl_adr_o,
-   dwb_wre_o, dwb_stb_o, dwb_sel_o, dwb_dat_o, dwb_adr_o,
+   rFSLSTB, rDWBSTB, iwb_stb_o, iwb_adr_o, fsl_wre_o, fsl_stb_o,
+   fsl_dat_o, fsl_adr_o, dwb_wre_o, dwb_stb_o, dwb_sel_o, dwb_dat_o,
+   dwb_adr_o,
    // Inputs
-   sys_rst_i, sys_int_i, sys_clk_i, iwb_dat_i, iwb_ack_i, fsl_dat_i,
-   fsl_ack_i, dwb_dat_i, dwb_ack_i
+   sys_int_i, iwb_dat_i, iwb_ack_i, fsl_dat_i, fsl_ack_i, dwb_dat_i,
+   dwb_ack_i, sys_clk_i, sys_rst_i
    );
    // Bus widths
    parameter IW = 32; /// Instruction bus address width
@@ -71,32 +76,26 @@ module aeMB_edk32 (/*AUTOARG*/
    output		fsl_wre_o;		// From ctrl of aeMB_ctrl.v
    output [IW-1:2]	iwb_adr_o;		// From bpcu of aeMB_bpcu.v
    output		iwb_stb_o;		// From ibuf of aeMB_ibuf.v
+   output		rDWBSTB;		// From ctrl of aeMB_ctrl.v
+   output		rFSLSTB;		// From ctrl of aeMB_ctrl.v
    // End of automatics
    /*AUTOINPUT*/
    // Beginning of automatic inputs (from unused autoinst inputs)
-   input		dwb_ack_i;		// To scon of aeMB_scon.v, ...
+   input		dwb_ack_i;		// To ctrl of aeMB_ctrl.v
    input [31:0]		dwb_dat_i;		// To regf of aeMB_regf.v
-   input		fsl_ack_i;		// To scon of aeMB_scon.v, ...
+   input		fsl_ack_i;		// To ctrl of aeMB_ctrl.v
    input [31:0]		fsl_dat_i;		// To regf of aeMB_regf.v
-   input		iwb_ack_i;		// To scon of aeMB_scon.v, ...
-   input [31:0]		iwb_dat_i;		// To ibuf of aeMB_ibuf.v, ...
-   input		sys_clk_i;		// To scon of aeMB_scon.v
-   input		sys_int_i;		// To scon of aeMB_scon.v
-   input		sys_rst_i;		// To scon of aeMB_scon.v
+   input		iwb_ack_i;		// To ibuf of aeMB_ibuf.v, ...
+   input [31:0]		iwb_dat_i;		// To ibuf of aeMB_ibuf.v
+   input		sys_int_i;		// To ibuf of aeMB_ibuf.v
    // End of automatics
    /*AUTOWIRE*/
    // Beginning of automatic wires (for undeclared instantiated-module outputs)
-   wire			gclk;			// From scon of aeMB_scon.v
-   wire			gena;			// From scon of aeMB_scon.v
-   wire			grst;			// From scon of aeMB_scon.v
    wire [10:0]		rALT;			// From ibuf of aeMB_ibuf.v
-   wire [1:0]		rATOM;			// From bpcu of aeMB_bpcu.v
    wire			rBRA;			// From bpcu of aeMB_bpcu.v
    wire			rDLY;			// From bpcu of aeMB_bpcu.v
    wire [31:0]		rDWBDI;			// From regf of aeMB_regf.v
    wire [3:0]		rDWBSEL;		// From xecu of aeMB_xecu.v
-   wire			rDWBSTB;		// From ctrl of aeMB_ctrl.v
-   wire			rFSLSTB;		// From ctrl of aeMB_ctrl.v
    wire [15:0]		rIMM;			// From ibuf of aeMB_ibuf.v
    wire			rMSR_BIP;		// From xecu of aeMB_xecu.v
    wire			rMSR_IE;		// From xecu of aeMB_xecu.v
@@ -116,32 +115,16 @@ module aeMB_edk32 (/*AUTOARG*/
    wire [31:0]		rRESULT;		// From xecu of aeMB_xecu.v
    wire [4:0]		rRW;			// From ctrl of aeMB_ctrl.v
    wire [31:0]		rSIMM;			// From ibuf of aeMB_ibuf.v
-   wire [1:0]		rXCE;			// From scon of aeMB_scon.v
+   wire [31:0]		xIREG;			// From ibuf of aeMB_ibuf.v
    // End of automatics
-          
-   aeMB_scon
-     scon (/*AUTOINST*/
-	   // Outputs
-	   .rXCE			(rXCE[1:0]),
-	   .grst			(grst),
-	   .gclk			(gclk),
-	   .gena			(gena),
-	   // Inputs
-	   .rOPC			(rOPC[5:0]),
-	   .rATOM			(rATOM[1:0]),
-	   .rDWBSTB			(rDWBSTB),
-	   .rFSLSTB			(rFSLSTB),
-	   .dwb_ack_i			(dwb_ack_i),
-	   .iwb_ack_i			(iwb_ack_i),
-	   .fsl_ack_i			(fsl_ack_i),
-	   .rMSR_IE			(rMSR_IE),
-	   .rMSR_BIP			(rMSR_BIP),
-	   .rBRA			(rBRA),
-	   .rDLY			(rDLY),
-	   .sys_clk_i			(sys_clk_i),
-	   .sys_rst_i			(sys_rst_i),
-	   .sys_int_i			(sys_int_i));   
 
+   input 		sys_clk_i;
+   input 		sys_rst_i;
+
+   wire 		grst = sys_rst_i;
+   wire 		gclk = sys_clk_i;
+   wire 		gena = !((dwb_stb_o ^ dwb_ack_i) | (fsl_stb_o ^ fsl_ack_i) | !iwb_ack_i);   
+          
    aeMB_ibuf
      ibuf (/*AUTOINST*/
 	   // Outputs
@@ -152,12 +135,15 @@ module aeMB_edk32 (/*AUTOARG*/
 	   .rALT			(rALT[10:0]),
 	   .rOPC			(rOPC[5:0]),
 	   .rSIMM			(rSIMM[31:0]),
+	   .xIREG			(xIREG[31:0]),
 	   .iwb_stb_o			(iwb_stb_o),
 	   // Inputs
 	   .rBRA			(rBRA),
-	   .rXCE			(rXCE[1:0]),
+	   .rMSR_IE			(rMSR_IE),
+	   .rMSR_BIP			(rMSR_BIP),
 	   .iwb_dat_i			(iwb_dat_i[31:0]),
 	   .iwb_ack_i			(iwb_ack_i),
+	   .sys_int_i			(sys_int_i),
 	   .gclk			(gclk),
 	   .grst			(grst),
 	   .gena			(gena));   
@@ -178,7 +164,6 @@ module aeMB_edk32 (/*AUTOARG*/
 	   .fsl_stb_o			(fsl_stb_o),
 	   .fsl_wre_o			(fsl_wre_o),
 	   // Inputs
-	   .rXCE			(rXCE[1:0]),
 	   .rDLY			(rDLY),
 	   .rIMM			(rIMM[15:0]),
 	   .rALT			(rALT[10:0]),
@@ -189,9 +174,9 @@ module aeMB_edk32 (/*AUTOARG*/
 	   .rPC				(rPC[31:2]),
 	   .rBRA			(rBRA),
 	   .rMSR_IE			(rMSR_IE),
+	   .xIREG			(xIREG[31:0]),
 	   .dwb_ack_i			(dwb_ack_i),
 	   .iwb_ack_i			(iwb_ack_i),
-	   .iwb_dat_i			(iwb_dat_i[31:0]),
 	   .fsl_ack_i			(fsl_ack_i),
 	   .gclk			(gclk),
 	   .grst			(grst),
@@ -205,7 +190,6 @@ module aeMB_edk32 (/*AUTOARG*/
 	   .rPCLNK			(rPCLNK[31:2]),
 	   .rBRA			(rBRA),
 	   .rDLY			(rDLY),
-	   .rATOM			(rATOM[1:0]),
 	   // Inputs
 	   .rMXALT			(rMXALT[1:0]),
 	   .rOPC			(rOPC[5:0]),
@@ -214,7 +198,6 @@ module aeMB_edk32 (/*AUTOARG*/
 	   .rRESULT			(rRESULT[31:0]),
 	   .rDWBDI			(rDWBDI[31:0]),
 	   .rREGA			(rREGA[31:0]),
-	   .rXCE			(rXCE[1:0]),
 	   .gclk			(gclk),
 	   .grst			(grst),
 	   .gena			(gena));
@@ -256,7 +239,6 @@ module aeMB_edk32 (/*AUTOARG*/
 	   .rMSR_IE			(rMSR_IE),
 	   .rMSR_BIP			(rMSR_BIP),
 	   // Inputs
-	   .rXCE			(rXCE[1:0]),
 	   .rREGA			(rREGA[31:0]),
 	   .rREGB			(rREGB[31:0]),
 	   .rMXSRC			(rMXSRC[1:0]),
