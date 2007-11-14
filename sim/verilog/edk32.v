@@ -1,25 +1,28 @@
-// $Id: edk32.v,v 1.6 2007-11-13 23:37:28 sybreon Exp $
+// $Id: edk32.v,v 1.7 2007-11-14 22:11:41 sybreon Exp $
 //
 // AEMB EDK 3.2 Compatible Core TEST
 //
 // Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
 //  
-// This library is free software; you can redistribute it and/or
-// modify it under the terms of the GNU Lesser General Public License
-// as published by the Free Software Foundation; either version 2.1 of
-// the License, or (at your option) any later version.
+// This file is part of AEMB.
 //
-// This library is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-// Lesser General Public License for more details.
-//  
+// AEMB is free software: you can redistribute it and/or modify it
+// under the terms of the GNU Lesser General Public License as
+// published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+//
+// AEMB is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+// or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General
+// Public License for more details.
+//
 // You should have received a copy of the GNU Lesser General Public
-// License along with this library; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
-// USA
+// License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.6  2007/11/13 23:37:28  sybreon
+// Updated simulation to also check BRI 0x00 instruction.
+//
 // Revision 1.5  2007/11/09 20:51:53  sybreon
 // Added GET/PUT support through a FSL bus.
 //
@@ -56,6 +59,7 @@ module edk32 ();
    initial begin
       //$dumpfile("dump.vcd");
       //$dumpvars(1,dut);
+      //$dumpvars(1,dut.scon);      
    end
    
    initial begin
@@ -66,7 +70,7 @@ module edk32 ();
       sys_rst_i = 1;
       sys_int_i = 0;
       sys_exc_i = 0;      
-      #30 sys_rst_i = 0;
+      #50 sys_rst_i = 0;
    end
 
    initial fork
@@ -101,21 +105,40 @@ module edk32 ();
    wire [3:0]  dwb_sel_o; 
    wire [31:0] dwb_dat_o;
    wire [15:2] dwb_adr_o;
-   wire [31:0] dwb_dat_t;   
+   wire [31:0] dwb_dat_t;
+
+   initial begin
+      dwb_ack_i = 0;
+      iwb_ack_i = 0;
+      fsl_ack_i = 0;      
+   end
    
    assign      {dwb_dat_i[7:0],dwb_dat_i[15:8],dwb_dat_i[23:16],dwb_dat_i[31:24]} = ram[dadr];
    assign      {iwb_dat_i[7:0],iwb_dat_i[15:8],iwb_dat_i[23:16],iwb_dat_i[31:24]} = ram[iadr];
    assign      {dwb_dat_t} = ram[dwb_adr_o];
 
    assign      fsl_dat_i = fsl_adr_o;   
+
+//`define POSEDGE
+`ifdef POSEDGE
    
-   always @(negedge sys_clk_i) begin
-      iwb_ack_i <= #1 iwb_stb_o;
-      dwb_ack_i <= #1 dwb_stb_o;
-      fsl_ack_i <= #1 fsl_stb_o;      
-      
-      iadr <= #1 iwb_adr_o;
-      dadr <= dwb_adr_o;
+   always @(posedge sys_clk_i) 
+     if (sys_rst_i) begin
+	/*AUTORESET*/
+	// Beginning of autoreset for uninitialized flops
+	dwb_ack_i <= 1'h0;
+	fsl_ack_i <= 1'h0;
+	iwb_ack_i <= 1'h0;
+	// End of automatics
+     end else begin
+	iwb_ack_i <= #1 iwb_stb_o ^ iwb_ack_i;      
+	dwb_ack_i <= #1 dwb_stb_o ^ dwb_ack_i;
+	fsl_ack_i <= #1 fsl_stb_o ^ fsl_ack_i;
+     end
+   
+   always @(posedge sys_clk_i) begin
+      iadr <= #1 iwb_adr_o;      
+      dadr <= #1 dwb_adr_o;
       
       if (dwb_we_o & dwb_stb_o) begin
 	 case (dwb_sel_o)
@@ -129,6 +152,42 @@ module edk32 ();
 	 endcase // case (dwb_sel_o)
       end // if (dwb_we_o & dwb_stb_o)
    end // always @ (negedge sys_clk_i)
+
+`else // !`ifdef POSEDGE
+   
+   always @(negedge sys_clk_i) 
+     if (sys_rst_i) begin
+	/*AUTORESET*/
+	// Beginning of autoreset for uninitialized flops
+	dwb_ack_i <= 1'h0;
+	fsl_ack_i <= 1'h0;
+	iwb_ack_i <= 1'h0;
+	// End of automatics
+     end else begin
+	iwb_ack_i <= #1 iwb_stb_o;      
+	dwb_ack_i <= #1 dwb_stb_o;
+	fsl_ack_i <= #1 fsl_stb_o;
+     end
+   
+   always @(negedge sys_clk_i) begin
+      iadr <= #1 iwb_adr_o;      
+      dadr <= #1 dwb_adr_o;
+      
+      if (dwb_we_o & dwb_stb_o) begin
+	 case (dwb_sel_o)
+	   4'h1: ram[dwb_adr_o] <= {dwb_dat_o[7:0],dwb_dat_t[23:0]};
+	   4'h2: ram[dwb_adr_o] <= {dwb_dat_t[31:24],dwb_dat_o[15:8],dwb_dat_t[15:0]};	   
+	   4'h4: ram[dwb_adr_o] <= {dwb_dat_t[31:16],dwb_dat_o[23:16],dwb_dat_t[7:0]};	   
+	   4'h8: ram[dwb_adr_o] <= {dwb_dat_t[31:8],dwb_dat_o[31:24]};	   
+	   4'h3: ram[dwb_adr_o] <= {dwb_dat_o[7:0],dwb_dat_o[15:8],dwb_dat_t[15:0]};	   
+	   4'hC: ram[dwb_adr_o] <= {dwb_dat_t[31:16],dwb_dat_o[23:16],dwb_dat_o[31:24]};	   	  
+	   4'hF: ram[dwb_adr_o] <= {dwb_dat_o[7:0],dwb_dat_o[15:8],dwb_dat_o[23:16],dwb_dat_o[31:24]};	   
+	 endcase // case (dwb_sel_o)
+      end // if (dwb_we_o & dwb_stb_o)
+   end // always @ (negedge sys_clk_i)
+   
+`endif // !`ifdef POSEDGE
+   
 
    integer i;   
    initial begin
@@ -160,7 +219,10 @@ module edk32 ();
 	 $finish;	 
       end
       if (dwb_we_o & (dwb_dat_o == "RTNI")) sys_int_i = 0;	 
-      if (|dut.rXCE) svc = 1;
+      if (dut.regf.fRDWE && (dut.rRD == 5'h0e) && !svc && dut.gena) begin 
+	 svc = 1;
+	 //$display("\nLATENCY: ", ($stime - inttime)/10);	 
+      end
       
       // Pass/Fail Monitors
       if (dwb_we_o & (dwb_dat_o == "FAIL")) begin
@@ -185,12 +247,12 @@ module edk32 ();
 
       // DECODE
       $writeh ("\t");
-      
+      /*
       case (dut.bpcu.rATOM)
 	2'o2, 2'o1: $write("/");
 	2'o0, 2'o3: $write("\\");
       endcase // case (dut.bpcu.rATOM)
-
+       */
 
       case ({dut.rBRA, dut.rDLY})
 	2'b00: $write(" ");
