@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_testbench.c,v 1.9 2007-11-09 20:51:53 sybreon Exp $
+ * $Id: aeMB_testbench.c,v 1.10 2007-11-14 22:12:02 sybreon Exp $
  * 
  * AEMB Function Verification C Testbench
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -25,6 +25,9 @@
  * 
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.9  2007/11/09 20:51:53  sybreon
+ * Added GET/PUT support through a FSL bus.
+ *
  * Revision 1.8  2007/11/03 08:40:18  sybreon
  * Minor code cleanup.
  *
@@ -61,25 +64,30 @@
  */
 // void int_service (void) __attribute__((save_volatiles));
 void int_handler (void) __attribute__ ((interrupt_handler));
-
+int service;
 void int_enable()
 {
-  asm ("mfs r14, rmsr");
-  asm ("ori r14, r14, 0x0002");
-  asm ("mts rmsr, r14");
+  int tmp;  
+  service = 0;  
+  asm ("mfs %0, rmsr;" : "=r" (tmp));
+  tmp = tmp | 0x02;
+  asm ("mts rmsr, %0;" :: "r" (tmp));  
 }
 
 void int_disable()
 {
-  asm ("mfs r14, rmsr");
-  asm ("andi r14, r14, 0x00FD");
-  asm ("mts rmsr, r14");
+  int tmp;  
+  service = 1;  
+  asm ("mfs %0, rmsr;" : "=r" (tmp));
+  tmp = tmp & 0xFD;
+  asm ("mts rmsr, %0;" :: "r" (tmp));  
 }
 
 void int_service() 
 {
   int* pio = (int*)0xFFFFFFFC;
   *pio = 0x52544E49; // "INTR"
+  service = -1;  
 }
 
 void int_handler()
@@ -87,6 +95,18 @@ void int_handler()
   int_service();
 }
 
+/**
+   INTERRUPT TEST ROUTINE
+*/
+int int_test ()
+{
+  // Delay loop until hardware interrupt triggers
+  int i;
+  for (i=0; i < 100; i++) {
+    asm volatile ("nop;");
+  }  
+  return (service == 0) ? -1 : 1;
+}
 
 /**
    FIBONACCI TEST
@@ -306,11 +326,14 @@ int main ()
   // Number of each test to run
   int max = 10;
 
-  // FSL TEST
-  if (fsl_test() == -1) { *mpi = 0x4641494C; }
-
   // Enable Global Interrupts
   int_enable();
+
+  // INT TEST
+  if (int_test() == -1) { *mpi = 0x4641494C; }
+
+  // FSL TEST
+  if (fsl_test() == -1) { *mpi = 0x4641494C; }
 
   // Fibonacci Test
   if (fib_test(max) == -1) { *mpi = 0x4641494C; }
