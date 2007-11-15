@@ -1,4 +1,4 @@
-// $Id: aeMB_ctrl.v,v 1.8 2007-11-14 23:19:24 sybreon Exp $
+// $Id: aeMB_ctrl.v,v 1.9 2007-11-15 09:26:43 sybreon Exp $
 //
 // AEMB CONTROL UNIT
 // 
@@ -20,6 +20,9 @@
 // License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.8  2007/11/14 23:19:24  sybreon
+// Fixed minor typo.
+//
 // Revision 1.7  2007/11/14 22:14:34  sybreon
 // Changed interrupt handling system (reported by M. Ettus).
 //
@@ -283,7 +286,7 @@ module aeMB_ctrl (/*AUTOARG*/
 
    // --- DATA WISHBONE ----------------------------------
 
-   wire 	 fDACK = !(rDWBSTB ^ dwb_ack_i);
+   wire 	 fDACK = !(dwb_stb_o ^ dwb_ack_i);
    
    reg 		 rDWBSTB, xDWBSTB;
    reg 		 rDWBWRE, xDWBWRE;
@@ -320,7 +323,7 @@ module aeMB_ctrl (/*AUTOARG*/
 
    // --- FSL WISHBONE -----------------------------------
 
-   wire 	 fFACK = !(rFSLSTB ^ fsl_ack_i);   
+   wire 	 fFACK = !(fsl_stb_o ^ fsl_ack_i);   
 	 
    reg 		 rFSLSTB, xFSLSTB;
    reg 		 rFSLWRE, xFSLWRE;
