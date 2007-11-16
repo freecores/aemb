@@ -1,4 +1,4 @@
-// $Id: aeMB_xecu.v,v 1.7 2007-11-14 22:14:34 sybreon Exp $
+// $Id: aeMB_xecu.v,v 1.8 2007-11-16 21:52:03 sybreon Exp $
 //
 // AEMB MAIN EXECUTION ALU
 //
@@ -20,6 +20,9 @@
 // License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.7  2007/11/14 22:14:34  sybreon
+// Changed interrupt handling system (reported by M. Ettus).
+//
 // Revision 1.6  2007/11/10 16:39:38  sybreon
 // Upgraded license to LGPLv3.
 // Significant performance optimisations.
@@ -45,8 +48,8 @@
 
 module aeMB_xecu (/*AUTOARG*/
    // Outputs
-   dwb_adr_o, dwb_sel_o, fsl_adr_o, rRESULT, rDWBSEL, rMSR_IE,
-   rMSR_BIP,
+   dwb_adr_o, dwb_sel_o, fsl_adr_o, fsl_tag_o, rRESULT, rDWBSEL,
+   rMSR_IE, rMSR_BIP,
    // Inputs
    rREGA, rREGB, rMXSRC, rMXTGT, rRA, rRB, rMXALU, rBRA, rDLY, rALT,
    rSIMM, rIMM, rOPC, rRD, rDWBDI, rPC, gclk, grst, gena
@@ -61,7 +64,8 @@ module aeMB_xecu (/*AUTOARG*/
    output [3:0]    dwb_sel_o;
 
    // FSL WISHBONE
-   output [14:2]   fsl_adr_o;
+   output [6:2]   fsl_adr_o;
+   output [1:0]   fsl_tag_o;   
    
    // INTERNAL
    output [31:0]   rRESULT;
@@ -338,7 +342,7 @@ module aeMB_xecu (/*AUTOARG*/
 
    reg [14:2] 	    rFSLADR, xFSLADR;   
    
-   assign 	    fsl_adr_o = rFSLADR[14:2];
+   assign 	    {fsl_adr_o, fsl_tag_o} = rFSLADR[8:2];
 
    always @(/*AUTOSENSE*/rALT or rRB) begin
       xFSLADR <= {rALT, rRB[3:2]};      
