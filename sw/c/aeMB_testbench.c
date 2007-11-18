@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_testbench.c,v 1.11 2007-11-14 23:41:06 sybreon Exp $
+ * $Id: aeMB_testbench.c,v 1.12 2007-11-18 19:41:45 sybreon Exp $
  * 
  * AEMB Function Verification C Testbench
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -25,6 +25,9 @@
  * 
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.11  2007/11/14 23:41:06  sybreon
+ * Fixed minor interrupt test typo.
+ *
  * Revision 1.10  2007/11/14 22:12:02  sybreon
  * Added interrupt test routine.
  *
@@ -65,32 +68,35 @@
    - Pointer addressing
    - Interrupt handling
  */
-// void int_service (void) __attribute__((save_volatiles));
+
 void int_handler (void) __attribute__ ((interrupt_handler));
-int service;
+volatile int service = 0xDEADDEAD;
+
 void int_enable()
 {
   int tmp;  
-  service = 0;  
-  asm ("mfs %0, rmsr;" : "=r" (tmp));
-  tmp = tmp | 0x02;
-  asm ("mts rmsr, %0;" :: "r" (tmp));  
+  asm volatile ("mfs %0, rmsr;" 
+		"ori %1, %0, 0x02;"
+		"mts rmsr, %1;"
+		: "=r" (tmp)
+		: "r" (tmp));  
 }
 
 void int_disable()
 {
   int tmp;  
-  service = 1;  
-  asm ("mfs %0, rmsr;" : "=r" (tmp));
-  tmp = tmp & 0xFD;
-  asm ("mts rmsr, %0;" :: "r" (tmp));  
+  asm volatile ("mfs %0, rmsr;" 
+		"andi %1, %0, 0xFD;"
+		"mts rmsr, %1;"
+		: "=r" (tmp)
+		: "r" (tmp));  
 }
 
 void int_service() 
 {
   int* pio = (int*)0xFFFFFFFC;
   *pio = 0x52544E49; // "INTR"
-  service = -1;  
+  service = 0;
 }
 
 void int_handler()
@@ -104,11 +110,11 @@ void int_handler()
 int int_test ()
 {
   // Delay loop until hardware interrupt triggers
-  int i;
-  for (i=0; i < 777; i++) {
-    asm volatile ("nop;");
-  }  
-  return (service == 0) ? -1 : 1;
+  for (volatile int i=0; i < 999; i++) {
+    if (service == 0) return 0;
+  };
+
+  return -1;
 }
 
 /**
@@ -303,12 +309,12 @@ int fsl_test ()
   asm ("PUT %0, RFSL1" :: "r"(FSL));
   asm ("GET %0, RFSL1" : "=r"(FSL));
   
-  if (FSL != 0x04) return -1;
+  if (FSL != 0x01) return -1;
   
   asm ("PUT %0, RFSL31" :: "r"(FSL));
   asm ("GET %0, RFSL31" : "=r"(FSL));
   
-  if (FSL != 0x7C) return -1;
+  if (FSL != 0x1F) return -1;
   
   return 0;  
 }

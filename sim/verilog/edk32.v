@@ -1,4 +1,4 @@
-// $Id: edk32.v,v 1.7 2007-11-14 22:11:41 sybreon Exp $
+// $Id: edk32.v,v 1.8 2007-11-18 19:41:45 sybreon Exp $
 //
 // AEMB EDK 3.2 Compatible Core TEST
 //
@@ -20,6 +20,10 @@
 // License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.7  2007/11/14 22:11:41  sybreon
+// Added posedge/negedge bus interface.
+// Modified interrupt test system.
+//
 // Revision 1.6  2007/11/13 23:37:28  sybreon
 // Updated simulation to also check BRI 0x00 instruction.
 //
@@ -57,8 +61,8 @@ module edk32 ();
    always #5 sys_clk_i = ~sys_clk_i;   
 
    initial begin
-      //$dumpfile("dump.vcd");
-      //$dumpvars(1,dut);
+      $dumpfile("dump.vcd");
+      $dumpvars(1,dut);
       //$dumpvars(1,dut.scon);      
    end
    
@@ -84,11 +88,11 @@ module edk32 ();
    
    // FAKE MEMORY ////////////////////////////////////////////////////////
 
-   wire [14:2] fsl_adr_o;
    wire        fsl_stb_o;
    wire        fsl_wre_o;
    wire [31:0] fsl_dat_o;
    wire [31:0] fsl_dat_i;   
+   wire [6:2]  fsl_adr_o;
    
    wire [15:2] iwb_adr_o;
    wire        iwb_stb_o;
