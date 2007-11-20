@@ -1,4 +1,4 @@
-// $Id: edk32.v,v 1.8 2007-11-18 19:41:45 sybreon Exp $
+// $Id: edk32.v,v 1.9 2007-11-20 18:36:00 sybreon Exp $
 //
 // AEMB EDK 3.2 Compatible Core TEST
 //
@@ -20,6 +20,9 @@
 // License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.8  2007/11/18 19:41:45  sybreon
+// Minor simulation fixes.
+//
 // Revision 1.7  2007/11/14 22:11:41  sybreon
 // Added posedge/negedge bus interface.
 // Modified interrupt test system.
@@ -61,9 +64,8 @@ module edk32 ();
    always #5 sys_clk_i = ~sys_clk_i;   
 
    initial begin
-      $dumpfile("dump.vcd");
-      $dumpvars(1,dut);
-      //$dumpvars(1,dut.scon);      
+      //$dumpfile("dump.vcd");
+      //$dumpvars(1,dut);
    end
    
    initial begin
@@ -117,10 +119,9 @@ module edk32 ();
       fsl_ack_i = 0;      
    end
    
-   assign      {dwb_dat_i[7:0],dwb_dat_i[15:8],dwb_dat_i[23:16],dwb_dat_i[31:24]} = ram[dadr];
-   assign      {iwb_dat_i[7:0],iwb_dat_i[15:8],iwb_dat_i[23:16],iwb_dat_i[31:24]} = ram[iadr];
-   assign      {dwb_dat_t} = ram[dwb_adr_o];
-
+   assign      dwb_dat_t = ram[dwb_adr_o];   
+   assign      iwb_dat_i = ram[iadr]; 
+   assign      dwb_dat_i = ram[dadr];     
    assign      fsl_dat_i = fsl_adr_o;   
 
 //`define POSEDGE
@@ -146,13 +147,13 @@ module edk32 ();
       
       if (dwb_we_o & dwb_stb_o) begin
 	 case (dwb_sel_o)
-	   4'h1: ram[dwb_adr_o] <= {dwb_dat_o[7:0],dwb_dat_t[23:0]};
-	   4'h2: ram[dwb_adr_o] <= {dwb_dat_t[31:24],dwb_dat_o[15:8],dwb_dat_t[15:0]};	   
-	   4'h4: ram[dwb_adr_o] <= {dwb_dat_t[31:16],dwb_dat_o[23:16],dwb_dat_t[7:0]};	   
-	   4'h8: ram[dwb_adr_o] <= {dwb_dat_t[31:8],dwb_dat_o[31:24]};	   
-	   4'h3: ram[dwb_adr_o] <= {dwb_dat_o[7:0],dwb_dat_o[15:8],dwb_dat_t[15:0]};	   
-	   4'hC: ram[dwb_adr_o] <= {dwb_dat_t[31:16],dwb_dat_o[23:16],dwb_dat_o[31:24]};	   	  
-	   4'hF: ram[dwb_adr_o] <= {dwb_dat_o[7:0],dwb_dat_o[15:8],dwb_dat_o[23:16],dwb_dat_o[31:24]};	   
+	   4'h1: ram[dwb_adr_o] <= {dwb_dat_t[31:8], dwb_dat_o[7:0]};
+	   4'h2: ram[dwb_adr_o] <= {dwb_dat_t[31:16], dwb_dat_o[15:8], dwb_dat_t[7:0]};
+	   4'h4: ram[dwb_adr_o] <= {dwb_dat_t[31:24], dwb_dat_o[23:16], dwb_dat_t[15:0]};
+	   4'h8: ram[dwb_adr_o] <= {dwb_dat_o[31:24], dwb_dat_t[23:0]};
+	   4'h3: ram[dwb_adr_o] <= {dwb_dat_t[31:16], dwb_dat_o[15:0]};
+	   4'hC: ram[dwb_adr_o] <= {dwb_dat_o[31:16], dwb_dat_t[15:0]};
+	   4'hF: ram[dwb_adr_o] <= {dwb_dat_o};
 	 endcase // case (dwb_sel_o)
       end // if (dwb_we_o & dwb_stb_o)
    end // always @ (negedge sys_clk_i)
@@ -179,13 +180,13 @@ module edk32 ();
       
       if (dwb_we_o & dwb_stb_o) begin
 	 case (dwb_sel_o)
-	   4'h1: ram[dwb_adr_o] <= {dwb_dat_o[7:0],dwb_dat_t[23:0]};
-	   4'h2: ram[dwb_adr_o] <= {dwb_dat_t[31:24],dwb_dat_o[15:8],dwb_dat_t[15:0]};	   
-	   4'h4: ram[dwb_adr_o] <= {dwb_dat_t[31:16],dwb_dat_o[23:16],dwb_dat_t[7:0]};	   
-	   4'h8: ram[dwb_adr_o] <= {dwb_dat_t[31:8],dwb_dat_o[31:24]};	   
-	   4'h3: ram[dwb_adr_o] <= {dwb_dat_o[7:0],dwb_dat_o[15:8],dwb_dat_t[15:0]};	   
-	   4'hC: ram[dwb_adr_o] <= {dwb_dat_t[31:16],dwb_dat_o[23:16],dwb_dat_o[31:24]};	   	  
-	   4'hF: ram[dwb_adr_o] <= {dwb_dat_o[7:0],dwb_dat_o[15:8],dwb_dat_o[23:16],dwb_dat_o[31:24]};	   
+	   4'h1: ram[dwb_adr_o] <= {dwb_dat_t[31:8], dwb_dat_o[7:0]};
+	   4'h2: ram[dwb_adr_o] <= {dwb_dat_t[31:16], dwb_dat_o[15:8], dwb_dat_t[7:0]};
+	   4'h4: ram[dwb_adr_o] <= {dwb_dat_t[31:24], dwb_dat_o[23:16], dwb_dat_t[15:0]};
+	   4'h8: ram[dwb_adr_o] <= {dwb_dat_o[31:24], dwb_dat_t[23:0]};
+	   4'h3: ram[dwb_adr_o] <= {dwb_dat_t[31:16], dwb_dat_o[15:0]};
+	   4'hC: ram[dwb_adr_o] <= {dwb_dat_o[31:16], dwb_dat_t[15:0]};
+	   4'hF: ram[dwb_adr_o] <= {dwb_dat_o};
 	 endcase // case (dwb_sel_o)
       end // if (dwb_we_o & dwb_stb_o)
    end // always @ (negedge sys_clk_i)
@@ -198,7 +199,7 @@ module edk32 ();
       for (i=0;i<65535;i=i+1) begin
 	 ram[i] <= $random;
       end
-      #1 $readmemh("aeMB.rom",ram);
+      #1 $readmemh("dump.rom",ram);
    end
 
    // DISPLAY OUTPUTS ///////////////////////////////////////////////////
@@ -251,12 +252,6 @@ module edk32 ();
 
       // DECODE
       $writeh ("\t");
-      /*
-      case (dut.bpcu.rATOM)
-	2'o2, 2'o1: $write("/");
-	2'o0, 2'o3: $write("\\");
-      endcase // case (dut.bpcu.rATOM)
-       */
 
       case ({dut.rBRA, dut.rDLY})
 	2'b00: $write(" ");
