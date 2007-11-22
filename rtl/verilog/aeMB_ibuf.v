@@ -1,4 +1,4 @@
-// $Id: aeMB_ibuf.v,v 1.6 2007-11-14 23:39:51 sybreon Exp $
+// $Id: aeMB_ibuf.v,v 1.7 2007-11-22 15:11:15 sybreon Exp $
 //
 // AEMB INSTRUCTION BUFFER
 // 
@@ -20,6 +20,9 @@
 // License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.6  2007/11/14 23:39:51  sybreon
+// Fixed interrupt signal synchronisation.
+//
 // Revision 1.5  2007/11/14 22:14:34  sybreon
 // Changed interrupt handling system (reported by M. Ettus).
 //
@@ -84,24 +87,22 @@ module aeMB_ibuf (/*AUTOARG*/
 
    reg [31:0] 	rSIMM, xSIMM;
 
-   wire [31:0] 	wXCEOP = 32'hB9CE0008;
-   wire [31:0] 	wINTOP = 32'hB9CE0010;
-   wire [31:0] 	wBRKOP = 32'hB9CE0018;
-   wire [31:0] 	wBRAOP = 32'h88000000;
+   wire [31:0] 	wXCEOP = 32'hBA2D0008; // Vector 0x08
+   wire [31:0] 	wINTOP = 32'hB9CE0010; // Vector 0x10
+   wire [31:0] 	wBRKOP = 32'hBA0C0018; // Vector 0x18
+   wire [31:0] 	wBRAOP = 32'h88000000; // NOP for branches
    
    wire [31:0] 	wIREG = {rOPC, rRD, rRA, rRB, rALT};   
    reg [31:0] 	xIREG;
 
 
    // --- INTERRUPT LATCH --------------------------------------
-   // Debounce and latch onto the positive edge. This is independent
+   // Debounce and latch onto the positive level. This is independent
    // of the pipeline so that stalls do not affect it.
    
    reg 		rFINT;
    reg [1:0] 	rDINT;
-   //wire 	wSHOT = rDINT[0] & !rDINT[1] & sys_int_i;
-   //wire 	wSHOT = !rDINT[0] & sys_int_i;
-   wire 	wSHOT = (rDINT == 2'o1);	
+   wire 	wSHOT = rDINT[0];	
 
    always @(posedge gclk)
      if (grst) begin
@@ -130,7 +131,6 @@ module aeMB_ibuf (/*AUTOARG*/
    end
    
    always @(/*AUTOSENSE*/fIMM or rBRA or rIMM or wIDAT or xIREG) begin
-      //xSIMM <= (!fIMM | rBRA | |rXCE) ? { {(16){wIDAT[15]}}, wIDAT[15:0]} : {rIMM, wIDAT[15:0]};
       xSIMM <= (!fIMM | rBRA) ? { {(16){xIREG[15]}}, xIREG[15:0]} :
 	       {rIMM, wIDAT[15:0]};
    end   
