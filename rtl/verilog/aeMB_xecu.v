@@ -1,4 +1,4 @@
-// $Id: aeMB_xecu.v,v 1.8 2007-11-16 21:52:03 sybreon Exp $
+// $Id: aeMB_xecu.v,v 1.9 2007-11-30 16:42:51 sybreon Exp $
 //
 // AEMB MAIN EXECUTION ALU
 //
@@ -20,6 +20,9 @@
 // License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.8  2007/11/16 21:52:03  sybreon
+// Added fsl_tag_o to FSL bus (tag either address or data).
+//
 // Revision 1.7  2007/11/14 22:14:34  sybreon
 // Changed interrupt handling system (reported by M. Ettus).
 //
@@ -72,7 +75,6 @@ module aeMB_xecu (/*AUTOARG*/
    output [3:0]    rDWBSEL;   
    output 	   rMSR_IE;
    output 	   rMSR_BIP;
-   //input [1:0] 	   rXCE;   
    input [31:0]    rREGA, rREGB;
    input [1:0] 	   rMXSRC, rMXTGT;
    input [4:0] 	   rRA, rRB;
@@ -86,8 +88,6 @@ module aeMB_xecu (/*AUTOARG*/
    input [4:0] 	   rRD;   
    input [31:0]    rDWBDI;
    input [31:2]    rPC;   
-   //input [31:0]    rRES_MUL; // External Multiplier
-   //input [31:0]    rRES_BSF; // External Barrel Shifter
    
    // SYSTEM
    input 	   gclk, grst, gena;
@@ -188,7 +188,8 @@ module aeMB_xecu (/*AUTOARG*/
 		 rOPA;   
    
    // --- MULTIPLIER ------------------------------------------
-
+   // TODO: 2 stage multiplier
+   
    reg [31:0] 	    rRES_MUL;
    always @(/*AUTOSENSE*/rOPA or rOPB) begin
       rRES_MUL <= (rOPA * rOPB);
@@ -279,10 +280,10 @@ module aeMB_xecu (/*AUTOARG*/
    wire 	    fRTID = (rOPC == 6'o55) & rRD[0];   
    wire 	    fRTBD = (rOPC == 6'o55) & rRD[1];
    wire 	    fBRK = ((rOPC == 6'o56) | (rOPC == 6'o66)) & (rRA == 5'hC);
-   wire 	    fXCE = ((rOPC == 6'o56) | (rOPC == 6'o66)) & (rRA == 5'hE);
+   wire 	    fINT = ((rOPC == 6'o56) | (rOPC == 6'o66)) & (rRA == 5'hE);
    
-   always @(/*AUTOSENSE*/fMTS or fRTID or fXCE or rMSR_IE or rOPA)
-     xMSR_IE <= (fXCE) ? 1'b0 :
+   always @(/*AUTOSENSE*/fINT or fMTS or fRTID or rMSR_IE or rOPA)
+     xMSR_IE <= (fINT) ? 1'b0 :
 		(fRTID) ? 1'b1 : 
 		(fMTS) ? rOPA[1] :
 		rMSR_IE;      
@@ -371,5 +372,5 @@ module aeMB_xecu (/*AUTOARG*/
 	rMSR_BIP <= #1 xMSR_BIP;
 	rFSLADR <= #1 xFSLADR;	
      end
-
+   
 endmodule // aeMB_xecu

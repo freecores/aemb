@@ -1,4 +1,4 @@
-// $Id: aeMB_ctrl.v,v 1.9 2007-11-15 09:26:43 sybreon Exp $
+// $Id: aeMB_ctrl.v,v 1.10 2007-11-30 16:44:40 sybreon Exp $
 //
 // AEMB CONTROL UNIT
 // 
@@ -20,6 +20,9 @@
 // License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.9  2007/11/15 09:26:43  sybreon
+// Fixed minor typo causing synthesis failure.
+//
 // Revision 1.8  2007/11/14 23:19:24  sybreon
 // Fixed minor typo.
 //
@@ -63,10 +66,7 @@ module aeMB_ctrl (/*AUTOARG*/
    output [1:0]  rMXSRC, rMXTGT, rMXALT;
    output [2:0]  rMXALU;   
    output [4:0]  rRW;
-   //output 	 rDWBSTB;
-   //output 	 rFSLSTB;
    
-   //input [1:0] 	 rXCE;
    input 	 rDLY;
    input [15:0]  rIMM;
    input [10:0]  rALT;
@@ -161,28 +161,6 @@ module aeMB_ctrl (/*AUTOARG*/
    
    // --- OPERAND SELECTOR ---------------------------------
 
-   /*
-   wire 	 fRDWE = |rRW;   
-   wire 	 fAFWD_M = (rRW == rRA) & (rMXDST == 2'o2) & fRDWE;   
-   wire 	 fBFWD_M = (rRW == rRB) & (rMXDST == 2'o2) & fRDWE;   
-   wire 	 fAFWD_R = (rRW == rRA) & (rMXDST == 2'o0) & fRDWE;   
-   wire 	 fBFWD_R = (rRW == rRB) & (rMXDST == 2'o0) & fRDWE;   
-
-   assign 	 rMXSRC = (fBRU | fBCC) ? 2'o3 : // PC
-			  (fAFWD_M) ? 2'o2: // RAM
-			  (fAFWD_R) ? 2'o1: // FWD
-			  2'o0; // REG
-
-   assign 	 rMXTGT = (rOPC[3]) ? 2'o3 : // IMM
-			  (fBFWD_M) ? 2'o2 : // RAM
-			  (fBFWD_R) ? 2'o1 : // FWD
-			  2'o0; // REG
-
-   assign 	 rMXALT = (fAFWD_M) ? 2'o2 : // RAM
-			  (fAFWD_R) ? 2'o1 : // FWD
-			  2'o0; // REG
-   */
-
    wire 	 wRDWE = |xRW;
    wire 	 wAFWD_M = (xRW == wRA) & (xMXDST == 2'o2) & wRDWE;
    wire 	 wBFWD_M = (xRW == wRB) & (xMXDST == 2'o2) & wRDWE;
@@ -211,23 +189,9 @@ module aeMB_ctrl (/*AUTOARG*/
 	xMXALT <= (wAFWD_M) ? 2'o2 : // RAM
 		  (wAFWD_R) ? 2'o1 : // FWD
 		  2'o0; // REG	
-     end
+     end // else: !if(rBRA)
    
    // --- ALU CONTROL ---------------------------------------
-
-   /*
-   reg [2:0] 	 rMXALU;
-   always @(fBRA or fBSF or fDIV or fLOG or fMOV or fMUL
-     or fSFT) begin
-      rMXALU <= (fBRA | fMOV) ? 3'o3 :
-		(fSFT) ? 3'o2 :
-		(fLOG) ? 3'o1 :
-		(fMUL) ? 3'o4 :
-		(fBSF) ? 3'o5 :
-		(fDIV) ? 3'o6 :
-		3'o0;      
-   end
-    */
 
    reg [2:0]     rMXALU, xMXALU;
 
@@ -247,7 +211,7 @@ module aeMB_ctrl (/*AUTOARG*/
 		  (wBSF) ? 3'o5 :
 		  (wDIV) ? 3'o6 :
 		  3'o0;      	
-     end
+     end // else: !if(rBRA)
    
    // --- DELAY SLOT REGISTERS ------------------------------
    
@@ -262,20 +226,6 @@ module aeMB_ctrl (/*AUTOARG*/
 	xRW <= 5'h0;
 	// End of automatics
      end else begin
-	/*
-	case (rXCE)
-	  2'o2: xMXDST <= 2'o1;	  
-	  default: xMXDST <= (fSTR | fRTD | fBCC) ? 2'o3 :
-			     (fLOD | fGET) ? 2'o2 :
-			     (fBRU) ? 2'o1 :
-			     2'o0;
-	endcase
-
-	case (rXCE)
-	  2'o2: xRW <= 5'd14;	  
-	  default: xRW <= rRD;
-	endcase
-	*/
 	xMXDST <= (fSTR | fRTD | fBCC) ? 2'o3 :
 		  (fLOD | fGET) ? 2'o2 :
 		  (fBRU) ? 2'o1 :
@@ -318,7 +268,7 @@ module aeMB_ctrl (/*AUTOARG*/
      end else if (fDACK) begin
 	rDWBSTB <= #1 xDWBSTB;
 	rDWBWRE <= #1 xDWBWRE;	
-     end	
+     end
    
 
    // --- FSL WISHBONE -----------------------------------
@@ -369,7 +319,7 @@ module aeMB_ctrl (/*AUTOARG*/
 	rMXTGT <= 2'h0;
 	rRW <= 5'h0;
 	// End of automatics
-     end else if (gena) begin
+     end else if (gena) begin // if (grst)
 	//rPCLNK <= #1 xPCLNK;
 	rMXDST <= #1 xMXDST;
 	rRW <= #1 xRW;
