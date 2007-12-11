@@ -1,5 +1,5 @@
 /*
- * $Id: aeMB_testbench.c,v 1.12 2007-11-18 19:41:45 sybreon Exp $
+ * $Id: aeMB_testbench.c,v 1.13 2007-12-11 00:44:31 sybreon Exp $
  * 
  * AEMB Function Verification C Testbench
  * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -25,6 +25,9 @@
  * 
  * HISTORY
  * $Log: not supported by cvs2svn $
+ * Revision 1.12  2007/11/18 19:41:45  sybreon
+ * Minor simulation fixes.
+ *
  * Revision 1.11  2007/11/14 23:41:06  sybreon
  * Fixed minor interrupt test typo.
  *
@@ -61,6 +64,8 @@
  *
  */
 
+#include "libaemb.h"
+
 /**
    INTERRUPT TEST
 
@@ -69,28 +74,8 @@
    - Interrupt handling
  */
 
-void int_handler (void) __attribute__ ((interrupt_handler));
+void __attribute__ ((interrupt_handler)) int_handler();
 volatile int service = 0xDEADDEAD;
-
-void int_enable()
-{
-  int tmp;  
-  asm volatile ("mfs %0, rmsr;" 
-		"ori %1, %0, 0x02;"
-		"mts rmsr, %1;"
-		: "=r" (tmp)
-		: "r" (tmp));  
-}
-
-void int_disable()
-{
-  int tmp;  
-  asm volatile ("mfs %0, rmsr;" 
-		"andi %1, %0, 0xFD;"
-		"mts rmsr, %1;"
-		: "=r" (tmp)
-		: "r" (tmp));  
-}
 
 void int_service() 
 {
@@ -326,7 +311,6 @@ int fsl_test ()
    MPI port that is checked by the testbench.
  */
 
-
 int main () 
 {
   // Message Passing Port
@@ -336,13 +320,13 @@ int main ()
   int max = 10;
 
   // Enable Global Interrupts
-  int_enable();
+  aemb_enable_interrupt();
 
   // INT TEST
-  if (int_test() == -1) { *mpi = 0x4641494C; }
+  //if (int_test() == -1) { *mpi = 0x4641494C; }
 
   // FSL TEST
-  if (fsl_test() == -1) { *mpi = 0x4641494C; }
+  //if (fsl_test() == -1) { *mpi = 0x4641494C; }
 
   // Fibonacci Test
   if (fib_test(max) == -1) { *mpi = 0x4641494C; }
@@ -354,7 +338,8 @@ int main ()
   if (newton_test(max) == -1) { *mpi = 0x4641494C; }
   
   // Disable Global Interrupts
-  int_disable();
+  aemb_disable_interrupt();
+
   // ALL PASSED
   return 0;
 }

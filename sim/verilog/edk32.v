@@ -1,4 +1,4 @@
-// $Id: edk32.v,v 1.10 2007-11-30 17:08:30 sybreon Exp $
+// $Id: edk32.v,v 1.11 2007-12-11 00:44:31 sybreon Exp $
 //
 // AEMB EDK 3.2 Compatible Core TEST
 //
@@ -20,6 +20,9 @@
 // License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.10  2007/11/30 17:08:30  sybreon
+// Moved simulation kernel into code.
+//
 // Revision 1.9  2007/11/20 18:36:00  sybreon
 // Removed unnecessary byte acrobatics with VMEM data.
 //
@@ -52,8 +55,10 @@
 // Code compatible with -O0/1/2/3/s generated code.
 //
 
+`define AEMB_SIMULATION_KERNEL   
+
 module edk32 ();
-   
+
 `include "random.v"
   
    // INITIAL SETUP //////////////////////////////////////////////////////
@@ -201,7 +206,7 @@ module edk32 ();
       for (i=0;i<65535;i=i+1) begin
 	 ram[i] <= $random;
       end
-      #1 $readmemh("dump.rom",ram);
+      #1 $readmemh("dump.vmem",ram);
    end
 
    // DISPLAY OUTPUTS ///////////////////////////////////////////////////

@@ -1,6 +1,9 @@
 #!/bin/sh
-# $Id: gccrom,v 1.11 2007-11-30 17:09:27 sybreon Exp $
+# $Id: gccrom,v 1.12 2007-12-11 00:44:32 sybreon Exp $
 # $Log: not supported by cvs2svn $
+# Revision 1.11  2007/11/30 17:09:27  sybreon
+# Minor code cleanup.
+#
 # Revision 1.10  2007/11/20 18:35:34  sybreon
 # Generate VMEM instead of HEX dumps of programme.
 #
@@ -35,7 +38,7 @@
 #
 
 # Compile using C++ pre-processor
-mb-g++ -g -mstats -mxl-soft-div -msoft-float -mno-memcpy -msmall-divides -o rom.elf $@ && \
+mb-g++ -g  -Wl,-defsym -Wl,_STACK_SIZE=0x400 -mxl-soft-div -msoft-float -mxl-barrel-shift -mno-xl-soft-mul -o rom.elf $@ && \
 
 # Create a text listing of the compiled code
 mb-objdump -dSC rom.elf > rom.dump && \
@@ -44,7 +47,7 @@ mb-objdump -dSC rom.elf > rom.dump && \
 mb-objcopy -O srec rom.elf rom.srec && \
 
 # Generate a Verilog VMEM file from the SREC file
-srec_cat rom.srec -o ../sim/dump.rom -vmem 32 && \
+srec_cat rom.srec -o ../sim/dump.vmem -vmem 32 && \
 
 # Cleanup code
 rm rom.srec && \
