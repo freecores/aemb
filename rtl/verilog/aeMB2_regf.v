@@ -1,4 +1,4 @@
-/* $Id: aeMB2_regf.v,v 1.1 2007-12-11 00:43:17 sybreon Exp $
+/* $Id: aeMB2_regf.v,v 1.2 2007-12-12 19:16:59 sybreon Exp $
 **
 ** AEMB2 REGISTER FILE
 ** 
@@ -28,7 +28,7 @@ module aeMB2_regf (/*AUTOARG*/
    rRD_MA, rOPM_OF, rOPA_OF, rOPC_OF, rPC_MA, rMUL_MA, rRES_MA,
    rOPD_MA, rSEL_MA, clk_i, rst_i, ena_i, pha_i
    );
-   parameter TXE = 0;
+   parameter TXE = 1;
 
    // DWB
    output [31:0] dwb_dat_o;
@@ -75,8 +75,12 @@ module aeMB2_regf (/*AUTOARG*/
    // End of automatics
 
 
-   /* Latch FSL/RAM. This is done on completion of a bus cycle,
-   /* regardless of the pipeline status. */
+   /*     
+    LATCH FSL/RAM. 
+    
+    This is done on completion of a bus cycle, regardless of the
+    pipeline status. It's safe to do this as the data is only written
+    to the registers later. */
    
    reg [31:0] 		rCWB_MA,
 			rDWB_MA;
@@ -93,7 +97,11 @@ module aeMB2_regf (/*AUTOARG*/
 	if (cwb_ack_i) rCWB_MA <= #1 cwb_dat_i;	
      end
    
-   /* Load resizer */
+   /* 
+    LOAD RESIDER 
+    
+    Resize the latched data for writing into the register. It also
+    acts as a selector between FSL and DWB. */
    
    reg [31:0] 	 rMEM;
    always @(/*AUTOSENSE*/rCWB_MA or rDWB_MA or rSEL_MA) begin
@@ -110,8 +118,8 @@ module aeMB2_regf (/*AUTOARG*/
 	4'h0: rMEM <= rCWB_MA;
 	4'hF: rMEM <= rDWB_MA;
 	default: rMEM <= 32'hX;	
-      endcase // case (rSEL_MA)      
-   end
+      endcase // case (rSEL_MA)
+   end // always @ (...
 
    /* Select the data source */
    
@@ -126,16 +134,17 @@ module aeMB2_regf (/*AUTOARG*/
 	3'o3: rREGD <= rMUL_MA;	// Multiplier
 	3'o7: rREGD <= wREGW; // Unchanged
 	default: rREGD <= 32'hX; // Undefined 	
-      endcase // case (rOPD_MA)       
+      endcase // case (rOPD_MA)
 
    /* Write enable */
 
    wire       fWRE = (ena_i & |rRD_MA) | rst_i;   
    
    /* 
-    * 2-Bank Dual-Port Register File.
-    * This is implemented as distributed RAM in an FPGA.
-    */
+    REGISTER FILE
+    
+    Multi-banked dual-port register file. This is implemented as
+    distributed RAM in an FPGA. */
    
    reg [31:0] 	 rRAMA [(32<<TXE)-1:0],
 		 rRAMB [(32<<TXE)-1:0],
@@ -158,7 +167,12 @@ module aeMB2_regf (/*AUTOARG*/
 	rRAMD[wRW] <= #1 rREGD;
      end
    
-   /* Store resizer */
+   /* 
+    STORE SIZER
+    
+    This resizes the data to be placed on the bus. To make it easy, it
+    merely replicates the data across the whole bus. It relies on the
+    byte select signal to correctly work. */
    
    always @(posedge clk_i)
      if (rst_i) begin
@@ -167,7 +181,7 @@ module aeMB2_regf (/*AUTOARG*/
 	cwb_dat_o <= 32'h0;
 	dwb_dat_o <= 32'h0;
 	// End of automatics
-     end else if (ena_i) begin	
+     end else if (ena_i) begin
 	case (rOPC_OF[1:0])
 	  2'o0: dwb_dat_o <= #1 {(4){rOPM_OF[7:0]}};
 	  2'o1: dwb_dat_o <= #1 {(2){rOPM_OF[15:0]}};
@@ -180,8 +194,7 @@ module aeMB2_regf (/*AUTOARG*/
 	  default: cwb_dat_o <= #1 32'hX;	 
 	endcase // case (rOPC_OF[1:0])
 
-     end
-   
+     end // if (ena_i)
    
    // synopsys translate_off
    
@@ -192,14 +205,14 @@ module aeMB2_regf (/*AUTOARG*/
 	 rRAMA[r] <= $random;	 
 	 rRAMB[r] <= $random;	 
 	 rRAMD[r] <= $random;	 
-      end	
+      end
    end
 
-   /* simulation kernel */
-   
-   
    // synopsys translate_on
    
 endmodule // aeMB2_regf
 
-/* $Log: not supported by cvs2svn $ */
+/* $Log: not supported by cvs2svn $
+/* Revision 1.1  2007/12/11 00:43:17  sybreon
+/* initial import
+/* */

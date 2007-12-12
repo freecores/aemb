@@ -1,4 +1,4 @@
-/* $Id: aeMB2_aslu.v,v 1.1 2007-12-11 00:43:17 sybreon Exp $
+/* $Id: aeMB2_aslu.v,v 1.2 2007-12-12 19:16:59 sybreon Exp $
 **
 ** AEMB2 INTEGER ARITHMETIC SHIFT LOGIC UNIT
 ** 
@@ -23,20 +23,18 @@
 module aeMB2_aslu (/*AUTOARG*/
    // Outputs
    dwb_adr_o, dwb_sel_o, rSEL_MA, cwb_adr_o, cwb_tga_o, cwb_sel_o,
-   rMUL_MA, rRES_MA, rRES_EX, rMSR_IE, rMSR_BE, rMSR_BIP,
+   rMUL_MA, rRES_MA, rRES_EX, rMSR_IE, rMSR_BE, rMSR_TXE, rMSR_BIP,
    // Inputs
-   rIMM_OF, rALU_OF, rOPC_OF, rRA_OF, rRD_OF, rPC_OF, rOPA_OF,
+   rIMM_OF, rALU_OF, rOPC_OF, rOPC_IF, rRA_OF, rRD_OF, rOPA_OF,
    rOPB_OF, pha_i, clk_i, rst_i, ena_i
    );
 
    parameter DWB = 32;
+   parameter TXE = 1;
    
    parameter MUL = 0;
    parameter BSF = 1;
    parameter FSL = 1;   
-
-   parameter TXE = 1;
-   parameter LUT = 1;
    
    // DWB
    output [DWB-1:2] dwb_adr_o;
@@ -55,14 +53,17 @@ module aeMB2_aslu (/*AUTOARG*/
 
    output 	    rMSR_IE,
 		    rMSR_BE,
+		    rMSR_TXE,
 		    rMSR_BIP;
    
    input [15:0]     rIMM_OF;   
    input [2:0] 	    rALU_OF;   
-   input [5:0] 	    rOPC_OF;
+   input [5:0] 	    rOPC_OF,
+		    rOPC_IF;
+   
    input [4:0] 	    rRA_OF,
 		    rRD_OF;
-   input [31:2]     rPC_OF;  
+   
    input [31:0]     rOPA_OF, // RA, PC
 		    rOPB_OF; // RB, IMM
    
@@ -82,6 +83,7 @@ module aeMB2_aslu (/*AUTOARG*/
    reg			rMSR_BE;
    reg			rMSR_BIP;
    reg			rMSR_IE;
+   reg			rMSR_TXE;
    reg [31:0]		rMUL_MA;
    reg [31:0]		rRES_EX;
    reg [31:0]		rRES_MA;
@@ -90,41 +92,70 @@ module aeMB2_aslu (/*AUTOARG*/
 
    reg 			rMSR_C0, 
 			rMSR_C1, 
-			rMSR_CL[0:TXE];
+			rMSR_CL[0:1];
    
    
-   wire [4:0] 	    rRD = rRD_OF;   
-   wire [31:0] 	    rOPA = rOPA_OF;
-   wire [31:0] 	    rOPB = rOPB_OF;   
-   wire [5:0] 	    rOPC = rOPC_OF;
-   wire [4:0] 	    rRA = rRA_OF;   
-   wire [15:0] 	    rIMM = rIMM_OF;
-   wire [10:0] 	    rALT = rIMM_OF[10:0];
-   
-   // --- ADD/SUB SELECTOR ----
-   // FIXME: Redesign
-   // TODO: Refactor
-   // TODO: Verify signed compare
+   wire [4:0] 		rRD = rRD_OF;   
+   wire [31:0] 		rOPA = rOPA_OF;
+   wire [31:0] 		rOPB = rOPB_OF;   
+   wire [5:0] 		rOPC = rOPC_OF;
+   wire [4:0] 		rRA = rRA_OF;   
+   wire [15:0] 		rIMM = rIMM_OF;
+   wire [10:0] 		rALT = rIMM_OF[10:0];
 
-   wire 	    rMSR_CX = (!pha_i) ? rMSR_C0 : (TXE) ? rMSR_C1 : 1'bX;   
-   wire 	    rMSR_C = (LUT) ? rMSR_CL[pha_i] : rMSR_CX;   
+   /*
+    C SELECTOR 
+
+    Preselects the C in the OF stage to speed things up.  */
+
+   // TODO: Optimise
    
-   wire 	    wADDC, wSUBC, wRES_AC, wCMPC, wOPC;
-   wire [31:0] 	    wADD, wSUB, wRES_A, wCMP, wOPX;
+   wire 		wMSR_CX, wMSR_C;   
+   assign 		wMSR_CX = (pha_i) ? rMSR_C0 : 
+				  (TXE) ? rMSR_C1 : 1'bX;
    
-   wire 	    wCMPU = (rOPA > rOPB);         
-   wire 	    wCMPF = (rIMM[1]) ? wCMPU :
-			    ((wCMPU & ~(rOPB[31] ^ rOPA[31])) | (rOPB[31] & ~rOPA[31]));
+   assign 		wMSR_C = (rOPC_IF == 6'o44) & wMSR_CX | // SRX
+				 (rOPC_IF[5:4] == 2'o0) & rOPC_IF[1] & wMSR_CX | // ADDC/RSUBC
+				 (rOPC_IF[5:4] == 2'o0) & (rOPC_IF[1:0] == 2'o1); // RSUB
    
-   assign 	    {wCMPC,wCMP} = {wSUBC,wCMPF,wSUB[30:0]};  
-   assign 	    wOPX = (rOPC[0] & !rOPC[5]) ? ~rOPA : rOPA ;
-   assign 	    wOPC = ((rMSR_C & rOPC[1]) | (rOPC[0] & !rOPC[1])) & (!rOPC[5] & ~&rOPC[5:4]);
+   reg 			rMSR_C;
+       
+   always @(posedge clk_i)
+     if (rst_i) begin
+	/*AUTORESET*/
+	// Beginning of autoreset for uninitialized flops
+	rMSR_C <= 1'h0;
+	// End of automatics
+     end else if (ena_i) begin
+	rMSR_C <= #1 wMSR_C;	
+     end
    
-   assign 	    {wSUBC,wSUB} = {wADDC,wADD}; 
-   assign 	    {wADDC,wADD} = (rOPB + wOPX) + wOPC; 
-      
-   reg 		    rRES_ADDC;
-   reg [31:0] 	    rRES_ADD;
+   /* 
+    ADD/SUB SELECTOR
+    
+    Current implementation is a clutz. It needs to be
+    re-implemented. It is also in the critical path.  */
+   
+   // FIXME: Redesign
+   // TODO: Verify signed compare   
+   
+   wire 		wADDC, wSUBC, wRES_AC, wCMPC, wOPC;
+   wire [31:0] 		wADD, wSUB, wRES_A, wCMP, wOPX;
+
+   wire 		wCMPU = (rOPA > rOPB);         
+   wire 		wCMPF = (rIMM[1]) ? wCMPU :
+			((wCMPU & ~(rOPB[31] ^ rOPA[31])) | (rOPB[31] & ~rOPA[31]));
+   
+   assign 		{wCMPC,wCMP} = {wSUBC,wCMPF,wSUB[30:0]};  
+   assign 		wOPX = (rOPC[0] & !rOPC[5]) ? ~rOPA : rOPA ;
+   //assign 		wOPC = ((wMSR_C & rOPC[1]) | (rOPC[0] & !rOPC[1])) & (!rOPC[5] & ~&rOPC[5:4]);
+   assign 		wOPC = rMSR_C;   
+   
+   assign 		{wSUBC,wSUB} = {wADDC,wADD}; 
+   assign 		{wADDC,wADD} = (rOPB + wOPX) + wOPC; 
+   
+   reg 			rRES_ADDC;
+   reg [31:0] 		rRES_ADD;
    always @(rIMM or rOPC or wADD or wADDC or wCMP
 	    or wCMPC or wSUB or wSUBC)
      case ({rOPC[3],rOPC[0],rIMM[0]})
@@ -133,82 +164,111 @@ module aeMB2_aslu (/*AUTOARG*/
        default: {rRES_ADDC,rRES_ADD} <= #1 {wADDC,wADD};       
      endcase // case ({rOPC[3],rOPC[0],rIMM[0]})
 
-   // --- LOGIC SELECTOR --------------------------------------
+   /* 
+    LOGIC
+    
+    This can be combined with the shifter below.
+    */
 
-   reg [31:0] 	    rRES_LOG;
+   reg [31:0] 		rRES_LOG;
    always @(/*AUTOSENSE*/rOPA or rOPB or rOPC)
-     case (rOPC[1:0])
+     case (rOPC[2:0])
        2'o0: rRES_LOG <= #1 rOPA | rOPB;
        2'o1: rRES_LOG <= #1 rOPA & rOPB;
        2'o2: rRES_LOG <= #1 rOPA ^ rOPB;
-       2'o3: rRES_LOG <= #1 rOPA & ~rOPB;       
-     endcase // case (rOPC[1:0])
-
+       2'o3: rRES_LOG <= #1 rOPA & ~rOPB;
+     endcase // case (rOPC[2:0])
    
-   // --- SHIFTER SELECTOR ------------------------------------
+   /* 
+    SIMPLE SHIFTER
+        
+    Implemented as wiring and registers.
+    */
    
-   reg [31:0] 	    rRES_SFT;
-   reg 		    rRES_SFTC;
+   reg [31:0] 		rRES_SFT;
+   reg 			rRES_SFTC;
    
    always @(/*AUTOSENSE*/rIMM or rMSR_C or rOPA)
      case (rIMM[6:5])
-       2'o0: {rRES_SFT, rRES_SFTC} <= #1 {rOPA[31],rOPA[31:0]};
-       2'o1: {rRES_SFT, rRES_SFTC} <= #1 {rMSR_C,rOPA[31:0]};
-       2'o2: {rRES_SFT, rRES_SFTC} <= #1 {1'b0,rOPA[31:0]};
-       2'o3: {rRES_SFT, rRES_SFTC} <= #1 (rIMM[0]) ? { {(16){rOPA[15]}}, rOPA[15:0], rMSR_C} :
-				      { {(24){rOPA[7]}}, rOPA[7:0], rMSR_C};
+       2'o0: rRES_SFT <= {rOPA[31],rOPA[31:1]}; // SRA
+       2'o1: rRES_SFT <= {rMSR_C,rOPA[31:1]}; // SRC
+       2'o2: rRES_SFT <= {1'b0,rOPA[31:1]}; // SRL
+       2'o3: rRES_SFT <= (rIMM[0]) ? 
+			 {{(16){rOPA[15]}}, rOPA[15:0]} : // SEXT16
+			 {{(24){rOPA[7]}}, rOPA[7:0]}; // SEXT8
      endcase // case (rIMM[6:5])
 
-   // --- MOVE SELECTOR ---------------------------------------
-
-   wire 	    wTXE = (TXE) ? 2'd1 : 2'd0;
-   wire [31:0] 	    wMSR = {rMSR_C, // MSR_CC			    
-			    pha_i, // Current phase
-			    !pha_i, // Current phase
-			    wTXE, // Thread Execution Enabled
-			    4'h0, // Reserved
-			    8'hAE, // Vendor
-			    8'h32, // Version
-			    4'h0, // Reserved
-			    rMSR_BIP, // MSR_BIP
-			    rMSR_C, // MSR_C
-			    rMSR_IE, // MSR_IE
-			    rMSR_BE}; // MSR_BE
+   always @(/*AUTOSENSE*/rIMM or rMSR_C or rOPA)
+     rRES_SFTC <= (&rIMM[6:5]) ? rMSR_C : rOPA[0];
    
-   wire 	    fMFSR = (rOPC == 6'o45) & !rIMM[14] & rIMM[0];
-   wire 	    fMFPC = (rOPC == 6'o45) & !rIMM[14] & !rIMM[0];
-   reg [31:0] 	    rRES_MOV;
-   always @(/*AUTOSENSE*/fMFPC or fMFSR or rOPA or rOPB or rPC_OF
-	    or rRA or wMSR)
+   /*
+    MOVE FROM SPECIAL
+    
+    MSR bits
+    31 - CC (carry copy)
+    30 - PHA (current phase)
+    29 - TXE (enable second thread)
+
+     3 - BIP (break in progress)
+     2 - C (carry flag)
+     1 - IE (interrupt enable)
+     0 - BE (bus-lock enable)    
+    */
+
+   wire 		wTXE = (TXE) ? 1'b1 : 1'b0;
+   wire [31:0] 		wMSR = {rMSR_C, // MSR_CC		
+				pha_i, // Current phase
+				rMSR_TXE, // Thread Execution Enabled
+				wTXE,
+				4'h0, // Reserved
+				8'hAE, // Vendor
+				8'h32, // Version
+				4'h0, // Reserved
+				rMSR_BIP, // MSR_BIP
+				rMSR_C, // MSR_C
+				rMSR_IE, // MSR_IE
+				rMSR_BE}; // MSR_BE
+   
+   wire 		fMFSR = (rOPC == 6'o45) & !rIMM[14] & rIMM[0];
+   wire 		fMFPC = (rOPC == 6'o45) & !rIMM[14] & !rIMM[0];
+   reg [31:0] 		rRES_MOV;
+   always @(/*AUTOSENSE*/fMFSR or rOPA or rOPB or rRA or wMSR)
      rRES_MOV <= (fMFSR) ? wMSR :
-		 (fMFPC) ? {rPC_OF, 2'd0} :
+		 //(fMFPC) ? rOPA :
 		 (rRA[3]) ? rOPB : 
 		 rOPA;   
    
-   // --- MULTIPLIER ------------------------------------------
-   // 2-stage
+   /* 
+    MULTIPLIER
+    
+    Implemented as a 2-stage multiplier in order to increase clock
+    speed. */
    
    reg [31:0] 	    rRES_MUL;
    always @(posedge clk_i) begin
       rMUL_MA <= (MUL) ? rRES_MUL : 32'hX;      
-      rRES_MUL <= (rOPA * rOPB);
+      rRES_MUL <= (MUL) ? (rOPA * rOPB) : 32'hX;
    end
 
-   // --- BARREL SHIFTER --------------------------------------
-   // 1-stage
+   /* 
+    BARREL SHIFTER
+    
+    This can be potentially made 2-stage to increase clock
+    speed. Doesn't seem necessary at the moment as the critical path
+    runs through the adder. */
    
    reg [31:0] 	 rRES_BSF;
    reg [31:0] 	 xBSRL, xBSRA, xBSLL;
    
-   // Infer a logical left barrel shifter.   
+   /* logical left barrel shifter */
    always @(/*AUTOSENSE*/rOPA or rOPB)
      xBSLL <= rOPA << rOPB[4:0];
    
-   // Infer a logical right barrel shifter.
+   /* logical right barrel shifter */
    always @(/*AUTOSENSE*/rOPA or rOPB)
      xBSRL <= rOPA >> rOPB[4:0];
 
-   // Infer a arithmetic right barrel shifter.
+   /* arithmetic right barrel shifter */
    always @(/*AUTOSENSE*/rOPA or rOPB)
      case (rOPB[4:0])
        5'd00: xBSRA <= rOPA;
@@ -245,6 +305,7 @@ module aeMB2_aslu (/*AUTOARG*/
        5'd31: xBSRA <= {{(31){rOPA[31]}}, rOPA[31]};
      endcase // case (rOPB[4:0])
 
+   /* select the shift result (2nd stage) */
    always @(/*AUTOSENSE*/rALT or xBSLL or xBSRA or xBSRL)
      case (rALT[10:9])
        2'd0: rRES_BSF <= xBSRL;
@@ -254,12 +315,16 @@ module aeMB2_aslu (/*AUTOARG*/
      endcase // case (rALT[10:9])
 
 
-   // --- MSR REGISTER -----------------
+   /*
+    MSR REGISTER
+   
+    Move data to the MSR or change due to break/returns. */
+   
    reg 		 xMSR_C;
    
    // C
-   wire 	   fMTS = (rOPC == 6'o45) & rIMM[14];
-   wire 	   fADDC = ({rOPC[5:4], rOPC[2]} == 3'o0);
+   wire 	 fMTS = (rOPC == 6'o45) & rIMM[14];
+   wire 	 fADDC = ({rOPC[5:4], rOPC[2]} == 3'o0);
    
    always @(/*AUTOSENSE*/fADDC or fMTS or rALU_OF or rMSR_C or rOPA
 	    or rRES_ADDC or rRES_SFTC)
@@ -271,7 +336,7 @@ module aeMB2_aslu (/*AUTOARG*/
        3'o4: xMSR_C <= rMSR_C;	 
        3'o5: xMSR_C <= rMSR_C;	 
        default: xMSR_C <= 1'hX;       
-     endcase
+     endcase // case (rALU_OF)
 
    always @(posedge clk_i)
      if (rst_i) begin
@@ -280,16 +345,13 @@ module aeMB2_aslu (/*AUTOARG*/
 	rMSR_C0 <= 1'h0;
 	rMSR_C1 <= 1'h0;
 	// End of automatics
-     end else if (ena_i) begin
-	if (pha_i)
+     end else begin
+	if (pha_i & ena_i & rMSR_TXE)
 	  rMSR_C1 <= #1 xMSR_C;
-	else
+
+	if (!pha_i & ena_i)
 	  rMSR_C0 <= #1 xMSR_C;	
-     end
-   
-   always @(posedge clk_i)
-     if (ena_i)
-       rMSR_CL[pha_i] <= xMSR_C;   
+     end // else: !if(rst_i)
    
    // IE/BIP/BE
    wire 	    fRTID = (rOPC == 6'o55) & rRD[0];   
@@ -304,29 +366,38 @@ module aeMB2_aslu (/*AUTOARG*/
 	rMSR_BE <= 1'h0;
 	rMSR_BIP <= 1'h0;
 	rMSR_IE <= 1'h0;
+	rMSR_TXE <= 1'h0;
 	// End of automatics
      end else if (ena_i) begin
 	
+	// Interrupt enable (compatible)
 	rMSR_IE <= #1
 		   (fINT) ? 1'b0 :
 		   (fRTID) ? 1'b1 : 
 		   (fMTS) ? rOPA[1] :
 		   rMSR_IE;
-	
+
+	// Break in progress (compatible)
 	rMSR_BIP <= #1
 		    (fBRK) ? 1'b1 :
 		    (fRTBD) ? 1'b0 : 
 		    (fMTS) ? rOPA[3] :
 		    rMSR_BIP;
-	
+
+	// Forcibly assert dwb_cyc_o signal	
 	rMSR_BE <= #1
-		   (fMTS) ? rOPA[0] : rMSR_BE;      
-     end
+		   (fMTS) ? rOPA[0] : rMSR_BE;
+
+	// Enable the thread extension
+	rMSR_TXE <= #1
+		    (fMTS) ? rOPA[28] & TXE : rMSR_TXE;
+	
+     end // if (ena_i)
+
+   /*
+    RESULTS
+    */
    
-
-   // --- RESULT SELECTOR -------------------------------------------
-   // Selects results from functional units. 
-
    // RESULT   
    always @(posedge clk_i)
      if (rst_i) begin
@@ -348,7 +419,14 @@ module aeMB2_aslu (/*AUTOARG*/
 	endcase // case (rALU_OF)
      end // if (ena_i)
    
-   // --- DATA/FSL WISHBONE -----
+   /*
+    DATA/FSL WISHBONE
+    
+    Asserts the data address as calculated by the adder and the
+    appropriate byte select lanes depending on the byte offset of the
+    address. It does not check for mis-aligned addresses.  */
+
+   // TODO: Check for mis-alignment
 
    always @(posedge clk_i)
      if (rst_i) begin
@@ -361,7 +439,7 @@ module aeMB2_aslu (/*AUTOARG*/
 	dwb_sel_o <= 4'h0;
 	rSEL_MA <= 4'h0;
 	// End of automatics
-     end else if (ena_i) begin
+     end else if (ena_i) begin // if (rst_i)
 	rSEL_MA <= #1 dwb_sel_o;	
 	
 	dwb_adr_o <= #1 wADD[DWB-1:2];	
@@ -390,9 +468,11 @@ module aeMB2_aslu (/*AUTOARG*/
 	 rMSR_CL[r] <= $random;
       end
    end
-   
    // synopsys translate_on
    
 endmodule // aeMB2_aslu
 
-/* $Log: not supported by cvs2svn $ */
+/* $Log: not supported by cvs2svn $
+/* Revision 1.1  2007/12/11 00:43:17  sybreon
+/* initial import
+/* */

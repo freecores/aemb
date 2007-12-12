@@ -1,4 +1,4 @@
-/* $Id: aeMB2_edk32.v,v 1.2 2007-12-11 00:43:17 sybreon Exp $
+/* $Id: aeMB2_edk32.v,v 1.3 2007-12-12 19:16:59 sybreon Exp $
 **
 ** AEMB2 HI-PERFORMANCE CPU
 ** 
@@ -33,7 +33,7 @@ module aeMB2_edk32 (/*AUTOARG*/
    parameter DWB = 32; ///< data wishbone address space
 
    parameter TXE = 1; ///< thread execution extension
-   parameter LUT = 1; ///< further speed optimisation
+   parameter LUT = 0; ///< further speed optimisation
    
    parameter MUL = 1; ///< enable hardware multiplier
    parameter BSF = 1; ///< enable barrel shifter
@@ -84,6 +84,7 @@ module aeMB2_edk32 (/*AUTOARG*/
    wire			rMSR_BE;		// From aslu of aeMB2_aslu.v
    wire			rMSR_BIP;		// From aslu of aeMB2_aslu.v
    wire			rMSR_IE;		// From aslu of aeMB2_aslu.v
+   wire			rMSR_TXE;		// From aslu of aeMB2_aslu.v
    wire [31:0]		rMUL_MA;		// From aslu of aeMB2_aslu.v
    wire [31:0]		rOPA_OF;		// From opmx of aeMB2_opmx.v
    wire [31:0]		rOPB_OF;		// From opmx of aeMB2_opmx.v
@@ -95,7 +96,6 @@ module aeMB2_edk32 (/*AUTOARG*/
    wire [31:0]		rOPX_OF;		// From opmx of aeMB2_opmx.v
    wire [31:2]		rPC_IF;			// From bpcu of aeMB2_bpcu.v
    wire [31:2]		rPC_MA;			// From bpcu of aeMB2_bpcu.v
-   wire [31:2]		rPC_OF;			// From bpcu of aeMB2_bpcu.v
    wire [4:0]		rRA_IF;			// From bpcu of aeMB2_bpcu.v
    wire [4:0]		rRA_OF;			// From idmx of aeMB2_idmx.v
    wire [4:0]		rRB_IF;			// From bpcu of aeMB2_bpcu.v
@@ -125,7 +125,8 @@ module aeMB2_edk32 (/*AUTOARG*/
    aeMB2_sysc 
      #(/*AUTOINSTPARAM*/
        // Parameters
-       .TXE				(TXE))
+       .TXE				(TXE),
+       .FSL				(FSL))
    sysc (/*AUTOINST*/
 	 // Outputs
 	 .iwb_stb_o			(iwb_stb_o),
@@ -146,9 +147,10 @@ module aeMB2_edk32 (/*AUTOARG*/
 	 .iwb_ack_i			(iwb_ack_i),
 	 .dwb_ack_i			(dwb_ack_i),
 	 .cwb_ack_i			(cwb_ack_i),
+	 .rIMM_OF			(rIMM_OF[15:0]),
 	 .rOPC_OF			(rOPC_OF[5:0]),
 	 .rRA_OF			(rRA_OF[4:0]),
-	 .rIMM_OF			(rIMM_OF[15:0]),
+	 .rMSR_TXE			(rMSR_TXE),
 	 .rMSR_BE			(rMSR_BE),
 	 .rMSR_BIP			(rMSR_BIP),
 	 .rMSR_IE			(rMSR_IE),
@@ -197,12 +199,10 @@ module aeMB2_edk32 (/*AUTOARG*/
      #(/*AUTOINSTPARAM*/
        // Parameters
        .IWB				(IWB),
-       .TXE				(TXE),
-       .LUT				(LUT))     
+       .TXE				(TXE))     
    bpcu (/*AUTOINST*/
 	 // Outputs
 	 .iwb_adr_o			(iwb_adr_o[IWB-1:2]),
-	 .rPC_OF			(rPC_OF[31:2]),
 	 .rPC_MA			(rPC_MA[31:2]),
 	 .rPC_IF			(rPC_IF[31:2]),
 	 .rIMM_IF			(rIMM_IF[15:0]),
@@ -222,6 +222,7 @@ module aeMB2_edk32 (/*AUTOARG*/
 	 .rRES_EX			(rRES_EX[31:0]),
 	 .rRD_EX			(rRD_EX[4:0]),
 	 .rOPD_EX			(rOPD_EX[2:0]),
+	 .rMSR_TXE			(rMSR_TXE),
 	 .clk_i				(clk_i),
 	 .rst_i				(rst_i),
 	 .ena_i				(ena_i),
@@ -232,8 +233,7 @@ module aeMB2_edk32 (/*AUTOARG*/
    aeMB2_opmx
      #(/*AUTOINSTPARAM*/
        // Parameters
-       .TXE				(TXE),
-       .LUT				(LUT))     
+       .TXE				(TXE))     
    opmx (/*AUTOINST*/
 	 // Outputs
 	 .rOPM_OF			(rOPM_OF[31:0]),
@@ -254,6 +254,7 @@ module aeMB2_edk32 (/*AUTOARG*/
 	 .rREGA_OF			(rREGA_OF[31:0]),
 	 .rREGB_OF			(rREGB_OF[31:0]),
 	 .rBRA				(rBRA[1:0]),
+	 .rMSR_TXE			(rMSR_TXE),
 	 .pha_i				(pha_i),
 	 .clk_i				(clk_i),
 	 .rst_i				(rst_i),
@@ -267,7 +268,6 @@ module aeMB2_edk32 (/*AUTOARG*/
        .TXE				(TXE),
        .MUL				(MUL),
        .BSF				(BSF),
-       .DIV				(DIV),
        .FSL				(FSL))     
    idmx (/*AUTOINST*/
 	 // Outputs
@@ -290,6 +290,7 @@ module aeMB2_edk32 (/*AUTOARG*/
 	 .rRA_IF			(rRA_IF[4:0]),
 	 .rRB_IF			(rRB_IF[4:0]),
 	 .rRD_IF			(rRD_IF[4:0]),
+	 .rMSR_TXE			(rMSR_TXE),
 	 .pha_i				(pha_i),
 	 .clk_i				(clk_i),
 	 .rst_i				(rst_i),
@@ -302,11 +303,10 @@ module aeMB2_edk32 (/*AUTOARG*/
      #(/*AUTOINSTPARAM*/
        // Parameters
        .DWB				(DWB),
+       .TXE				(TXE),
        .MUL				(MUL),
        .BSF				(BSF),
-       .FSL				(FSL),
-       .TXE				(TXE),
-       .LUT				(LUT))     
+       .FSL				(FSL))     
    aslu (/*AUTOINST*/
 	 // Outputs
 	 .dwb_adr_o			(dwb_adr_o[DWB-1:2]),
@@ -320,23 +320,23 @@ module aeMB2_edk32 (/*AUTOARG*/
 	 .rRES_EX			(rRES_EX[31:0]),
 	 .rMSR_IE			(rMSR_IE),
 	 .rMSR_BE			(rMSR_BE),
+	 .rMSR_TXE			(rMSR_TXE),
 	 .rMSR_BIP			(rMSR_BIP),
 	 // Inputs
 	 .rIMM_OF			(rIMM_OF[15:0]),
 	 .rALU_OF			(rALU_OF[2:0]),
 	 .rOPC_OF			(rOPC_OF[5:0]),
+	 .rOPC_IF			(rOPC_IF[5:0]),
 	 .rRA_OF			(rRA_OF[4:0]),
 	 .rRD_OF			(rRD_OF[4:0]),
-	 .rPC_OF			(rPC_OF[31:2]),
 	 .rOPA_OF			(rOPA_OF[31:0]),
 	 .rOPB_OF			(rOPB_OF[31:0]),
 	 .pha_i				(pha_i),
 	 .clk_i				(clk_i),
 	 .rst_i				(rst_i),
 	 .ena_i				(ena_i));
-   
+
    // synopsys translate_off
-`ifdef AEMB2_SIMULATION_KERNEL
    wire [31:0] 		iwb_adr = {iwb_adr_o, 2'd0};
    wire [31:0] 		dwb_adr = {dwb_adr_o, 2'd0};
    wire [3:0] 		wMSR = dut.aslu.wMSR[3:0];   
@@ -478,7 +478,7 @@ module aeMB2_edk32 (/*AUTOARG*/
 	1'b0: $writeh("\t r",rRD_IF,", r",rRA_IF,", r",rRB_IF,"  ");	
       endcase // case (rOPC_IF[3])
 
-      if (dut.bpcu.fHAZARD)
+      if (dut.bpcu.fHZD)
 	$write ("*");      
       
       // ALU
@@ -546,13 +546,14 @@ module aeMB2_edk32 (/*AUTOARG*/
        */
    end // if (ena_i)
    
-`endif //  `ifdef AEMB_SIMULATION_KERNEL
    // synopsys translate_on
-   
-   
+      
 endmodule // aeMB2_edk32
 
 /* $Log: not supported by cvs2svn $
+/* Revision 1.2  2007/12/11 00:43:17  sybreon
+/* initial import
+/*
 /* Revision 1.1  2007/12/07 18:58:51  sybreon
 /* initial
 /* */

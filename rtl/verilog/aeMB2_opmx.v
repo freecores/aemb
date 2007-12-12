@@ -1,4 +1,4 @@
-/* $Id: aeMB2_opmx.v,v 1.1 2007-12-11 00:43:17 sybreon Exp $
+/* $Id: aeMB2_opmx.v,v 1.2 2007-12-12 19:16:59 sybreon Exp $
 **
 ** AEMB2 OPERAND FETCH MUX
 ** 
@@ -25,13 +25,11 @@ module aeMB2_opmx (/*AUTOARG*/
    rOPM_OF, rOPX_OF, rOPA_OF, rOPB_OF,
    // Inputs
    rRES_EX, rRD_EX, rOPD_EX, rOPC_IF, rIMM_IF, rPC_IF, rRD_IF, rRA_IF,
-   rRB_IF, rREGD_OF, rREGA_OF, rREGB_OF, rBRA, pha_i, clk_i, rst_i,
-   ena_i
+   rRB_IF, rREGD_OF, rREGA_OF, rREGB_OF, rBRA, rMSR_TXE, pha_i, clk_i,
+   rst_i, ena_i
    );
    parameter TXE = 1;   
-   parameter LUT = 1;   
 
-   //output [31:2] rPC_OF;   
    output [31:0] rOPM_OF, // used for store
 		 rOPX_OF, // used for BCC checking
 		 rOPA_OF, // OPA as per ISA
@@ -55,6 +53,7 @@ module aeMB2_opmx (/*AUTOARG*/
    input [1:0] 	 rBRA;  
    
    // SYSTEM
+   input 	 rMSR_TXE;   
    input 	 pha_i,
 		 clk_i,
 		 rst_i,
@@ -93,18 +92,15 @@ module aeMB2_opmx (/*AUTOARG*/
       
    /* IMMI implementation */
    
-   reg [15:0] 		rIMM0, rIMM1, rIMML[0:TXE];
-   reg 			rFIM0, rFIM1, rFIML[0:TXE];
+   reg [15:0] 		rIMM0, rIMM1, rIMML[0:1];
+   reg 			rFIM0, rFIM1, rFIML[0:1];
    wire [15:0] 		wIMM = rIMML[!pha_i];
    wire [31:0] 		wSIMM;
 
-   wire 		rFIMX = (pha_i) ? rFIM0 : (TXE) ? rFIM1 : 1'bX;   
-   wire 		rFIM = (LUT) ? rFIML[!pha_i] : rFIMX;
-
-   wire [15:0] 		rIMMX = (pha_i) ? rIMM0 : (TXE) ? rIMM1 : 16'hX;
-   wire [15:0] 		rIMM = (LUT) ? rIMML[!pha_i] : rIMMX;   
+   wire 		rFIM = (pha_i) ? rFIM0 : (TXE) ? rFIM1 : 1'bX;   
+   wire [15:0] 		rIMM = (pha_i) ? rIMM0 : (TXE) ? rIMM1 : 16'hX;
    
-   assign 		wSIMM[15:0] = rIMM_IF[15:0];
+   assign 		wSIMM[15:0] = rIMM_IF[15:0];   
    assign 		wSIMM[31:16] = (rFIM) ? 
 				       {rIMM} : 
 				       {(16){rIMM_IF[15]}};
@@ -118,34 +114,30 @@ module aeMB2_opmx (/*AUTOARG*/
 	rIMM0 <= 16'h0;
 	rIMM1 <= 16'h0;
 	// End of automatics
-     end else if (ena_i) begin
-	if (pha_i) begin  
+     end else begin
+	if (pha_i & ena_i) begin  
 	   rFIM0 <= #1 fIMM & !fSKP;
 	   rIMM0 <= #1 rIMM_IF;
-	end else begin
+	end
+	
+	if (!pha_i & ena_i & rMSR_TXE) begin
 	   rFIM1 <= #1 fIMM & !fSKP;
 	   rIMM1 <= #1 rIMM_IF;
 	end
-     end
+     end // else: !if(rst_i)
    
-   always @(posedge clk_i)
-     if (ena_i) begin
-	rFIML[!pha_i] <= #1 fIMM & !fSKP;
-	rIMML[!pha_i] <= #1 rIMM_IF;	
-     end
-
    /* Latch onto the operand */
    // TODO: Optimise
    
    wire 		fALU = (rOPD_EX == 3'o0);
    wire 		fWRE = |rRD_EX;
    wire 		wOPBFWD = !rOPC_IF[3] & (rRB_IF == rRD_EX) & fALU & !fMOV & fWRE;
-   wire 		wOPAFWD = !(fBRU|fBCC) & (rRA_IF == rRD_EX) & fALU & fWRE;
+   wire 		wOPAFWD = !(fBRU|fBCC) & (rRA_IF == rRD_EX) & fALU & !fMOV & fWRE;
    wire 		wOPXFWD = (fBCC) & (rRA_IF == rRD_EX) & fALU & fWRE;   
    wire 		wOPMFWD = (rRD_IF == rRD_EX) & fALU & fWRE;   
    
    wire [1:0] 		wOPB_MX = {rOPC_IF[3], wOPBFWD};
-   wire [1:0] 		wOPA_MX = {fBRU|fBCC, wOPAFWD};
+   wire [1:0] 		wOPA_MX = {fBRU|fBCC|fMOV, wOPAFWD};
    wire [1:0] 		wOPX_MX = {fBCC, wOPXFWD};   
    wire [1:0] 		wOPM_MX = {fSTR, wOPMFWD};   
    
@@ -188,19 +180,11 @@ module aeMB2_opmx (/*AUTOARG*/
 	  default: rOPA_OF <= #1 32'hX;	  
 	endcase // case (wOPA_MX)
 
-     end
-
-   // synopsys translate_off
-   integer r;   
-   initial begin
-      for (r=0; r<TXE; r=r+1) begin
-	 rFIML[r] <= $random;
-	 rIMML[r] <= $random;      
-      end
-   end
-   
-   // synopsys translate_on
+     end // if (ena_i)
    
 endmodule // aeMB2_opmx
 
-/* $Log: not supported by cvs2svn $ */
+/* $Log: not supported by cvs2svn $
+/* Revision 1.1  2007/12/11 00:43:17  sybreon
+/* initial import
+/* */

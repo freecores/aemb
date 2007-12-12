@@ -1,4 +1,4 @@
-/* $Id: aeMB2_sysc.v,v 1.1 2007-12-11 00:43:17 sybreon Exp $
+/* $Id: aeMB2_sysc.v,v 1.2 2007-12-12 19:16:59 sybreon Exp $
 **
 ** AEMB2 SYSTEM CONTROL
 ** 
@@ -25,10 +25,12 @@ module aeMB2_sysc (/*AUTOARG*/
    iwb_stb_o, iwb_wre_o, dwb_cyc_o, dwb_stb_o, dwb_wre_o, cwb_stb_o,
    cwb_wre_o, rINT, rXCE, pha_o, clk_o, rst_o, ena_o,
    // Inputs
-   rOPC_IF, iwb_ack_i, dwb_ack_i, cwb_ack_i, rOPC_OF, rRA_OF, rIMM_OF,
-   rMSR_BE, rMSR_BIP, rMSR_IE, sys_int_i, sys_clk_i, sys_rst_i
+   rOPC_IF, iwb_ack_i, dwb_ack_i, cwb_ack_i, rIMM_OF, rOPC_OF, rRA_OF,
+   rMSR_TXE, rMSR_BE, rMSR_BIP, rMSR_IE, sys_int_i, sys_clk_i,
+   sys_rst_i
    );
    parameter TXE = 1;
+   parameter FSL = 1;   
    
    // INTERNAL
    input [5:0] rOPC_IF;
@@ -50,17 +52,18 @@ module aeMB2_sysc (/*AUTOARG*/
    // INTERNAL   
    output      rINT,
 	       rXCE;
-   input [5:0] rOPC_OF;
-   input [4:0] rRA_OF;
    input [15:0] rIMM_OF;   
-   input       rMSR_BE,
-	       rMSR_BIP,
-	       rMSR_IE;   
+   input [5:0] 	rOPC_OF;
+   input [4:0] 	rRA_OF;
+   input 	rMSR_TXE,
+		rMSR_BE,
+		rMSR_BIP,
+		rMSR_IE;   
    
-   output      pha_o,
-	       clk_o, 
-	       rst_o, 
-	       ena_o;   
+   output 	pha_o,
+		clk_o, 
+		rst_o, 
+		ena_o;   
    
    // SYSTEM
    input       sys_int_i,
@@ -192,18 +195,21 @@ module aeMB2_sysc (/*AUTOARG*/
 	iwb_stb_o <= 1'h0;
 	// End of automatics
      end else begin
-	iwb_stb_o <= #1 (TXE[0] | pha_o);
+	iwb_stb_o <= #1 (rMSR_TXE | pha_o);
 
 	dwb_cyc_o <= #1 fLOD | fSTR | rMSR_BE;	
 	dwb_stb_o <= #1 fLOD | fSTR;
 	dwb_wre_o <= #1 fSTR;
 	
-	cwb_stb_o <= #1 fGET | fPUT;
-	cwb_wre_o <= #1 fPUT;	
+	cwb_stb_o <= #1 (FSL) ? fGET | fPUT : 1'bX;
+	cwb_wre_o <= #1 (FSL) ? fPUT : 1'bX;	
      end
    
 
    
 endmodule // aeMB2_sysc
 
-/* $Log: not supported by cvs2svn $ */
+/* $Log: not supported by cvs2svn $
+/* Revision 1.1  2007/12/11 00:43:17  sybreon
+/* initial import
+/* */

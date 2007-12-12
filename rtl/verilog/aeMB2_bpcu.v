@@ -1,4 +1,4 @@
-/* $Id: aeMB2_bpcu.v,v 1.1 2007-12-11 00:43:17 sybreon Exp $
+/* $Id: aeMB2_bpcu.v,v 1.2 2007-12-12 19:16:59 sybreon Exp $
 **
 ** AEMB2 BRANCH/PROGRAMME COUNTER
 ** 
@@ -22,15 +22,14 @@
 
 module aeMB2_bpcu (/*AUTOARG*/
    // Outputs
-   iwb_adr_o, rPC_OF, rPC_MA, rPC_IF, rIMM_IF, rALT_IF, rOPC_IF,
-   rRD_IF, rRA_IF, rRB_IF, rBRA,
+   iwb_adr_o, rPC_MA, rPC_IF, rIMM_IF, rALT_IF, rOPC_IF, rRD_IF,
+   rRA_IF, rRB_IF, rBRA,
    // Inputs
    iwb_dat_i, iwb_ack_i, rOPX_OF, rOPC_OF, rRA_OF, rRD_OF, rRES_EX,
-   rRD_EX, rOPD_EX, clk_i, rst_i, ena_i, pha_i
+   rRD_EX, rOPD_EX, rMSR_TXE, clk_i, rst_i, ena_i, pha_i
    );
    parameter IWB = 32;
    parameter TXE = 1;   
-   parameter LUT = 1;   
    
    // IWB
    output [IWB-1:2] iwb_adr_o;
@@ -38,7 +37,7 @@ module aeMB2_bpcu (/*AUTOARG*/
    input 	    iwb_ack_i;
    
    // PIPELINE
-   output [31:2]    rPC_OF,
+   output [31:2]    //rPC_OF,
 		    rPC_MA,
 		    rPC_IF;    
    output [15:0]    rIMM_IF;
@@ -49,7 +48,7 @@ module aeMB2_bpcu (/*AUTOARG*/
 		    rRB_IF;
 
    // BRANCH DETECTION
-   output [1:0]     rBRA; ///< {branch, delay}
+   output [1:0]     rBRA; // {branch, delay}
    input [31:0]     rOPX_OF; // BCC op test   
    input [5:0] 	    rOPC_OF;
    input [4:0] 	    rRA_OF,
@@ -61,6 +60,7 @@ module aeMB2_bpcu (/*AUTOARG*/
    input [2:0] 	    rOPD_EX; ///< data register source (ALU, MEM/FSL, PC)
    
    // SYSTEM
+   input 	    rMSR_TXE;   
    input 	    clk_i, 
 		    rst_i, 
 		    ena_i, 
@@ -76,7 +76,6 @@ module aeMB2_bpcu (/*AUTOARG*/
    reg [4:0]		rRA_IF;
    reg [4:0]		rRD_IF;
    // End of automatics
-
 
    /* Partial decoding */
    wire [5:0] 		rOPC = rOPC_IF;
@@ -102,11 +101,10 @@ module aeMB2_bpcu (/*AUTOARG*/
    /* Select the PC. */
    
    reg [31:2] 		rPC, // PC
-			rPC0, rPC1, // register based 
-			rPCL[0:TXE]; // LUT based
+			rPC0, rPC1,// register based 
+			rPCL[0:1]; // LUT based
 
-   wire [31:2] 		wPCSEL = (pha_i) ? rPC0 : (TXE) ? rPC1 : 30'hX; 
-   wire [31:2] 		wPCNXT = (LUT) ? rPCL[!pha_i] : wPCSEL;
+   wire [31:2] 		wPCNXT = (pha_i) ? rPC0 : (TXE) ? rPC1 : 30'hX; 
    wire [31:2] 		wPCINC = (rPC + 1);
    
    /* Check for RW data hazard */
@@ -118,11 +116,16 @@ module aeMB2_bpcu (/*AUTOARG*/
    wire 		fOPBHZD = (rRB_IF == rRD_EX) & (fLOAD | fMULT) & !fMOV & !rOPC_IF[3] & fWRE;
    wire 		fOPAHZD = (rRA_IF == rRD_EX) & (fLOAD | fMULT) & !fBRU & fWRE;      
    wire 		fOPDHZD = (rRD_IF == rRD_EX) & (fLOAD | fMULT) & fSTR & fWRE;   
-   wire 		fHAZARD = fOPBHZD | fOPAHZD | fOPDHZD;
+   wire 		fHZD = fOPBHZD | fOPAHZD | fOPDHZD;
 
-   /* Output the new PC for IWB */
+   /* 
+    IWB PC OUTPUT
+    
+    This is part of the address generation stage. It pre-selects the
+    next PC to fetch depending on whether it's a branch, retry or
+    normal. A retry happens during a special hazard */
    
-   wire [1:0] 		wIPCMX = {fHAZARD, rBRA[1]};
+   wire [1:0] 		wIPCMX = {fHZD, rBRA[1]};
    assign 		iwb_adr_o = rPC[IWB-1:2];
    
    always @ (posedge clk_i) 
@@ -138,7 +141,12 @@ module aeMB2_bpcu (/*AUTOARG*/
 	endcase // case (wIPCMX)
      end
 
-   /* Inbcrement the PC */
+   /* 
+    PC INCREMENT
+    
+    This will store the next PC in a holding register until it is
+    needed during the next AG stage. */
+   
    always @(posedge clk_i)
      if (rst_i) begin
 	/*AUTORESET*/
@@ -146,19 +154,16 @@ module aeMB2_bpcu (/*AUTOARG*/
 	rPC0 <= 30'h0;
 	rPC1 <= 30'h0;
 	// End of automatics
-     end else if (ena_i) begin
-	if (pha_i) 
-	  rPC1 <= #1 wPCINC;
-	else
-	  rPC0 <= #1 wPCINC;	
+     end else begin
+	if (pha_i & ena_i & rMSR_TXE) rPC1 <= #1 wPCINC;
+	if (!pha_i & ena_i) rPC0 <= #1 wPCINC;	
      end
    
-   always @(posedge clk_i)
-     if (ena_i | rst_i) begin
-	rPCL[pha_i] <= #1 wPCINC;	
-     end
-
-   /* Latch onto instruction word */
+   /* 
+    INSTRUCTION LATCH
+    
+    This latches onto the instruction. It may not work correctly if
+    there is a pipeline stall. */
    
    reg [31:2] 		rPC_OF, rPC_EX;
    assign 		{rRB_IF, rALT_IF} = rIMM_IF;
@@ -176,8 +181,14 @@ module aeMB2_bpcu (/*AUTOARG*/
 	{rOPC_IF, rRD_IF, rRA_IF, rIMM_IF} <= #1 iwb_dat_i;
      end
 
-   always @(posedge clk_i)
-     if (rst_i) begin
+   /*
+    PC PIPELINE
+    
+    This merely passes the PC down so that it is available during
+    branch instructions. This may be modified to use a shift register.
+    */
+
+   always @(posedge clk_i) if (rst_i) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	rPC_EX <= 30'h0;
@@ -185,12 +196,13 @@ module aeMB2_bpcu (/*AUTOARG*/
 	rPC_MA <= 30'h0;
 	rPC_OF <= 30'h0;
 	// End of automatics
-     end else if (ena_i) begin
+   end else if (ena_i) begin
 	// TODO: Stuff inside a small LUT FIFO
 	{rPC_MA, rPC_EX, rPC_OF, rPC_IF} <= #1 {rPC_EX, rPC_OF, rPC_IF, rPC};	
-     end
+   end
 
    /* Branch Control */
+   
    wire 		wRTD = (rOPC_OF == 6'o55);
    wire 		wBCC = (rOPC_OF == 6'o47) | (rOPC_OF == 6'o57);
    wire 		wBRU = (rOPC_OF == 6'o46) | (rOPC_OF == 6'o56);
@@ -202,7 +214,8 @@ module aeMB2_bpcu (/*AUTOARG*/
    wire 		wBGE = ~wBLT;
    wire 		wBGT = ~wBLE;   
 
-   reg 			xXCC;   
+   reg 			xXCC;
+   
    always @(/*AUTOSENSE*/rRD_OF or wBEQ or wBGE or wBGT or wBLE
 	    or wBLT or wBNE)
      case (rRD_OF[2:0])
@@ -226,16 +239,9 @@ module aeMB2_bpcu (/*AUTOARG*/
 	rBRA[0] <= #1 (wBRU & rRA_OF[4]) | (wBCC & rRD_OF[4]) | wRTD;      	
      end
    
-   // synopsys translate_off
-   integer r;   
-   initial begin
-      for (r=0; r<TXE; r=r+1) begin
-	 rPCL[r] <= $random;
-      end
-   end
-
-   // synopsys translate_on
-   
 endmodule // aeMB2_bpcu
 
-/* $Log: not supported by cvs2svn $ */
+/* $Log: not supported by cvs2svn $
+/* Revision 1.1  2007/12/11 00:43:17  sybreon
+/* initial import
+/* */

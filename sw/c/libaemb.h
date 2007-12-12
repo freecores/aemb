@@ -1,4 +1,4 @@
-/* $Id: libaemb.h,v 1.1 2007-12-11 00:44:04 sybreon Exp $
+/* $Id: libaemb.h,v 1.2 2007-12-12 19:17:00 sybreon Exp $
 **
 ** AEMB2 CUSTOM LIBRARY
 ** 
@@ -24,9 +24,13 @@
 #define LIBAEMB_H
 
 #define AEMB_TXE 0x10000000
-#define AEMB_TX0 0x20000000
-#define AEMB_TX1 0x40000000
+#define AEMB_TX0 0x30000000
+#define AEMB_TX1 0x70000000
+
 #define AEMB_BIP 0x00000008
+#define AEMB_CCC 0x00000004
+#define AEMB_ITE 0x00000002
+#define AEMB_BLE 0x00000001
 
 void aemb_reboot () asm ("_program_init");
 inline void aemb_enable_interrupt ();
@@ -70,6 +74,10 @@ void aemb_disable_interrupt ()
 
 void aemb_reboot ()
 {
+  return;
+}
+
+  /*
   asm volatile (// Checks for TXE & BIP flags
 		"mfs     r4, rmsr;"
 		"andi    r3, r4, 0x10000008;"
@@ -101,7 +109,7 @@ void aemb_reboot ()
 		"nop;"
 		"brai    exit;" 
 		);  
-}
+  */
 
 /*
 void aemb_reboot () 
@@ -154,4 +162,7 @@ int aemb_isthread0 ()
 
 #endif
 
-/* $Log: not supported by cvs2svn $ */
+/* $Log: not supported by cvs2svn $
+/* Revision 1.1  2007/12/11 00:44:04  sybreon
+/* initial import
+/* */

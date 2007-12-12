@@ -1,4 +1,4 @@
-/* $Id: aeMB2_idmx.v,v 1.1 2007-12-11 00:43:17 sybreon Exp $
+/* $Id: aeMB2_idmx.v,v 1.2 2007-12-12 19:16:59 sybreon Exp $
 **
 ** AEMB2 INSTRUCTION DECODE MUX
 ** 
@@ -26,13 +26,12 @@ module aeMB2_idmx (/*AUTOARG*/
    rALU_OF,
    // Inputs
    rBRA, rXCE, rINT, rIMM_IF, rALT_IF, rOPC_IF, rRA_IF, rRB_IF,
-   rRD_IF, pha_i, clk_i, rst_i, ena_i
+   rRD_IF, rMSR_TXE, pha_i, clk_i, rst_i, ena_i
    );
    parameter TXE = 1;
    
    parameter MUL = 1;
    parameter BSF = 1;
-   parameter DIV = 0;
    parameter FSL = 1;   
    
    output [15:0] rIMM_OF;
@@ -59,6 +58,8 @@ module aeMB2_idmx (/*AUTOARG*/
 		 rRB_IF,
 		 rRD_IF;
    
+   input 	 rMSR_TXE;
+   
    input 	 pha_i,
 		 clk_i,
 		 rst_i,
@@ -77,9 +78,8 @@ module aeMB2_idmx (/*AUTOARG*/
    reg [4:0]		rRD_OF;
    // End of automatics
 
-   wire [31:0] 		wXCEOP = 32'hBA2D0020; // Vector 0x20
-   wire [31:0] 		wINTOP = 32'hB9CE0010; // Vector 0x10
-   
+   //wire [31:0] 		wXCEOP = 32'hBA2D0020; // Vector 0x20
+   wire [31:0] 		wINTOP = 32'hB9CE0010; // Vector 0x10   
    wire [31:0] 		wNOPOP = 32'h88000000; // branch-no-delay/stall
    
    /* Partial decoding */
@@ -114,7 +114,7 @@ module aeMB2_idmx (/*AUTOARG*/
    wire 		fHAZARD = fOPBHZD | fOPAHZD | fOPDHZD;
    
    wire 		fSKIP = (rBRA == 2'o2) | // non-delay branch
-			!(TXE | pha_i) |
+			!(rMSR_TXE | pha_i) |
 			fOPBHZD | fOPAHZD; // hazards
 
    /* ALU Selector */
@@ -127,13 +127,12 @@ module aeMB2_idmx (/*AUTOARG*/
 	// End of automatics
      end else if (ena_i) begin
 	rALU_OF <= #1
-		   (fSKIP) ? 3'o1 :
+		   (fSKIP) ? 3'o1 : // NOP
 		   (fBRA | fMOV) ? 3'o3 :
 		   (fSFT) ? 3'o2 :
 		   (fLOG) ? 3'o1 :
 		   (fMUL) ? 3'o4 :
 		   (fBSF) ? 3'o5 :
-		   //(fDIV) ? 3'o6 :
 		   3'o0;      	
      end
 
@@ -153,15 +152,14 @@ module aeMB2_idmx (/*AUTOARG*/
 	rOPD_MA <= #1 rOPD_EX;	
 	rOPD_EX <= #1 rOPD_OF;	
 	rOPD_OF <= #1
-		   (fSKIP) ? 3'o7:
-		   (fSTR | fRTD | fBCC) ? 3'o7 : // STR/RTD/BCC
+		   (fSKIP) ? 3'o7: // NOP
+		   (fSTR | fRTD | fBCC) ? 3'o7 : // STR/RTD/BCC		   
 		   (fLOD | fGET) ? 3'o2 : // RAM/FSL
 		   (fBRU) ? 3'o1 : // PCLNK
 		   (fMUL) ? 3'o3 : // MUL
-		   //(fBSF) ? 3'o4 : // BSF
 		   (|rRD_IF) ? 3'o0 : // ALU
 		   3'o7; // ALU
-     end
+     end // if (ena_i)
    
    /* Passthrough */
 
@@ -176,19 +174,22 @@ module aeMB2_idmx (/*AUTOARG*/
 	rRD_MA <= 5'h0;
 	rRD_OF <= 5'h0;
 	// End of automatics
-     end else if (ena_i) begin
+     end else if (ena_i) begin // if (rst_i)
 	rRD_MA <= #1 rRD_EX;
 	rRD_EX <= #1 rRD_OF;	
 	
-	// TODO: Interrrupt/Exception
+	// TODO: Interrrupt
 	case (fSKIP)
 	  2'o0: {rOPC_OF, rRD_OF, rRA_OF, rIMM_OF} <= #1 {rOPC_IF, rRD_IF, rRA_IF, rIMM_IF};
 	  2'o1: {rOPC_OF, rRD_OF, rRA_OF, rIMM_OF} <= #1 wNOPOP; // delay/stall
 	  default: {rOPC_OF, rRD_OF, rRA_OF} <= #1 16'hX;	  
 	endcase // case (fSKIP)
 	
-     end
+     end // if (ena_i)
    
 endmodule // aeMB2_idmx
 
-/* $Log: not supported by cvs2svn $ */
+/* $Log: not supported by cvs2svn $
+/* Revision 1.1  2007/12/11 00:43:17  sybreon
+/* initial import
+/* */
