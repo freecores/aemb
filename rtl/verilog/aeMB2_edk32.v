@@ -1,4 +1,4 @@
-/* $Id: aeMB2_edk32.v,v 1.4 2007-12-13 20:12:11 sybreon Exp $
+/* $Id: aeMB2_edk32.v,v 1.5 2007-12-13 21:25:41 sybreon Exp $
 **
 ** AEMB2 HI-PERFORMANCE CPU
 ** 
@@ -29,14 +29,14 @@ module aeMB2_edk32 (/*AUTOARG*/
    sys_rst_i, sys_int_i, sys_clk_i, iwb_dat_i, iwb_ack_i, dwb_dat_i,
    dwb_ack_i, cwb_dat_i, cwb_ack_i
    );
-   parameter IWB = 32; ///< instruction wishbone address space
-   parameter DWB = 32; ///< data wishbone address space
+   parameter IWB = 32; // instruction wishbone address space
+   parameter DWB = 32; // data wishbone address space
 
-   parameter TXE = 1; ///< thread execution extension
+   parameter TXE = 1; // thread execution extension
    
-   parameter MUL = 1; ///< enable hardware multiplier
-   parameter BSF = 1; ///< enable barrel shifter
-   parameter FSL = 1; ///< enable FSL bus
+   parameter MUL = 1; // enable multiply instruction
+   parameter BSF = 1; // enable barrel shift instructions
+   parameter FSL = 1; // enable get/put instructions
    
    /*AUTOOUTPUT*/
    // Beginning of automatic outputs (from unused autoinst outputs)
@@ -518,7 +518,7 @@ module aeMB2_edk32 (/*AUTOARG*/
       // WRITEBACK
       $write("\t|");
       
-      if (regf.fWRE) begin
+      if (|rRD_MA) begin
 	 case (rOPD_MA)
 	   2'o2: begin
 	      if (rSEL_MA != 4'h0) $writeh("R",rRD_MA,"=RAM(",regf.rREGD,")");
@@ -548,6 +548,9 @@ module aeMB2_edk32 (/*AUTOARG*/
 endmodule // aeMB2_edk32
 
 /* $Log: not supported by cvs2svn $
+/* Revision 1.4  2007/12/13 20:12:11  sybreon
+/* Code cleanup + minor speed regression.
+/*
 /* Revision 1.3  2007/12/12 19:16:59  sybreon
 /* Minor optimisations (~10% faster)
 /*

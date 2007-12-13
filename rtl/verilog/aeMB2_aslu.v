@@ -1,4 +1,4 @@
-/* $Id: aeMB2_aslu.v,v 1.3 2007-12-13 20:12:11 sybreon Exp $
+/* $Id: aeMB2_aslu.v,v 1.4 2007-12-13 21:25:41 sybreon Exp $
 **
 ** AEMB2 INTEGER ARITHMETIC SHIFT LOGIC UNIT
 ** 
@@ -264,7 +264,40 @@ module aeMB2_aslu (/*AUTOARG*/
        2'o2: rRES_MOV <= wMSR; // MFS rmsr
        default: rRES_MOV <= 32'hX;       
      endcase // case ({fMFSR, rRA[3]})
-   //rRES_MOV <= (fMFSR) ? wMSR : //(fMFPC) ? rOPA : (rRA[3]) ? rOPB :  rOPA;   
+
+
+   /*
+    COMBINED SHIFT/LOGIC/MOVE
+    
+    */
+   
+   reg [31:0] 		rRES_SLM;
+
+   always @(/*AUTOSENSE*/fMFSR or rIMM or rMSR_C or rOPA or rOPB
+	    or rOPC or rRA or wMSR)
+     case (rOPC[2:0])
+       3'o0: rRES_SLM <= #1 rOPA | rOPB;
+       3'o1: rRES_SLM <= #1 rOPA & rOPB;
+       3'o2: rRES_SLM <= #1 rOPA ^ rOPB;
+       3'o3: rRES_SLM <= #1 rOPA & ~rOPB;
+       3'o4: case (rIMM[6:5])
+	       2'o0: rRES_SLM <= {rOPA[31],rOPA[31:1]}; // SRA
+	       2'o1: rRES_SLM <= {rMSR_C,rOPA[31:1]}; // SRC
+	       2'o2: rRES_SLM <= {1'b0,rOPA[31:1]}; // SRL
+	       2'o3: rRES_SLM <= (rIMM[0]) ? 
+				 {{(16){rOPA[15]}}, rOPA[15:0]} : // SEXT16
+				 {{(24){rOPA[7]}}, rOPA[7:0]}; // SEXT8
+	     endcase // case (rIMM[6:5])
+       3'o5: case ({fMFSR, rRA[3]})
+	       2'o0: rRES_SLM <= rOPA; // MFS rpc
+	       2'o1: rRES_SLM <= rOPB; // BRA       
+	       2'o2: rRES_SLM <= wMSR; // MFS rmsr
+	       default: rRES_MOV <= 32'hX;       
+	     endcase // case ({fMFSR, rRA[3]})
+       3'o6: rRES_SLM <= rOPB;       
+       default: rRES_SLM <= 32'hX;       
+     endcase // case (rOPC[2:0])
+   
    
    /* 
     MULTIPLIER
@@ -341,6 +374,41 @@ module aeMB2_aslu (/*AUTOARG*/
        2'd2: rRES_BSF <= xBSLL;
        default: rRES_BSF <= 32'hX;       
      endcase // case (rALT[10:9])
+
+
+   /*
+    RESULTS
+    */
+   
+   // RESULT   
+   always @(posedge clk_i)
+     if (rst_i) begin
+	/*AUTORESET*/
+	// Beginning of autoreset for uninitialized flops
+	rRES_EX <= 32'h0;
+	rRES_MA <= 32'h0;
+	// End of automatics
+     end else if (ena_i) begin
+	rRES_MA <= #1 rRES_EX;
+	/*
+	case (rALU_OF)
+	  3'o0: rRES_EX <= #1 rRES_ADD;
+	  3'o1: rRES_EX <= #1 rRES_LOG;
+	  3'o2: rRES_EX <= #1 rRES_SFT;
+	  3'o3: rRES_EX <= #1 rRES_MOV;
+	  3'o5: rRES_EX <= #1 (BSF) ? rRES_BSF : 32'hX;	 
+	  default: rRES_EX <= #1 32'hX;	  
+	endcase // case (rALU_OF)
+	 */
+	case (rALU_OF[1:0])
+	  2'o0: rRES_EX <= #1 rRES_ADD;
+	  2'o1: rRES_EX <= #1 rRES_SLM;
+	  2'o2: rRES_EX <= #1 (BSF) ? rRES_BSF : 32'hX;	  
+	  default: rRES_EX <= #1 32'hX;	  
+	endcase // case (rALU_OF[1:0])
+	
+     end // if (ena_i)
+   
    
    /*
     MSR REGISTER
@@ -353,8 +421,19 @@ module aeMB2_aslu (/*AUTOARG*/
    wire 	 fMTS = (rOPC == 6'o45) & rIMM[14];
    wire 	 fADDC = ({rOPC[5:4], rOPC[2]} == 3'o0);
    
-   always @(/*AUTOSENSE*/fADDC or fMTS or rALU_OF or rMSR_C or rOPA
+   always @(/*AUTOSENSE*/fADDC or rALU_OF or rIMM or rMSR_C or rOPC
 	    or rRES_ADDC or rRES_SFTC)
+     case (rALU_OF[1:0])
+       3'o0: xMSR_C <= (fADDC) ? rRES_ADDC : rMSR_C; // ADD/SUB
+       3'o1: case (rOPC[2:0])
+	       3'o5: xMSR_C <= (rIMM[14]) ? rOPC[2] : rMSR_C; // MTS
+	       3'o4: xMSR_C <= (&rIMM[6:5]) ? rMSR_C : rRES_SFTC; // SRX
+	       default: xMSR_C <= rMSR_C;
+	     endcase // case (rOPC[2:0])
+       default: xMSR_C <= rMSR_C;       
+     endcase // case (rALU_OF)
+   
+     /*
      case (rALU_OF)
        3'o0: xMSR_C <= (fADDC) ? rRES_ADDC : rMSR_C;	 
        3'o1: xMSR_C <= rMSR_C; // LOGIC       
@@ -364,7 +443,8 @@ module aeMB2_aslu (/*AUTOARG*/
        3'o5: xMSR_C <= rMSR_C;	 
        default: xMSR_C <= 1'hX;       
      endcase // case (rALU_OF)
-
+      */
+     
    always @(posedge clk_i)
      if (rst_i) begin
 	/*AUTORESET*/
@@ -429,31 +509,6 @@ module aeMB2_aslu (/*AUTOARG*/
      end // if (ena_i)
 
    /*
-    RESULTS
-    */
-   
-   // RESULT   
-   always @(posedge clk_i)
-     if (rst_i) begin
-	/*AUTORESET*/
-	// Beginning of autoreset for uninitialized flops
-	rRES_EX <= 32'h0;
-	rRES_MA <= 32'h0;
-	// End of automatics
-     end else if (ena_i) begin
-	rRES_MA <= #1 rRES_EX;
-	case (rALU_OF)
-	  3'o0: rRES_EX <= #1 rRES_ADD;
-	  3'o1: rRES_EX <= #1 rRES_LOG;
-	  3'o2: rRES_EX <= #1 rRES_SFT;
-	  3'o3: rRES_EX <= #1 rRES_MOV;
-	  //3'o4: rRES_EX <= (MUL) ? rRES_MUL : 32'hX;	 
-	  3'o5: rRES_EX <= #1 (BSF) ? rRES_BSF : 32'hX;	 
-	  default: rRES_EX <= #1 32'hX;	  
-	endcase // case (rALU_OF)
-     end // if (ena_i)
-   
-   /*
     DATA/FSL WISHBONE
     
     Asserts the data address as calculated by the adder and the
@@ -497,6 +552,9 @@ module aeMB2_aslu (/*AUTOARG*/
 endmodule // aeMB2_aslu
 
 /* $Log: not supported by cvs2svn $
+/* Revision 1.3  2007/12/13 20:12:11  sybreon
+/* Code cleanup + minor speed regression.
+/*
 /* Revision 1.2  2007/12/12 19:16:59  sybreon
 /* Minor optimisations (~10% faster)
 /*

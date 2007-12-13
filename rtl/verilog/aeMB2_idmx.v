@@ -1,4 +1,4 @@
-/* $Id: aeMB2_idmx.v,v 1.3 2007-12-13 20:12:11 sybreon Exp $
+/* $Id: aeMB2_idmx.v,v 1.4 2007-12-13 21:25:41 sybreon Exp $
 **
 ** AEMB2 INSTRUCTION DECODE MUX
 ** 
@@ -125,6 +125,7 @@ module aeMB2_idmx (/*AUTOARG*/
 	rALU_OF <= 3'h0;
 	// End of automatics
      end else if (ena_i) begin
+	/*
 	rALU_OF <= #1
 		   (fSKIP) ? 3'o1 : // NOP
 		   (fBRA | fMOV) ? 3'o3 :
@@ -132,6 +133,14 @@ module aeMB2_idmx (/*AUTOARG*/
 		   (fLOG) ? 3'o1 :
 		   (fMUL) ? 3'o4 :
 		   (fBSF) ? 3'o5 :
+		   3'o0;      	
+	 */
+	rALU_OF <= #1
+		   (fSKIP) ? 3'o1 : // NOP
+		   (fBRA | fMOV) ? 3'o1 :
+		   (fSFT) ? 3'o1 :
+		   (fLOG) ? 3'o1 :
+		   (fBSF) ? 3'o2 :
 		   3'o0;      	
      end
 
@@ -157,7 +166,7 @@ module aeMB2_idmx (/*AUTOARG*/
 		   (fBRU) ? 3'o1 : // PCLNK
 		   (fMUL) ? 3'o3 : // MUL
 		   (|rRD_IF) ? 3'o0 : // ALU
-		   3'o7; // ALU
+		   3'o7; // NOP
      end // if (ena_i)
    
    /* Passthrough */
@@ -189,6 +198,9 @@ module aeMB2_idmx (/*AUTOARG*/
 endmodule // aeMB2_idmx
 
 /* $Log: not supported by cvs2svn $
+/* Revision 1.3  2007/12/13 20:12:11  sybreon
+/* Code cleanup + minor speed regression.
+/*
 /* Revision 1.2  2007/12/12 19:16:59  sybreon
 /* Minor optimisations (~10% faster)
 /*
