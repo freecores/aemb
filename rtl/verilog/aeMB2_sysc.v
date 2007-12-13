@@ -1,4 +1,4 @@
-/* $Id: aeMB2_sysc.v,v 1.2 2007-12-12 19:16:59 sybreon Exp $
+/* $Id: aeMB2_sysc.v,v 1.3 2007-12-13 20:12:11 sybreon Exp $
 **
 ** AEMB2 SYSTEM CONTROL
 ** 
@@ -22,49 +22,46 @@
 
 module aeMB2_sysc (/*AUTOARG*/
    // Outputs
-   iwb_stb_o, iwb_wre_o, dwb_cyc_o, dwb_stb_o, dwb_wre_o, cwb_stb_o,
-   cwb_wre_o, rINT, rXCE, pha_o, clk_o, rst_o, ena_o,
+   rINT, rXCE, pha_o, clk_o, rst_o, ena_o, iwb_stb_o, iwb_wre_o,
+   dwb_cyc_o, dwb_stb_o, dwb_wre_o, cwb_stb_o, cwb_wre_o,
    // Inputs
-   rOPC_IF, iwb_ack_i, dwb_ack_i, cwb_ack_i, rIMM_OF, rOPC_OF, rRA_OF,
-   rMSR_TXE, rMSR_BE, rMSR_BIP, rMSR_IE, sys_int_i, sys_clk_i,
-   sys_rst_i
+   rIMM_OF, rOPC_OF, rRA_OF, rMSR_BE, rMSR_BIP, rMSR_IE, rOPC_IF,
+   iwb_ack_i, dwb_ack_i, cwb_ack_i, sys_int_i, sys_clk_i, sys_rst_i
    );
    parameter TXE = 1;
    parameter FSL = 1;   
    
    // INTERNAL
-   input [5:0] rOPC_IF;
-   
-   
-   // EXTERNAL
-   output      iwb_stb_o,
-	       iwb_wre_o,
-	       dwb_cyc_o,
-	       dwb_stb_o,
-	       dwb_wre_o,
-	       cwb_stb_o,
-	       cwb_wre_o;   
-	       
-   input       iwb_ack_i,
-	       dwb_ack_i,
-	       cwb_ack_i;   
-   
-   // INTERNAL   
-   output      rINT,
-	       rXCE;
    input [15:0] rIMM_OF;   
    input [5:0] 	rOPC_OF;
    input [4:0] 	rRA_OF;
-   input 	rMSR_TXE,
-		rMSR_BE,
+   input 	rMSR_BE,
 		rMSR_BIP,
+		//rMSR_TXE,
 		rMSR_IE;   
+   input [5:0] 	rOPC_IF;
+   
+   output 	rINT,
+		rXCE;
    
    output 	pha_o,
 		clk_o, 
 		rst_o, 
 		ena_o;   
    
+   // EXTERNAL
+   output 	iwb_stb_o,
+		iwb_wre_o,
+		dwb_cyc_o,
+		dwb_stb_o,
+		dwb_wre_o,
+		cwb_stb_o,
+		cwb_wre_o;   
+   
+   input 	iwb_ack_i,
+		dwb_ack_i,
+		cwb_ack_i;   
+      
    // SYSTEM
    input       sys_int_i,
 	       sys_clk_i, 
@@ -142,7 +139,7 @@ module aeMB2_sysc (/*AUTOARG*/
    /* Level triggered interrupt latch flag */
 
    // check for interrupt acknowledge
-   wire 		fINTACK = ena_o & (rOPC_OF == 6'o56) & (rRA_OF == 5'h0D);   
+   wire 		fINTACK = ena_o & (rOPC_OF == 6'o56) & (rRA_OF == 5'h0E);   
 		   
    always @(posedge clk_o)
      if (rst_o) begin
@@ -168,17 +165,7 @@ module aeMB2_sysc (/*AUTOARG*/
 				   ((rOPC_IF[5:3] == 3'o2) &
 				    (rOPC_IF[2:1] != 2'o0)) // MUL/BSF
 				     ;
-   
-   always @(posedge clk_o)
-     if (rst_o) begin
-	/*AUTORESET*/
-	// Beginning of autoreset for uninitialized flops
-	rINT <= 1'h0;
-	// End of automatics
-     end else if (rMSR_IE) begin
-	rINT <= #1 rINT | sys_int_i & !fINTACK;	
-     end
-   
+      
    /* Handle wishbone handshakes */
    
    assign iwb_wre_o = 1'b0;
@@ -195,13 +182,13 @@ module aeMB2_sysc (/*AUTOARG*/
 	iwb_stb_o <= 1'h0;
 	// End of automatics
      end else begin
-	iwb_stb_o <= #1 (rMSR_TXE | pha_o);
+	iwb_stb_o <= #1 (TXE | pha_o);
 
 	dwb_cyc_o <= #1 fLOD | fSTR | rMSR_BE;	
 	dwb_stb_o <= #1 fLOD | fSTR;
 	dwb_wre_o <= #1 fSTR;
 	
-	cwb_stb_o <= #1 (FSL) ? fGET | fPUT : 1'bX;
+	cwb_stb_o <= #1 (FSL) ? (fGET | fPUT) : 1'bX;
 	cwb_wre_o <= #1 (FSL) ? fPUT : 1'bX;	
      end
    
@@ -210,6 +197,9 @@ module aeMB2_sysc (/*AUTOARG*/
 endmodule // aeMB2_sysc
 
 /* $Log: not supported by cvs2svn $
+/* Revision 1.2  2007/12/12 19:16:59  sybreon
+/* Minor optimisations (~10% faster)
+/*
 /* Revision 1.1  2007/12/11 00:43:17  sybreon
 /* initial import
 /* */

@@ -1,4 +1,4 @@
-/* $Id: aeMB2_opmx.v,v 1.2 2007-12-12 19:16:59 sybreon Exp $
+/* $Id: aeMB2_opmx.v,v 1.3 2007-12-13 20:12:11 sybreon Exp $
 **
 ** AEMB2 OPERAND FETCH MUX
 ** 
@@ -25,8 +25,8 @@ module aeMB2_opmx (/*AUTOARG*/
    rOPM_OF, rOPX_OF, rOPA_OF, rOPB_OF,
    // Inputs
    rRES_EX, rRD_EX, rOPD_EX, rOPC_IF, rIMM_IF, rPC_IF, rRD_IF, rRA_IF,
-   rRB_IF, rREGD_OF, rREGA_OF, rREGB_OF, rBRA, rMSR_TXE, pha_i, clk_i,
-   rst_i, ena_i
+   rRB_IF, rREGD_OF, rREGA_OF, rREGB_OF, rBRA, pha_i, clk_i, rst_i,
+   ena_i
    );
    parameter TXE = 1;   
 
@@ -53,7 +53,6 @@ module aeMB2_opmx (/*AUTOARG*/
    input [1:0] 	 rBRA;  
    
    // SYSTEM
-   input 	 rMSR_TXE;   
    input 	 pha_i,
 		 clk_i,
 		 rst_i,
@@ -97,8 +96,8 @@ module aeMB2_opmx (/*AUTOARG*/
    wire [15:0] 		wIMM = rIMML[!pha_i];
    wire [31:0] 		wSIMM;
 
-   wire 		rFIM = (pha_i) ? rFIM0 : (TXE) ? rFIM1 : 1'bX;   
-   wire [15:0] 		rIMM = (pha_i) ? rIMM0 : (TXE) ? rIMM1 : 16'hX;
+   wire 		rFIM = (pha_i) ? rFIM0 : rFIM1;   
+   wire [15:0] 		rIMM = (pha_i) ? rIMM0 : rIMM1;
    
    assign 		wSIMM[15:0] = rIMM_IF[15:0];   
    assign 		wSIMM[31:16] = (rFIM) ? 
@@ -114,13 +113,11 @@ module aeMB2_opmx (/*AUTOARG*/
 	rIMM0 <= 16'h0;
 	rIMM1 <= 16'h0;
 	// End of automatics
-     end else begin
-	if (pha_i & ena_i) begin  
+     end else if (ena_i) begin
+	if (pha_i) begin  
 	   rFIM0 <= #1 fIMM & !fSKP;
 	   rIMM0 <= #1 rIMM_IF;
-	end
-	
-	if (!pha_i & ena_i & rMSR_TXE) begin
+	end else begin
 	   rFIM1 <= #1 fIMM & !fSKP;
 	   rIMM1 <= #1 rIMM_IF;
 	end
@@ -132,12 +129,12 @@ module aeMB2_opmx (/*AUTOARG*/
    wire 		fALU = (rOPD_EX == 3'o0);
    wire 		fWRE = |rRD_EX;
    wire 		wOPBFWD = !rOPC_IF[3] & (rRB_IF == rRD_EX) & fALU & !fMOV & fWRE;
-   wire 		wOPAFWD = !(fBRU|fBCC) & (rRA_IF == rRD_EX) & fALU & !fMOV & fWRE;
+   wire 		wOPAFWD = !(fBRU|fBCC) & (rRA_IF == rRD_EX) & fALU & fWRE;
    wire 		wOPXFWD = (fBCC) & (rRA_IF == rRD_EX) & fALU & fWRE;   
    wire 		wOPMFWD = (rRD_IF == rRD_EX) & fALU & fWRE;   
    
    wire [1:0] 		wOPB_MX = {rOPC_IF[3], wOPBFWD};
-   wire [1:0] 		wOPA_MX = {fBRU|fBCC|fMOV, wOPAFWD};
+   wire [1:0] 		wOPA_MX = {fBRU|fBCC| (fMOV & !rRB[3]) , wOPAFWD};
    wire [1:0] 		wOPX_MX = {fBCC, wOPXFWD};   
    wire [1:0] 		wOPM_MX = {fSTR, wOPMFWD};   
    
@@ -185,6 +182,9 @@ module aeMB2_opmx (/*AUTOARG*/
 endmodule // aeMB2_opmx
 
 /* $Log: not supported by cvs2svn $
+/* Revision 1.2  2007/12/12 19:16:59  sybreon
+/* Minor optimisations (~10% faster)
+/*
 /* Revision 1.1  2007/12/11 00:43:17  sybreon
 /* initial import
 /* */

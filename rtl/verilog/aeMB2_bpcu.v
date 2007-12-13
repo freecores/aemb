@@ -1,4 +1,4 @@
-/* $Id: aeMB2_bpcu.v,v 1.2 2007-12-12 19:16:59 sybreon Exp $
+/* $Id: aeMB2_bpcu.v,v 1.3 2007-12-13 20:12:11 sybreon Exp $
 **
 ** AEMB2 BRANCH/PROGRAMME COUNTER
 ** 
@@ -26,7 +26,7 @@ module aeMB2_bpcu (/*AUTOARG*/
    rRA_IF, rRB_IF, rBRA,
    // Inputs
    iwb_dat_i, iwb_ack_i, rOPX_OF, rOPC_OF, rRA_OF, rRD_OF, rRES_EX,
-   rRD_EX, rOPD_EX, rMSR_TXE, clk_i, rst_i, ena_i, pha_i
+   rRD_EX, rOPD_EX, clk_i, rst_i, ena_i, pha_i
    );
    parameter IWB = 32;
    parameter TXE = 1;   
@@ -60,7 +60,6 @@ module aeMB2_bpcu (/*AUTOARG*/
    input [2:0] 	    rOPD_EX; ///< data register source (ALU, MEM/FSL, PC)
    
    // SYSTEM
-   input 	    rMSR_TXE;   
    input 	    clk_i, 
 		    rst_i, 
 		    ena_i, 
@@ -104,7 +103,7 @@ module aeMB2_bpcu (/*AUTOARG*/
 			rPC0, rPC1,// register based 
 			rPCL[0:1]; // LUT based
 
-   wire [31:2] 		wPCNXT = (pha_i) ? rPC0 : (TXE) ? rPC1 : 30'hX; 
+   wire [31:2] 		wPCNXT = (pha_i) ? rPC0 : rPC1; 
    wire [31:2] 		wPCINC = (rPC + 1);
    
    /* Check for RW data hazard */
@@ -154,9 +153,11 @@ module aeMB2_bpcu (/*AUTOARG*/
 	rPC0 <= 30'h0;
 	rPC1 <= 30'h0;
 	// End of automatics
-     end else begin
-	if (pha_i & ena_i & rMSR_TXE) rPC1 <= #1 wPCINC;
-	if (!pha_i & ena_i) rPC0 <= #1 wPCINC;	
+     end else if (ena_i) begin
+	if (pha_i) 
+	  rPC1 <= #1 wPCINC;
+	else
+	  rPC0 <= #1 wPCINC;	
      end
    
    /* 
@@ -242,6 +243,9 @@ module aeMB2_bpcu (/*AUTOARG*/
 endmodule // aeMB2_bpcu
 
 /* $Log: not supported by cvs2svn $
+/* Revision 1.2  2007/12/12 19:16:59  sybreon
+/* Minor optimisations (~10% faster)
+/*
 /* Revision 1.1  2007/12/11 00:43:17  sybreon
 /* initial import
 /* */

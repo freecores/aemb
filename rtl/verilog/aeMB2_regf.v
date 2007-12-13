@@ -1,4 +1,4 @@
-/* $Id: aeMB2_regf.v,v 1.2 2007-12-12 19:16:59 sybreon Exp $
+/* $Id: aeMB2_regf.v,v 1.3 2007-12-13 20:12:11 sybreon Exp $
 **
 ** AEMB2 REGISTER FILE
 ** 
@@ -29,7 +29,8 @@ module aeMB2_regf (/*AUTOARG*/
    rOPD_MA, rSEL_MA, clk_i, rst_i, ena_i, pha_i
    );
    parameter TXE = 1;
-
+   parameter MUL = 1;   
+   
    // DWB
    output [31:0] dwb_dat_o;
    input [31:0]  dwb_dat_i;
@@ -98,7 +99,7 @@ module aeMB2_regf (/*AUTOARG*/
      end
    
    /* 
-    LOAD RESIDER 
+    LOAD RESIZER 
     
     Resize the latched data for writing into the register. It also
     acts as a selector between FSL and DWB. */
@@ -121,7 +122,11 @@ module aeMB2_regf (/*AUTOARG*/
       endcase // case (rSEL_MA)
    end // always @ (...
 
-   /* Select the data source */
+   /*
+    WRITE BACK
+    
+    The appropriate data to write into the register file is selected.
+    */
    
    wire [31:0] wREGW;   
    reg [31:0] rREGD;
@@ -131,19 +136,15 @@ module aeMB2_regf (/*AUTOARG*/
 	3'o0: rREGD <= rRES_MA;	// ALU
 	3'o1: rREGD <= {rPC_MA, 2'o0}; // PCLNK
 	3'o2: rREGD <= rMEM; // RAM/FSL
-	3'o3: rREGD <= rMUL_MA;	// Multiplier
+	3'o3: rREGD <= (MUL) ? rMUL_MA : 32'hX;	// Multiplier
 	3'o7: rREGD <= wREGW; // Unchanged
 	default: rREGD <= 32'hX; // Undefined 	
       endcase // case (rOPD_MA)
 
-   /* Write enable */
-
-   wire       fWRE = (ena_i & |rRD_MA) | rst_i;   
-   
    /* 
     REGISTER FILE
     
-    Multi-banked dual-port register file. This is implemented as
+    Multi-banked dual-port register file. This should be inferred as
     distributed RAM in an FPGA. */
    
    reg [31:0] 	 rRAMA [(32<<TXE)-1:0],
@@ -161,7 +162,7 @@ module aeMB2_regf (/*AUTOARG*/
    assign 	 wREGW = rRAMD[wRW];   
    
    always @(posedge clk_i)
-     if (fWRE) begin
+     if ((ena_i & |rRD_MA) | rst_i) begin
 	rRAMA[wRW] <= #1 rREGD;
 	rRAMB[wRW] <= #1 rREGD;
 	rRAMD[wRW] <= #1 rREGD;
@@ -170,9 +171,10 @@ module aeMB2_regf (/*AUTOARG*/
    /* 
     STORE SIZER
     
-    This resizes the data to be placed on the bus. To make it easy, it
-    merely replicates the data across the whole bus. It relies on the
-    byte select signal to correctly work. */
+    This resizes the data to be placed on the data bus. To make it
+    easy, it merely replicates the data across the whole bus. It
+    relies on the byte select signal to indicate which lanes to
+    use. */
    
    always @(posedge clk_i)
      if (rst_i) begin
@@ -196,9 +198,8 @@ module aeMB2_regf (/*AUTOARG*/
 
      end // if (ena_i)
    
-   // synopsys translate_off
-   
-   /* random initial condition */   
+   // synopsys translate_off   
+   /* random initial condition for RAM */   
    integer r;
    initial begin
       for (r=0; r<128; r=r+1) begin
@@ -207,12 +208,14 @@ module aeMB2_regf (/*AUTOARG*/
 	 rRAMD[r] <= $random;	 
       end
    end
-
    // synopsys translate_on
    
 endmodule // aeMB2_regf
 
 /* $Log: not supported by cvs2svn $
+/* Revision 1.2  2007/12/12 19:16:59  sybreon
+/* Minor optimisations (~10% faster)
+/*
 /* Revision 1.1  2007/12/11 00:43:17  sybreon
 /* initial import
 /* */

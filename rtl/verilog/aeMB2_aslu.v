@@ -1,4 +1,4 @@
-/* $Id: aeMB2_aslu.v,v 1.2 2007-12-12 19:16:59 sybreon Exp $
+/* $Id: aeMB2_aslu.v,v 1.3 2007-12-13 20:12:11 sybreon Exp $
 **
 ** AEMB2 INTEGER ARITHMETIC SHIFT LOGIC UNIT
 ** 
@@ -23,7 +23,8 @@
 module aeMB2_aslu (/*AUTOARG*/
    // Outputs
    dwb_adr_o, dwb_sel_o, rSEL_MA, cwb_adr_o, cwb_tga_o, cwb_sel_o,
-   rMUL_MA, rRES_MA, rRES_EX, rMSR_IE, rMSR_BE, rMSR_TXE, rMSR_BIP,
+   iwb_tga_o, dwb_tga_o, rMUL_MA, rRES_MA, rRES_EX, rMSR_IE, rMSR_BE,
+   rMSR_BIP,
    // Inputs
    rIMM_OF, rALU_OF, rOPC_OF, rOPC_IF, rRA_OF, rRD_OF, rOPA_OF,
    rOPB_OF, pha_i, clk_i, rst_i, ena_i
@@ -39,21 +40,27 @@ module aeMB2_aslu (/*AUTOARG*/
    // DWB
    output [DWB-1:2] dwb_adr_o;
    output [3:0]     dwb_sel_o;
-   output [3:0]     rSEL_MA;   
-   
+   output [3:0]     rSEL_MA;
+
    // FSL
    output [6:2]     cwb_adr_o;
    output [1:0]     cwb_tga_o;
    output [3:0]     cwb_sel_o;   
 
+   // CACHE ENABLE
+   output 	    iwb_tga_o,
+		    dwb_tga_o;  
+   
    // PIPELINE
    output [31:0]    rMUL_MA;   
    output [31:0]    rRES_MA,
 		    rRES_EX;   
-
+   
    output 	    rMSR_IE,
 		    rMSR_BE,
-		    rMSR_TXE,
+		    //rMSR_TXE,
+		    //rMSR_DCE,
+		    //rMSR_ICE,		    
 		    rMSR_BIP;
    
    input [15:0]     rIMM_OF;   
@@ -80,10 +87,11 @@ module aeMB2_aslu (/*AUTOARG*/
    reg [1:0]		cwb_tga_o;
    reg [DWB-1:2]	dwb_adr_o;
    reg [3:0]		dwb_sel_o;
+   reg			dwb_tga_o;
+   reg			iwb_tga_o;
    reg			rMSR_BE;
    reg			rMSR_BIP;
    reg			rMSR_IE;
-   reg			rMSR_TXE;
    reg [31:0]		rMUL_MA;
    reg [31:0]		rRES_EX;
    reg [31:0]		rRES_MA;
@@ -92,6 +100,7 @@ module aeMB2_aslu (/*AUTOARG*/
 
    reg 			rMSR_C0, 
 			rMSR_C1, 
+			rMSR_C,
 			rMSR_CL[0:1];
    
    
@@ -104,22 +113,61 @@ module aeMB2_aslu (/*AUTOARG*/
    wire [10:0] 		rALT = rIMM_OF[10:0];
 
    /*
+    MSR REGISTER
+    
+    We should keep common configuration bits in the lower 16-bits of
+    the MSR in order to avoid using the IMMI instruction.
+    
+    MSR bits
+    31 - CC (carry copy)
+    
+    10 - HTE (hardware thread enabled)
+     9 - PHA (current phase)
+     8 - TXE (enable threads)
+    
+     7 - DCE (data cache enable)   
+     5 - ICE (instruction cache enable)
+     4 - FSL (FSL available)
+    
+     3 - BIP (break in progress)
+     2 - C (carry flag)
+     1 - IE (interrupt enable)
+     0 - BE (bus-lock enable)    
+    
+    */
+
+   wire [31:0] 		wMSR = {rMSR_C, // MSR_CC
+				
+				20'd0, // Reserved
+				
+				TXE[0], // (PVR)
+				pha_i, // (EIP)
+				TXE[0], // (EE)
+				
+				dwb_tga_o, // MSR_DCE
+				1'b0, // reserved for DZ
+				iwb_tga_o, // MSR_ICE
+				FSL[0], // GET/PUT available
+				
+				rMSR_BIP, // MSR_BIP
+				rMSR_C, // MSR_C
+				rMSR_IE, // MSR_IE
+				rMSR_BE}; // MSR_BE
+   
+   
+   /*
     C SELECTOR 
 
-    Preselects the C in the OF stage to speed things up.  */
+    Preselects the C to speed things up.  */
 
    // TODO: Optimise
    
    wire 		wMSR_CX, wMSR_C;   
-   assign 		wMSR_CX = (pha_i) ? rMSR_C0 : 
-				  (TXE) ? rMSR_C1 : 1'bX;
-   
+   assign 		wMSR_CX = (pha_i) ? rMSR_C0 : rMSR_C1;   
    assign 		wMSR_C = (rOPC_IF == 6'o44) & wMSR_CX | // SRX
 				 (rOPC_IF[5:4] == 2'o0) & rOPC_IF[1] & wMSR_CX | // ADDC/RSUBC
 				 (rOPC_IF[5:4] == 2'o0) & (rOPC_IF[1:0] == 2'o1); // RSUB
-   
-   reg 			rMSR_C;
-       
+          
    always @(posedge clk_i)
      if (rst_i) begin
 	/*AUTORESET*/
@@ -200,43 +248,23 @@ module aeMB2_aslu (/*AUTOARG*/
 
    always @(/*AUTOSENSE*/rIMM or rMSR_C or rOPA)
      rRES_SFTC <= (&rIMM[6:5]) ? rMSR_C : rOPA[0];
-   
+
    /*
-    MOVE FROM SPECIAL
-    
-    MSR bits
-    31 - CC (carry copy)
-    30 - PHA (current phase)
-    29 - TXE (enable second thread)
-
-     3 - BIP (break in progress)
-     2 - C (carry flag)
-     1 - IE (interrupt enable)
-     0 - BE (bus-lock enable)    
+    MOVER
     */
-
-   wire 		wTXE = (TXE) ? 1'b1 : 1'b0;
-   wire [31:0] 		wMSR = {rMSR_C, // MSR_CC		
-				pha_i, // Current phase
-				rMSR_TXE, // Thread Execution Enabled
-				wTXE,
-				4'h0, // Reserved
-				8'hAE, // Vendor
-				8'h32, // Version
-				4'h0, // Reserved
-				rMSR_BIP, // MSR_BIP
-				rMSR_C, // MSR_C
-				rMSR_IE, // MSR_IE
-				rMSR_BE}; // MSR_BE
    
    wire 		fMFSR = (rOPC == 6'o45) & !rIMM[14] & rIMM[0];
    wire 		fMFPC = (rOPC == 6'o45) & !rIMM[14] & !rIMM[0];
    reg [31:0] 		rRES_MOV;
+   
    always @(/*AUTOSENSE*/fMFSR or rOPA or rOPB or rRA or wMSR)
-     rRES_MOV <= (fMFSR) ? wMSR :
-		 //(fMFPC) ? rOPA :
-		 (rRA[3]) ? rOPB : 
-		 rOPA;   
+     case ({fMFSR, rRA[3]})
+       2'o0: rRES_MOV <= rOPA; // MFS rpc
+       2'o1: rRES_MOV <= rOPB; // BRA       
+       2'o2: rRES_MOV <= wMSR; // MFS rmsr
+       default: rRES_MOV <= 32'hX;       
+     endcase // case ({fMFSR, rRA[3]})
+   //rRES_MOV <= (fMFSR) ? wMSR : //(fMFPC) ? rOPA : (rRA[3]) ? rOPB :  rOPA;   
    
    /* 
     MULTIPLIER
@@ -246,16 +274,16 @@ module aeMB2_aslu (/*AUTOARG*/
    
    reg [31:0] 	    rRES_MUL;
    always @(posedge clk_i) begin
-      rMUL_MA <= (MUL) ? rRES_MUL : 32'hX;      
-      rRES_MUL <= (MUL) ? (rOPA * rOPB) : 32'hX;
+      rMUL_MA <= #1 rRES_MUL;      
+      rRES_MUL <= #1 (rOPA * rOPB);
    end
 
    /* 
     BARREL SHIFTER
     
-    This can be potentially made 2-stage to increase clock
-    speed. Doesn't seem necessary at the moment as the critical path
-    runs through the adder. */
+    This can be potentially made 2-stage if it is a
+    bottleneck. Doesn't seem necessary at the moment as the critical
+    path runs through the adder. */
    
    reg [31:0] 	 rRES_BSF;
    reg [31:0] 	 xBSRL, xBSRA, xBSLL;
@@ -313,8 +341,7 @@ module aeMB2_aslu (/*AUTOARG*/
        2'd2: rRES_BSF <= xBSLL;
        default: rRES_BSF <= 32'hX;       
      endcase // case (rALT[10:9])
-
-
+   
    /*
     MSR REGISTER
    
@@ -345,11 +372,10 @@ module aeMB2_aslu (/*AUTOARG*/
 	rMSR_C0 <= 1'h0;
 	rMSR_C1 <= 1'h0;
 	// End of automatics
-     end else begin
-	if (pha_i & ena_i & rMSR_TXE)
+     end else if (ena_i) begin
+	if (pha_i)
 	  rMSR_C1 <= #1 xMSR_C;
-
-	if (!pha_i & ena_i)
+	else
 	  rMSR_C0 <= #1 xMSR_C;	
      end // else: !if(rst_i)
    
@@ -358,15 +384,16 @@ module aeMB2_aslu (/*AUTOARG*/
    wire 	    fRTBD = (rOPC == 6'o55) & rRD[1];
    wire 	    fBRK = ((rOPC == 6'o56) | (rOPC == 6'o66)) & (rRA == 5'hC);
    wire 	    fINT = ((rOPC == 6'o56) | (rOPC == 6'o66)) & (rRA == 5'hE);
-   
+
    always @(posedge clk_i)
      if (rst_i) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
+	dwb_tga_o <= 1'h0;
+	iwb_tga_o <= 1'h0;
 	rMSR_BE <= 1'h0;
 	rMSR_BIP <= 1'h0;
 	rMSR_IE <= 1'h0;
-	rMSR_TXE <= 1'h0;
 	// End of automatics
      end else if (ena_i) begin
 	
@@ -389,8 +416,15 @@ module aeMB2_aslu (/*AUTOARG*/
 		   (fMTS) ? rOPA[0] : rMSR_BE;
 
 	// Enable the thread extension
-	rMSR_TXE <= #1
-		    (fMTS) ? rOPA[28] & TXE : rMSR_TXE;
+	//rMSR_TXE <= #1 TXE[0];	
+
+	// Enable the caches
+	dwb_tga_o <= #1 (fMTS) ? 
+		     rOPA[7] : 
+		     dwb_tga_o;
+	iwb_tga_o <= #1 (fMTS) ? 
+		     rOPA[5] : 
+		     iwb_tga_o;	
 	
      end // if (ena_i)
 
@@ -460,19 +494,12 @@ module aeMB2_aslu (/*AUTOARG*/
 	
      end // if (ena_i)
    
-
-   // synopsys translate_off
-   integer r;   
-   initial begin
-      for (r=0; r<TXE; r=r+1) begin
-	 rMSR_CL[r] <= $random;
-      end
-   end
-   // synopsys translate_on
-   
 endmodule // aeMB2_aslu
 
 /* $Log: not supported by cvs2svn $
+/* Revision 1.2  2007/12/12 19:16:59  sybreon
+/* Minor optimisations (~10% faster)
+/*
 /* Revision 1.1  2007/12/11 00:43:17  sybreon
 /* initial import
 /* */

@@ -1,4 +1,4 @@
-/* $Id: aeMB2_idmx.v,v 1.2 2007-12-12 19:16:59 sybreon Exp $
+/* $Id: aeMB2_idmx.v,v 1.3 2007-12-13 20:12:11 sybreon Exp $
 **
 ** AEMB2 INSTRUCTION DECODE MUX
 ** 
@@ -26,7 +26,7 @@ module aeMB2_idmx (/*AUTOARG*/
    rALU_OF,
    // Inputs
    rBRA, rXCE, rINT, rIMM_IF, rALT_IF, rOPC_IF, rRA_IF, rRB_IF,
-   rRD_IF, rMSR_TXE, pha_i, clk_i, rst_i, ena_i
+   rRD_IF, pha_i, clk_i, rst_i, ena_i
    );
    parameter TXE = 1;
    
@@ -49,6 +49,7 @@ module aeMB2_idmx (/*AUTOARG*/
    
    input [1:0] 	 rBRA;
    input 	 rXCE,
+		 //rMSR_TXE,
 		 rINT;
    
    input [15:0]  rIMM_IF;
@@ -57,8 +58,6 @@ module aeMB2_idmx (/*AUTOARG*/
    input [4:0] 	 rRA_IF,
 		 rRB_IF,
 		 rRD_IF;
-   
-   input 	 rMSR_TXE;
    
    input 	 pha_i,
 		 clk_i,
@@ -114,7 +113,7 @@ module aeMB2_idmx (/*AUTOARG*/
    wire 		fHAZARD = fOPBHZD | fOPAHZD | fOPDHZD;
    
    wire 		fSKIP = (rBRA == 2'o2) | // non-delay branch
-			!(rMSR_TXE | pha_i) |
+			!(TXE | pha_i) |
 			fOPBHZD | fOPAHZD; // hazards
 
    /* ALU Selector */
@@ -190,6 +189,9 @@ module aeMB2_idmx (/*AUTOARG*/
 endmodule // aeMB2_idmx
 
 /* $Log: not supported by cvs2svn $
+/* Revision 1.2  2007/12/12 19:16:59  sybreon
+/* Minor optimisations (~10% faster)
+/*
 /* Revision 1.1  2007/12/11 00:43:17  sybreon
 /* initial import
 /* */
