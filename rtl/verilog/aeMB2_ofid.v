@@ -1,4 +1,4 @@
-/* $Id: aeMB2_ofid.v,v 1.1 2007-12-16 03:24:20 sybreon Exp $
+/* $Id: aeMB2_ofid.v,v 1.2 2007-12-16 20:38:06 sybreon Exp $
 **
 ** AEMB2 COMBINED OPERAND FETCH & INSTRUCTION DECODE
 ** 
@@ -169,7 +169,7 @@ module aeMB2_ofid (/*AUTOARG*/
     synchronisation and compatibility with single threaded apps. There
     isn't a reason why it needs to stay this way if things change. */
 
-   wire fINT = !rFIM & !rBRA[1] & rINT & pha_i;
+   wire fINT =!rFIM & !rBRA[1] & rINT & pha_i;
    
    /* Latch onto the operand */
    // TODO: Optimise
@@ -328,4 +328,7 @@ module aeMB2_ofid (/*AUTOARG*/
 
 endmodule // aeMB2_ofid
 
-/* $Log: not supported by cvs2svn $ */
+/* $Log: not supported by cvs2svn $
+/* Revision 1.1  2007/12/16 03:24:20  sybreon
+/* Combined ID/OF blocks.
+/* */

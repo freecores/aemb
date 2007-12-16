@@ -1,4 +1,4 @@
-/* $Id: aeMB2_aslu.v,v 1.5 2007-12-16 03:25:37 sybreon Exp $
+/* $Id: aeMB2_aslu.v,v 1.6 2007-12-16 20:38:06 sybreon Exp $
 **
 ** AEMB2 INTEGER ARITHMETIC SHIFT LOGIC UNIT
 ** 
@@ -422,10 +422,10 @@ module aeMB2_aslu (/*AUTOARG*/
    wire 	 fMTS = (rOPC == 6'o45) & rIMM[14];
    wire 	 fADDC = ({rOPC[5:4], rOPC[2]} == 3'o0);
    
-   always @(/*AUTOSENSE*/fADDC or rIMM or rMSR_C or rOPC or rRES_ADDC
-	    or rRES_SFTC)
-     //case (rALU_OF[1:0])
-     case (rOPC[5:4])
+   always @(/*AUTOSENSE*/fADDC or rALU_OF or rIMM or rMSR_C or rOPC
+	    or rRES_ADDC or rRES_SFTC)
+     case (rALU_OF[1:0])
+     //case (rOPC[5:4])
        3'o0: xMSR_C <= (fADDC) ? rRES_ADDC : rMSR_C; // ADD/SUB
        3'o2: case (rOPC[2:0])
 	       3'o5: xMSR_C <= (rIMM[14]) ? rOPC[2] : rMSR_C; // MTS
@@ -554,6 +554,9 @@ module aeMB2_aslu (/*AUTOARG*/
 endmodule // aeMB2_aslu
 
 /* $Log: not supported by cvs2svn $
+/* Revision 1.5  2007/12/16 03:25:37  sybreon
+/* Some optimisations.
+/*
 /* Revision 1.4  2007/12/13 21:25:41  sybreon
 /* Further optimisations (speed + size).
 /*
