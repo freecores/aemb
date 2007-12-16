@@ -1,4 +1,4 @@
-/* $Id: aeMB2_sysc.v,v 1.3 2007-12-13 20:12:11 sybreon Exp $
+/* $Id: aeMB2_sysc.v,v 1.4 2007-12-16 03:25:02 sybreon Exp $
 **
 ** AEMB2 SYSTEM CONTROL
 ** 
@@ -148,7 +148,7 @@ module aeMB2_sysc (/*AUTOARG*/
 	rINT <= 1'h0;
 	// End of automatics
      end else if (rMSR_IE) begin
-	rINT <= #1 rINT | sys_int_i & !fINTACK;	
+	rINT <= #1 (rINT | sys_int_i) & !fINTACK;	
      end
 
    /* Hardwre exception catcher */
@@ -197,6 +197,9 @@ module aeMB2_sysc (/*AUTOARG*/
 endmodule // aeMB2_sysc
 
 /* $Log: not supported by cvs2svn $
+/* Revision 1.3  2007/12/13 20:12:11  sybreon
+/* Code cleanup + minor speed regression.
+/*
 /* Revision 1.2  2007/12/12 19:16:59  sybreon
 /* Minor optimisations (~10% faster)
 /*

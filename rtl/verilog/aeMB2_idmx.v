@@ -1,4 +1,4 @@
-/* $Id: aeMB2_idmx.v,v 1.4 2007-12-13 21:25:41 sybreon Exp $
+/* $Id: aeMB2_idmx.v,v 1.5 2007-12-16 03:25:02 sybreon Exp $
 **
 ** AEMB2 INSTRUCTION DECODE MUX
 ** 
@@ -116,6 +116,33 @@ module aeMB2_idmx (/*AUTOARG*/
 			!(TXE | pha_i) |
 			fOPBHZD | fOPAHZD; // hazards
 
+   /* 
+    PARTIAL IMMI 
+    
+    Replicated from OPMX and used for checking atomicity for
+    interrupts. */
+   
+   reg 			rFIM0, rFIM1, rFIML[0:1];
+   wire 		rFIM = (pha_i) ? rFIM0 : rFIM1;   
+   wire 		fSKP = rBRA == 2'b10;
+   wire 		fINT = !rFIM & !rBRA[1] & rINT & pha_i;      
+   
+   always @(posedge clk_i)
+     if (rst_i) begin
+	/*AUTORESET*/
+	// Beginning of autoreset for uninitialized flops
+	rFIM0 <= 1'h0;
+	rFIM1 <= 1'h0;
+	// End of automatics
+     end else if (ena_i) begin
+	if (pha_i)
+	  rFIM0 <= #1 fIMM & !fSKP;
+	else
+	  rFIM1 <= #1 fIMM & !fSKP;       
+     end
+   
+   
+   
    /* ALU Selector */
    
    always @(posedge clk_i)
@@ -136,13 +163,13 @@ module aeMB2_idmx (/*AUTOARG*/
 		   3'o0;      	
 	 */
 	rALU_OF <= #1
-		   (fSKIP) ? 3'o1 : // NOP
-		   (fBRA | fMOV) ? 3'o1 :
-		   (fSFT) ? 3'o1 :
-		   (fLOG) ? 3'o1 :
-		   (fBSF) ? 3'o2 :
+		   (fSKIP) ? 3'o2 : // NOP
+		   (fBRA | fMOV) ? 3'o2 :
+		   (fSFT) ? 3'o2 :
+		   (fLOG) ? 3'o2 :
+		   (fBSF) ? 3'o1 :
 		   3'o0;      	
-     end
+     end // if (ena_i)
 
    /* WB Selector */
 
@@ -168,8 +195,16 @@ module aeMB2_idmx (/*AUTOARG*/
 		   (|rRD_IF) ? 3'o0 : // ALU
 		   3'o7; // NOP
      end // if (ena_i)
-   
-   /* Passthrough */
+
+
+
+   // The only non atomic instruction is IMMI. All other instructions
+   // are atomic. No interception allowed for branching.
+
+   /* 
+    INTERCEPTION
+    
+    Instructions are either pass-thru or intercepted here. */
 
    always @(posedge clk_i)
      if (rst_i) begin
@@ -187,9 +222,11 @@ module aeMB2_idmx (/*AUTOARG*/
 	rRD_EX <= #1 rRD_OF;	
 	
 	// TODO: Interrrupt
-	case (fSKIP)
+	case ({fINT, fSKIP})
 	  2'o0: {rOPC_OF, rRD_OF, rRA_OF, rIMM_OF} <= #1 {rOPC_IF, rRD_IF, rRA_IF, rIMM_IF};
 	  2'o1: {rOPC_OF, rRD_OF, rRA_OF, rIMM_OF} <= #1 wNOPOP; // delay/stall
+	  2'o3,
+	  2'o2: {rOPC_OF, rRD_OF, rRA_OF, rIMM_OF} <= #1 wINTOP; // interrupt
 	  default: {rOPC_OF, rRD_OF, rRA_OF} <= #1 16'hX;	  
 	endcase // case (fSKIP)
 	
@@ -198,6 +235,9 @@ module aeMB2_idmx (/*AUTOARG*/
 endmodule // aeMB2_idmx
 
 /* $Log: not supported by cvs2svn $
+/* Revision 1.4  2007/12/13 21:25:41  sybreon
+/* Further optimisations (speed + size).
+/*
 /* Revision 1.3  2007/12/13 20:12:11  sybreon
 /* Code cleanup + minor speed regression.
 /*
