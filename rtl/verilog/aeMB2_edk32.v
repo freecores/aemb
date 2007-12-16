@@ -1,4 +1,4 @@
-/* $Id: aeMB2_edk32.v,v 1.5 2007-12-13 21:25:41 sybreon Exp $
+/* $Id: aeMB2_edk32.v,v 1.6 2007-12-16 03:25:22 sybreon Exp $
 **
 ** AEMB2 HI-PERFORMANCE CPU
 ** 
@@ -76,32 +76,32 @@ module aeMB2_edk32 (/*AUTOARG*/
    wire			ena_i;			// From sysc of aeMB2_sysc.v
    wire			pha_i;			// From sysc of aeMB2_sysc.v
    wire [10:0]		rALT_IF;		// From bpcu of aeMB2_bpcu.v
-   wire [2:0]		rALU_OF;		// From idmx of aeMB2_idmx.v
+   wire [2:0]		rALU_OF;		// From ofid of aeMB2_ofid.v
    wire [1:0]		rBRA;			// From bpcu of aeMB2_bpcu.v
    wire [15:0]		rIMM_IF;		// From bpcu of aeMB2_bpcu.v
-   wire [15:0]		rIMM_OF;		// From idmx of aeMB2_idmx.v
+   wire [15:0]		rIMM_OF;		// From ofid of aeMB2_ofid.v
    wire			rINT;			// From sysc of aeMB2_sysc.v
    wire			rMSR_BE;		// From aslu of aeMB2_aslu.v
    wire			rMSR_BIP;		// From aslu of aeMB2_aslu.v
    wire			rMSR_IE;		// From aslu of aeMB2_aslu.v
    wire [31:0]		rMUL_MA;		// From aslu of aeMB2_aslu.v
-   wire [31:0]		rOPA_OF;		// From opmx of aeMB2_opmx.v
-   wire [31:0]		rOPB_OF;		// From opmx of aeMB2_opmx.v
+   wire [31:0]		rOPA_OF;		// From ofid of aeMB2_ofid.v
+   wire [31:0]		rOPB_OF;		// From ofid of aeMB2_ofid.v
    wire [5:0]		rOPC_IF;		// From bpcu of aeMB2_bpcu.v
-   wire [5:0]		rOPC_OF;		// From idmx of aeMB2_idmx.v
-   wire [2:0]		rOPD_EX;		// From idmx of aeMB2_idmx.v
-   wire [2:0]		rOPD_MA;		// From idmx of aeMB2_idmx.v
-   wire [31:0]		rOPM_OF;		// From opmx of aeMB2_opmx.v
-   wire [31:0]		rOPX_OF;		// From opmx of aeMB2_opmx.v
+   wire [5:0]		rOPC_OF;		// From ofid of aeMB2_ofid.v
+   wire [2:0]		rOPD_EX;		// From ofid of aeMB2_ofid.v
+   wire [2:0]		rOPD_MA;		// From ofid of aeMB2_ofid.v
+   wire [31:0]		rOPM_OF;		// From ofid of aeMB2_ofid.v
+   wire [31:0]		rOPX_OF;		// From ofid of aeMB2_ofid.v
    wire [31:2]		rPC_IF;			// From bpcu of aeMB2_bpcu.v
    wire [31:2]		rPC_MA;			// From bpcu of aeMB2_bpcu.v
    wire [4:0]		rRA_IF;			// From bpcu of aeMB2_bpcu.v
-   wire [4:0]		rRA_OF;			// From idmx of aeMB2_idmx.v
+   wire [4:0]		rRA_OF;			// From ofid of aeMB2_ofid.v
    wire [4:0]		rRB_IF;			// From bpcu of aeMB2_bpcu.v
-   wire [4:0]		rRD_EX;			// From idmx of aeMB2_idmx.v
+   wire [4:0]		rRD_EX;			// From ofid of aeMB2_ofid.v
    wire [4:0]		rRD_IF;			// From bpcu of aeMB2_bpcu.v
-   wire [4:0]		rRD_MA;			// From idmx of aeMB2_idmx.v
-   wire [4:0]		rRD_OF;			// From idmx of aeMB2_idmx.v
+   wire [4:0]		rRD_MA;			// From ofid of aeMB2_ofid.v
+   wire [4:0]		rRD_OF;			// From ofid of aeMB2_ofid.v
    wire [31:0]		rREGA_OF;		// From regf of aeMB2_regf.v
    wire [31:0]		rREGB_OF;		// From regf of aeMB2_regf.v
    wire [31:0]		rREGD_OF;		// From regf of aeMB2_regf.v
@@ -228,46 +228,19 @@ module aeMB2_edk32 (/*AUTOARG*/
 
    /* Operand Fetch Mux */
    
-   aeMB2_opmx
-     #(/*AUTOINSTPARAM*/
-       // Parameters
-       .TXE				(TXE))     
-   opmx (/*AUTOINST*/
-	 // Outputs
-	 .rOPM_OF			(rOPM_OF[31:0]),
-	 .rOPX_OF			(rOPX_OF[31:0]),
-	 .rOPA_OF			(rOPA_OF[31:0]),
-	 .rOPB_OF			(rOPB_OF[31:0]),
-	 // Inputs
-	 .rRES_EX			(rRES_EX[31:0]),
-	 .rRD_EX			(rRD_EX[4:0]),
-	 .rOPD_EX			(rOPD_EX[1:0]),
-	 .rOPC_IF			(rOPC_IF[5:0]),
-	 .rIMM_IF			(rIMM_IF[15:0]),
-	 .rPC_IF			(rPC_IF[31:2]),
-	 .rRD_IF			(rRD_IF[4:0]),
-	 .rRA_IF			(rRA_IF[4:0]),
-	 .rRB_IF			(rRB_IF[4:0]),
-	 .rREGD_OF			(rREGD_OF[31:0]),
-	 .rREGA_OF			(rREGA_OF[31:0]),
-	 .rREGB_OF			(rREGB_OF[31:0]),
-	 .rBRA				(rBRA[1:0]),
-	 .pha_i				(pha_i),
-	 .clk_i				(clk_i),
-	 .rst_i				(rst_i),
-	 .ena_i				(ena_i));
-
-   /* Instruction Decode Mux */
-   
-   aeMB2_idmx
+   aeMB2_ofid
      #(/*AUTOINSTPARAM*/
        // Parameters
        .TXE				(TXE),
        .MUL				(MUL),
        .BSF				(BSF),
-       .FSL				(FSL))     
-   idmx (/*AUTOINST*/
+       .FSL				(FSL))
+   ofid (/*AUTOINST*/
 	 // Outputs
+	 .rOPM_OF			(rOPM_OF[31:0]),
+	 .rOPX_OF			(rOPX_OF[31:0]),
+	 .rOPA_OF			(rOPA_OF[31:0]),
+	 .rOPB_OF			(rOPB_OF[31:0]),
 	 .rIMM_OF			(rIMM_OF[15:0]),
 	 .rOPC_OF			(rOPC_OF[5:0]),
 	 .rRA_OF			(rRA_OF[4:0]),
@@ -278,9 +251,14 @@ module aeMB2_edk32 (/*AUTOARG*/
 	 .rOPD_MA			(rOPD_MA[2:0]),
 	 .rALU_OF			(rALU_OF[2:0]),
 	 // Inputs
+	 .rRES_EX			(rRES_EX[31:0]),
+	 .rREGD_OF			(rREGD_OF[31:0]),
+	 .rREGA_OF			(rREGA_OF[31:0]),
+	 .rREGB_OF			(rREGB_OF[31:0]),
 	 .rBRA				(rBRA[1:0]),
 	 .rXCE				(rXCE),
 	 .rINT				(rINT),
+	 .rPC_IF			(rPC_IF[31:2]),
 	 .rIMM_IF			(rIMM_IF[15:0]),
 	 .rALT_IF			(rALT_IF[10:0]),
 	 .rOPC_IF			(rOPC_IF[5:0]),
@@ -290,9 +268,9 @@ module aeMB2_edk32 (/*AUTOARG*/
 	 .pha_i				(pha_i),
 	 .clk_i				(clk_i),
 	 .rst_i				(rst_i),
-	 .ena_i				(ena_i));
-
-
+	 .ena_i				(ena_i));   
+   
+   
    /* Arithmetic Shift Logic Unit */
 
    aeMB2_aslu
@@ -348,27 +326,27 @@ module aeMB2_edk32 (/*AUTOARG*/
       
       case (rOPC_IF)
 	6'o00: if (rRD_IF == 0) $write("   "); else $write("ADD");
-	6'o01: $write("RSUB");	
+	6'o01: $write("SUB");	
 	6'o02: $write("ADDC");	
-	6'o03: $write("RSUBC");	
+	6'o03: $write("SUBC");	
 	6'o04: $write("ADDK");	
 	6'o05: case (rIMM_IF[1:0])
-		 2'o0: $write("RSUBK");	
+		 2'o0: $write("SUBK");	
 		 2'o1: $write("CMP");	
 		 2'o3: $write("CMPU");	
 		 default: $write("XXX");
 	       endcase // case (rIMM_IF[1:0])
 	6'o06: $write("ADDKC");	
-	6'o07: $write("RSUBKC");	
+	6'o07: $write("SUBKC");	
 	
 	6'o10: $write("ADDI");	
-	6'o11: $write("RSUBI");	
+	6'o11: $write("SUBI");	
 	6'o12: $write("ADDIC");	
-	6'o13: $write("RSUBIC");	
+	6'o13: $write("SUBIC");	
 	6'o14: $write("ADDIK");	
-	6'o15: $write("RSUBIK");	
+	6'o15: $write("SUBIK");	
 	6'o16: $write("ADDIKC");	
-	6'o17: $write("RSUBIKC");	
+	6'o17: $write("SUBIKC");	
 
 	6'o20: $write("MUL");	
 	6'o21: case (rALT_IF[10:9])
@@ -548,6 +526,9 @@ module aeMB2_edk32 (/*AUTOARG*/
 endmodule // aeMB2_edk32
 
 /* $Log: not supported by cvs2svn $
+/* Revision 1.5  2007/12/13 21:25:41  sybreon
+/* Further optimisations (speed + size).
+/*
 /* Revision 1.4  2007/12/13 20:12:11  sybreon
 /* Code cleanup + minor speed regression.
 /*
