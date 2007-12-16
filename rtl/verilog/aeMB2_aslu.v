@@ -1,4 +1,4 @@
-/* $Id: aeMB2_aslu.v,v 1.4 2007-12-13 21:25:41 sybreon Exp $
+/* $Id: aeMB2_aslu.v,v 1.5 2007-12-16 03:25:37 sybreon Exp $
 **
 ** AEMB2 INTEGER ARITHMETIC SHIFT LOGIC UNIT
 ** 
@@ -281,21 +281,21 @@ module aeMB2_aslu (/*AUTOARG*/
        3'o2: rRES_SLM <= #1 rOPA ^ rOPB;
        3'o3: rRES_SLM <= #1 rOPA & ~rOPB;
        3'o4: case (rIMM[6:5])
-	       2'o0: rRES_SLM <= {rOPA[31],rOPA[31:1]}; // SRA
-	       2'o1: rRES_SLM <= {rMSR_C,rOPA[31:1]}; // SRC
-	       2'o2: rRES_SLM <= {1'b0,rOPA[31:1]}; // SRL
-	       2'o3: rRES_SLM <= (rIMM[0]) ? 
+	       2'o0: rRES_SLM <= #1 {rOPA[31],rOPA[31:1]}; // SRA
+	       2'o1: rRES_SLM <= #1 {rMSR_C,rOPA[31:1]}; // SRC
+	       2'o2: rRES_SLM <= #1 {1'b0,rOPA[31:1]}; // SRL
+	       2'o3: rRES_SLM <= #1 (rIMM[0]) ? 
 				 {{(16){rOPA[15]}}, rOPA[15:0]} : // SEXT16
 				 {{(24){rOPA[7]}}, rOPA[7:0]}; // SEXT8
 	     endcase // case (rIMM[6:5])
        3'o5: case ({fMFSR, rRA[3]})
-	       2'o0: rRES_SLM <= rOPA; // MFS rpc
-	       2'o1: rRES_SLM <= rOPB; // BRA       
-	       2'o2: rRES_SLM <= wMSR; // MFS rmsr
-	       default: rRES_MOV <= 32'hX;       
+	       2'o0: rRES_SLM <= #1 rOPA; // MFS rpc
+	       2'o1: rRES_SLM <= #1 rOPB; // BRA       
+	       2'o2: rRES_SLM <= #1 wMSR; // MFS rmsr
+	       default: rRES_MOV <= #1 32'hX;       
 	     endcase // case ({fMFSR, rRA[3]})
-       3'o6: rRES_SLM <= rOPB;       
-       default: rRES_SLM <= 32'hX;       
+       3'o6: rRES_SLM <= #1 rOPB;
+       default: rRES_SLM <= #1 32'hX;       
      endcase // case (rOPC[2:0])
    
    
@@ -401,9 +401,10 @@ module aeMB2_aslu (/*AUTOARG*/
 	endcase // case (rALU_OF)
 	 */
 	case (rALU_OF[1:0])
+	//case (rOPC[5:4])
 	  2'o0: rRES_EX <= #1 rRES_ADD;
-	  2'o1: rRES_EX <= #1 rRES_SLM;
-	  2'o2: rRES_EX <= #1 (BSF) ? rRES_BSF : 32'hX;	  
+	  2'o2: rRES_EX <= #1 rRES_SLM;
+	  2'o1: rRES_EX <= #1 (BSF) ? rRES_BSF : 32'hX;	  
 	  default: rRES_EX <= #1 32'hX;	  
 	endcase // case (rALU_OF[1:0])
 	
@@ -421,17 +422,18 @@ module aeMB2_aslu (/*AUTOARG*/
    wire 	 fMTS = (rOPC == 6'o45) & rIMM[14];
    wire 	 fADDC = ({rOPC[5:4], rOPC[2]} == 3'o0);
    
-   always @(/*AUTOSENSE*/fADDC or rALU_OF or rIMM or rMSR_C or rOPC
-	    or rRES_ADDC or rRES_SFTC)
-     case (rALU_OF[1:0])
+   always @(/*AUTOSENSE*/fADDC or rIMM or rMSR_C or rOPC or rRES_ADDC
+	    or rRES_SFTC)
+     //case (rALU_OF[1:0])
+     case (rOPC[5:4])
        3'o0: xMSR_C <= (fADDC) ? rRES_ADDC : rMSR_C; // ADD/SUB
-       3'o1: case (rOPC[2:0])
+       3'o2: case (rOPC[2:0])
 	       3'o5: xMSR_C <= (rIMM[14]) ? rOPC[2] : rMSR_C; // MTS
 	       3'o4: xMSR_C <= (&rIMM[6:5]) ? rMSR_C : rRES_SFTC; // SRX
 	       default: xMSR_C <= rMSR_C;
 	     endcase // case (rOPC[2:0])
        default: xMSR_C <= rMSR_C;       
-     endcase // case (rALU_OF)
+     endcase // case (rOPC[5:4])
    
      /*
      case (rALU_OF)
@@ -457,7 +459,7 @@ module aeMB2_aslu (/*AUTOARG*/
 	  rMSR_C1 <= #1 xMSR_C;
 	else
 	  rMSR_C0 <= #1 xMSR_C;	
-     end // else: !if(rst_i)
+     end
    
    // IE/BIP/BE
    wire 	    fRTID = (rOPC == 6'o55) & rRD[0];   
@@ -552,6 +554,9 @@ module aeMB2_aslu (/*AUTOARG*/
 endmodule // aeMB2_aslu
 
 /* $Log: not supported by cvs2svn $
+/* Revision 1.4  2007/12/13 21:25:41  sybreon
+/* Further optimisations (speed + size).
+/*
 /* Revision 1.3  2007/12/13 20:12:11  sybreon
 /* Code cleanup + minor speed regression.
 /*
