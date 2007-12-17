@@ -1,4 +1,4 @@
-/* $Id: aeMB2_aslu.v,v 1.6 2007-12-16 20:38:06 sybreon Exp $
+/* $Id: aeMB2_aslu.v,v 1.7 2007-12-17 12:53:27 sybreon Exp $
 **
 ** AEMB2 INTEGER ARITHMETIC SHIFT LOGIC UNIT
 ** 
@@ -101,6 +101,7 @@ module aeMB2_aslu (/*AUTOARG*/
    reg 			rMSR_C0, 
 			rMSR_C1, 
 			rMSR_C,
+			rMSR_CC,
 			rMSR_CL[0:1];
    
    
@@ -163,19 +164,27 @@ module aeMB2_aslu (/*AUTOARG*/
    // TODO: Optimise
    
    wire 		wMSR_CX, wMSR_C;   
-   assign 		wMSR_CX = (pha_i) ? rMSR_C0 : rMSR_C1;   
+   assign 		wMSR_CX = (pha_i) ? rMSR_C0 : rMSR_C1;
+   
    assign 		wMSR_C = (rOPC_IF == 6'o44) & wMSR_CX | // SRX
 				 (rOPC_IF[5:4] == 2'o0) & rOPC_IF[1] & wMSR_CX | // ADDC/RSUBC
 				 (rOPC_IF[5:4] == 2'o0) & (rOPC_IF[1:0] == 2'o1); // RSUB
-          
+   /* 
+   assign 		wMSR_C = ((rOPC_IF[5:4] == 2'o0) & (rOPC_OF[1:0] == 2'o1)) ? 1'b1 : // RSUB = 1
+				 ((rOPC_IF[5:4] == 2'o0) & (rOPC_OF[1:0] == 2'o0)) ? 1'b0 : // ADD = 0
+				 wMSR_CX;   
+   */
+     
    always @(posedge clk_i)
      if (rst_i) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	rMSR_C <= 1'h0;
+	rMSR_CC <= 1'h0;
 	// End of automatics
      end else if (ena_i) begin
-	rMSR_C <= #1 wMSR_C;	
+	rMSR_C <= #1 wMSR_CX;
+	rMSR_CC <= #1 wMSR_C;	
      end
    
    /* 
@@ -196,8 +205,8 @@ module aeMB2_aslu (/*AUTOARG*/
    
    assign 		{wCMPC,wCMP} = {wSUBC,wCMPF,wSUB[30:0]};  
    assign 		wOPX = (rOPC[0] & !rOPC[5]) ? ~rOPA : rOPA ;
-   //assign 		wOPC = ((wMSR_C & rOPC[1]) | (rOPC[0] & !rOPC[1])) & (!rOPC[5] & ~&rOPC[5:4]);
-   assign 		wOPC = rMSR_C;   
+   //assign 		wOPC = ((rMSR_C & rOPC[1]) | (rOPC[0] & !rOPC[1])) & (!rOPC[5] & ~&rOPC[5:4]);
+   assign 		wOPC = rMSR_CC;   
    
    assign 		{wSUBC,wSUB} = {wADDC,wADD}; 
    assign 		{wADDC,wADD} = (rOPB + wOPX) + wOPC; 
@@ -207,8 +216,8 @@ module aeMB2_aslu (/*AUTOARG*/
    always @(rIMM or rOPC or wADD or wADDC or wCMP
 	    or wCMPC or wSUB or wSUBC)
      case ({rOPC[3],rOPC[0],rIMM[0]})
-       4'h2, 4'h6, 4'h7: {rRES_ADDC,rRES_ADD} <= #1 {~wSUBC,wSUB}; // SUB
-       4'h3: {rRES_ADDC,rRES_ADD} <= #1 {~wCMPC,wCMP}; // CMP
+       4'h2, 4'h6, 4'h7: {rRES_ADDC,rRES_ADD} <= #1 {wSUBC,wSUB}; // SUB
+       4'h3: {rRES_ADDC,rRES_ADD} <= #1 {wCMPC,wCMP}; // CMP
        default: {rRES_ADDC,rRES_ADD} <= #1 {wADDC,wADD};       
      endcase // case ({rOPC[3],rOPC[0],rIMM[0]})
 
@@ -428,7 +437,7 @@ module aeMB2_aslu (/*AUTOARG*/
      //case (rOPC[5:4])
        3'o0: xMSR_C <= (fADDC) ? rRES_ADDC : rMSR_C; // ADD/SUB
        3'o2: case (rOPC[2:0])
-	       3'o5: xMSR_C <= (rIMM[14]) ? rOPC[2] : rMSR_C; // MTS
+	       3'o5: xMSR_C <= (rIMM[14]) ? rOPA[2] : rMSR_C; // MTS
 	       3'o4: xMSR_C <= (&rIMM[6:5]) ? rMSR_C : rRES_SFTC; // SRX
 	       default: xMSR_C <= rMSR_C;
 	     endcase // case (rOPC[2:0])
@@ -554,6 +563,9 @@ module aeMB2_aslu (/*AUTOARG*/
 endmodule // aeMB2_aslu
 
 /* $Log: not supported by cvs2svn $
+/* Revision 1.6  2007/12/16 20:38:06  sybreon
+/* Minor optimisations.
+/*
 /* Revision 1.5  2007/12/16 03:25:37  sybreon
 /* Some optimisations.
 /*
