@@ -1,4 +1,4 @@
-/* $Id: aeMB2_bpcu.v,v 1.3 2007-12-13 20:12:11 sybreon Exp $
+/* $Id: aeMB2_bpcu.v,v 1.4 2007-12-17 12:53:43 sybreon Exp $
 **
 ** AEMB2 BRANCH/PROGRAMME COUNTER
 ** 
@@ -103,7 +103,7 @@ module aeMB2_bpcu (/*AUTOARG*/
 			rPC0, rPC1,// register based 
 			rPCL[0:1]; // LUT based
 
-   wire [31:2] 		wPCNXT = (pha_i) ? rPC0 : rPC1; 
+   wire [31:2] 		wPCNXT = (pha_i | !TXE) ? rPC0 : rPC1; 
    wire [31:2] 		wPCINC = (rPC + 1);
    
    /* Check for RW data hazard */
@@ -243,6 +243,9 @@ module aeMB2_bpcu (/*AUTOARG*/
 endmodule // aeMB2_bpcu
 
 /* $Log: not supported by cvs2svn $
+/* Revision 1.3  2007/12/13 20:12:11  sybreon
+/* Code cleanup + minor speed regression.
+/*
 /* Revision 1.2  2007/12/12 19:16:59  sybreon
 /* Minor optimisations (~10% faster)
 /*
