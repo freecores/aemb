@@ -1,4 +1,4 @@
-/* $Id: aeMB2_edk32.v,v 1.6 2007-12-16 03:25:22 sybreon Exp $
+/* $Id: aeMB2_edk32.v,v 1.7 2007-12-17 12:53:13 sybreon Exp $
 **
 ** AEMB2 HI-PERFORMANCE CPU
 ** 
@@ -466,15 +466,10 @@ module aeMB2_edk32 (/*AUTOARG*/
       $writeh(" MSR=", wMSR," ");
 
       case (rALU_OF)
-	3'o0: if (dwb_stb_o) 
-	  $write(" RAM");
-	else 
-	  $write(" ADD");
-	3'o1: $write(" LOG");
-	3'o2: $write(" SFT");
+	3'o0: $write(" ADD");
+	3'o1: $write(" BSF");
+	3'o2: $write(" SLM");
 	3'o3: $write(" MOV");
-	3'o4: $write(" MUL");
-	3'o5: $write(" BSF");
 	default: $write(" XXX");
       endcase // case (rALU_OF)
 
@@ -526,6 +521,9 @@ module aeMB2_edk32 (/*AUTOARG*/
 endmodule // aeMB2_edk32
 
 /* $Log: not supported by cvs2svn $
+/* Revision 1.6  2007/12/16 03:25:22  sybreon
+/* Replaced OF/ID blocks with combined block.
+/*
 /* Revision 1.5  2007/12/13 21:25:41  sybreon
 /* Further optimisations (speed + size).
 /*
