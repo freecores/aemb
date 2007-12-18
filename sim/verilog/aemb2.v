@@ -1,4 +1,4 @@
-/* $Id: aemb2.v,v 1.1 2007-12-11 00:44:31 sybreon Exp $
+/* $Id: aemb2.v,v 1.2 2007-12-18 18:54:37 sybreon Exp $
 **
 ** AEMB2 TEST BENCH
 ** 
@@ -20,14 +20,11 @@
 ** License along with AEMB. If not, see <http:**www.gnu.org/licenses/>.
 */
 
-`define AEMB2_SIMULATION_KERNEL
-
 module aemb2 ();
    parameter IWB=16;
    parameter DWB=16;
 
    parameter TXE = 1; ///< thread execution enable
-   parameter LUT = 0; ///< further speed optimisation
    
    parameter MUL = 1; ///< enable hardware multiplier
    parameter BSF = 1; ///< enable barrel shifter
@@ -38,30 +35,32 @@ module aemb2 ();
    
    /*AUTOWIRE*/
    // Beginning of automatic wires (for undeclared instantiated-module outputs)
-   wire [6:2]		cwb_adr_o;		// From dut of aeMB2_edk32.v
-   wire [31:0]		cwb_dat_o;		// From dut of aeMB2_edk32.v
-   wire [3:0]		cwb_sel_o;		// From dut of aeMB2_edk32.v
-   wire			cwb_stb_o;		// From dut of aeMB2_edk32.v
-   wire [1:0]		cwb_tga_o;		// From dut of aeMB2_edk32.v
-   wire			cwb_wre_o;		// From dut of aeMB2_edk32.v
-   wire [DWB-1:2]	dwb_adr_o;		// From dut of aeMB2_edk32.v
-   wire			dwb_cyc_o;		// From dut of aeMB2_edk32.v
-   wire [31:0]		dwb_dat_o;		// From dut of aeMB2_edk32.v
-   wire [3:0]		dwb_sel_o;		// From dut of aeMB2_edk32.v
-   wire			dwb_stb_o;		// From dut of aeMB2_edk32.v
-   wire			dwb_wre_o;		// From dut of aeMB2_edk32.v
-   wire [IWB-1:2]	iwb_adr_o;		// From dut of aeMB2_edk32.v
-   wire			iwb_stb_o;		// From dut of aeMB2_edk32.v
-   wire			iwb_wre_o;		// From dut of aeMB2_edk32.v
+   wire [6:2]		cwb_adr_o;		// From dut of aeMB2_sim.v
+   wire [31:0]		cwb_dat_o;		// From dut of aeMB2_sim.v
+   wire [3:0]		cwb_sel_o;		// From dut of aeMB2_sim.v
+   wire			cwb_stb_o;		// From dut of aeMB2_sim.v
+   wire [1:0]		cwb_tga_o;		// From dut of aeMB2_sim.v
+   wire			cwb_wre_o;		// From dut of aeMB2_sim.v
+   wire [DWB-1:2]	dwb_adr_o;		// From dut of aeMB2_sim.v
+   wire			dwb_cyc_o;		// From dut of aeMB2_sim.v
+   wire [31:0]		dwb_dat_o;		// From dut of aeMB2_sim.v
+   wire [3:0]		dwb_sel_o;		// From dut of aeMB2_sim.v
+   wire			dwb_stb_o;		// From dut of aeMB2_sim.v
+   wire			dwb_tga_o;		// From dut of aeMB2_sim.v
+   wire			dwb_wre_o;		// From dut of aeMB2_sim.v
+   wire [IWB-1:2]	iwb_adr_o;		// From dut of aeMB2_sim.v
+   wire			iwb_stb_o;		// From dut of aeMB2_sim.v
+   wire			iwb_tga_o;		// From dut of aeMB2_sim.v
+   wire			iwb_wre_o;		// From dut of aeMB2_sim.v
    // End of automatics
    /*AUTOREGINPUT*/
    // Beginning of automatic reg inputs (for undeclared instantiated-module inputs)
-   reg			cwb_ack_i;		// To dut of aeMB2_edk32.v
-   reg			dwb_ack_i;		// To dut of aeMB2_edk32.v
-   reg			iwb_ack_i;		// To dut of aeMB2_edk32.v
-   reg			sys_clk_i;		// To dut of aeMB2_edk32.v
-   reg			sys_int_i;		// To dut of aeMB2_edk32.v
-   reg			sys_rst_i;		// To dut of aeMB2_edk32.v
+   reg			cwb_ack_i;		// To dut of aeMB2_sim.v
+   reg			dwb_ack_i;		// To dut of aeMB2_sim.v
+   reg			iwb_ack_i;		// To dut of aeMB2_sim.v
+   reg			sys_clk_i;		// To dut of aeMB2_sim.v
+   reg			sys_int_i;		// To dut of aeMB2_sim.v
+   reg			sys_rst_i;		// To dut of aeMB2_sim.v
    // End of automatics
   
    // INITIAL SETUP //////////////////////////////////////////////////////
@@ -152,7 +151,28 @@ module aemb2 ();
    integer rnd;
    
    always @(posedge sys_clk_i) begin
-
+	      
+      // Interrupt Monitors
+      if (!dut.sim.rMSR_IE) begin
+	 rnd = $random % 30;	 
+	 inttime = $stime + 1000 + (rnd*rnd * 10);
+      end
+      if ($stime > inttime) begin
+	 sys_int_i = 1;
+	 svc = 0;	 
+      end
+      if (($stime > inttime + 500) && !svc) begin
+	 $display("\n\t*** INTERRUPT TIMEOUT ***", inttime);	 
+	 $finish;	 
+      end
+      if (dwb_wre_o & (dwb_dat_o == "RTNI")) sys_int_i = 0;
+      /*
+      if (dut.regf.fRDWE && (dut.rRD == 5'h0e) && !svc && dut.gena) begin 
+	 svc = 1;
+	 //$display("\nLATENCY: ", ($stime - inttime)/10);	 
+      end
+       */
+      
       // Pass/Fail Monitors
       if (dwb_wre_o & (dwb_dat_o == "FAIL")) begin
 	 $display("\n\tFAIL");	 
@@ -172,17 +192,8 @@ module aemb2 ();
    
    // INTERNAL WIRING ////////////////////////////////////////////////////
    
-   aeMB2_edk32 
-     #(/*AUTOINSTPARAM*/
-       // Parameters
-       .IWB				(IWB),
-       .DWB				(DWB),
-       .TXE				(TXE),
-       .LUT				(LUT),
-       .MUL				(MUL),
-       .BSF				(BSF),
-       .FSL				(FSL),
-       .DIV				(DIV))
+   aeMB2_sim
+     #(/*AUTOINSTPARAM*/)
    dut (/*AUTOINST*/
 	// Outputs
 	.cwb_adr_o			(cwb_adr_o[6:2]),
@@ -196,9 +207,11 @@ module aemb2 ();
 	.dwb_dat_o			(dwb_dat_o[31:0]),
 	.dwb_sel_o			(dwb_sel_o[3:0]),
 	.dwb_stb_o			(dwb_stb_o),
+	.dwb_tga_o			(dwb_tga_o),
 	.dwb_wre_o			(dwb_wre_o),
 	.iwb_adr_o			(iwb_adr_o[IWB-1:2]),
 	.iwb_stb_o			(iwb_stb_o),
+	.iwb_tga_o			(iwb_tga_o),
 	.iwb_wre_o			(iwb_wre_o),
 	// Inputs
 	.cwb_ack_i			(cwb_ack_i),
@@ -212,6 +225,7 @@ module aemb2 ();
 	.sys_rst_i			(sys_rst_i));
 
 endmodule // edk32
+
 
 /* $Log $ */
 
