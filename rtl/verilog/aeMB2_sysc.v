@@ -1,4 +1,4 @@
-/* $Id: aeMB2_sysc.v,v 1.4 2007-12-16 03:25:02 sybreon Exp $
+/* $Id: aeMB2_sysc.v,v 1.5 2007-12-21 22:28:56 sybreon Exp $
 **
 ** AEMB2 SYSTEM CONTROL
 ** 
@@ -181,7 +181,7 @@ module aeMB2_sysc (/*AUTOARG*/
 	dwb_wre_o <= 1'h0;
 	iwb_stb_o <= 1'h0;
 	// End of automatics
-     end else begin
+     end else if (ena_o) begin
 	iwb_stb_o <= #1 (TXE | pha_o);
 
 	dwb_cyc_o <= #1 fLOD | fSTR | rMSR_BE;	
@@ -197,6 +197,9 @@ module aeMB2_sysc (/*AUTOARG*/
 endmodule // aeMB2_sysc
 
 /* $Log: not supported by cvs2svn $
+/* Revision 1.4  2007/12/16 03:25:02  sybreon
+/* Added interrupt support.
+/*
 /* Revision 1.3  2007/12/13 20:12:11  sybreon
 /* Code cleanup + minor speed regression.
 /*
