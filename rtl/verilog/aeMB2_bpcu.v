@@ -1,4 +1,4 @@
-/* $Id: aeMB2_bpcu.v,v 1.4 2007-12-17 12:53:43 sybreon Exp $
+/* $Id: aeMB2_bpcu.v,v 1.5 2007-12-21 22:39:38 sybreon Exp $
 **
 ** AEMB2 BRANCH/PROGRAMME COUNTER
 ** 
@@ -115,7 +115,7 @@ module aeMB2_bpcu (/*AUTOARG*/
    wire 		fOPBHZD = (rRB_IF == rRD_EX) & (fLOAD | fMULT) & !fMOV & !rOPC_IF[3] & fWRE;
    wire 		fOPAHZD = (rRA_IF == rRD_EX) & (fLOAD | fMULT) & !fBRU & fWRE;      
    wire 		fOPDHZD = (rRD_IF == rRD_EX) & (fLOAD | fMULT) & fSTR & fWRE;   
-   wire 		fHZD = fOPBHZD | fOPAHZD | fOPDHZD;
+   wire 		fHZD = (fOPBHZD | fOPAHZD | fOPDHZD) & !rBRA[1];
 
    /* 
     IWB PC OUTPUT
@@ -243,6 +243,9 @@ module aeMB2_bpcu (/*AUTOARG*/
 endmodule // aeMB2_bpcu
 
 /* $Log: not supported by cvs2svn $
+/* Revision 1.4  2007/12/17 12:53:43  sybreon
+/* Made idle thread PC track main PC.
+/*
 /* Revision 1.3  2007/12/13 20:12:11  sybreon
 /* Code cleanup + minor speed regression.
 /*
