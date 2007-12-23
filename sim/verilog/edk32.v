@@ -1,59 +1,23 @@
-// $Id: edk32.v,v 1.11 2007-12-11 00:44:31 sybreon Exp $
-//
-// AEMB EDK 3.2 Compatible Core TEST
-//
-// Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
-//  
-// This file is part of AEMB.
-//
-// AEMB is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Lesser General Public License as
-// published by the Free Software Foundation, either version 3 of the
-// License, or (at your option) any later version.
-//
-// AEMB is distributed in the hope that it will be useful, but WITHOUT
-// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-// or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General
-// Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public
-// License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
-//
-// $Log: not supported by cvs2svn $
-// Revision 1.10  2007/11/30 17:08:30  sybreon
-// Moved simulation kernel into code.
-//
-// Revision 1.9  2007/11/20 18:36:00  sybreon
-// Removed unnecessary byte acrobatics with VMEM data.
-//
-// Revision 1.8  2007/11/18 19:41:45  sybreon
-// Minor simulation fixes.
-//
-// Revision 1.7  2007/11/14 22:11:41  sybreon
-// Added posedge/negedge bus interface.
-// Modified interrupt test system.
-//
-// Revision 1.6  2007/11/13 23:37:28  sybreon
-// Updated simulation to also check BRI 0x00 instruction.
-//
-// Revision 1.5  2007/11/09 20:51:53  sybreon
-// Added GET/PUT support through a FSL bus.
-//
-// Revision 1.4  2007/11/08 14:18:00  sybreon
-// Parameterised optional components.
-//
-// Revision 1.3  2007/11/05 10:59:31  sybreon
-// Added random seed for simulation.
-//
-// Revision 1.2  2007/11/02 19:16:10  sybreon
-// Added interrupt simulation.
-// Changed "human readable" simulation output.
-//
-// Revision 1.1  2007/11/02 03:25:45  sybreon
-// New EDK 3.2 compatible design with optional barrel-shifter and multiplier.
-// Fixed various minor data hazard bugs.
-// Code compatible with -O0/1/2/3/s generated code.
-//
+/* $Id: edk32.v,v 1.12 2007-12-23 20:40:51 sybreon Exp $
+**
+** AEMB EDK 3.2 Compatible Core TEST
+** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
+**  
+** This file is part of AEMB.
+**
+** AEMB is free software: you can redistribute it and/or modify it
+** under the terms of the GNU Lesser General Public License as
+** published by the Free Software Foundation, either version 3 of the
+** License, or (at your option) any later version.
+**
+** AEMB is distributed in the hope that it will be useful, but WITHOUT
+** ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+** or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General
+** Public License for more details.
+**
+** You should have received a copy of the GNU Lesser General Public
+** License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 `define AEMB_SIMULATION_KERNEL   
 
@@ -216,7 +180,7 @@ module edk32 ();
    always @(posedge sys_clk_i) begin
 
       // Interrupt Monitors
-      if (!dut.rMSR_IE) begin
+      if (!dut.cpu.rMSR_IE) begin
 	 rnd = $random % 30;	 
 	 inttime = $stime + 1000 + (rnd*rnd * 10);
       end
@@ -229,7 +193,7 @@ module edk32 ();
 	 $finish;	 
       end
       if (dwb_we_o & (dwb_dat_o == "RTNI")) sys_int_i = 0;	 
-      if (dut.regf.fRDWE && (dut.rRD == 5'h0e) && !svc && dut.gena) begin 
+      if (dut.cpu.regf.fRDWE && (dut.cpu.rRD == 5'h0e) && !svc && dut.cpu.gena) begin 
 	 svc = 1;
 	 //$display("\nLATENCY: ", ($stime - inttime)/10);	 
       end
@@ -252,7 +216,7 @@ module edk32 ();
    
    // INTERNAL WIRING ////////////////////////////////////////////////////
    
-   aeMB_edk32 #(16,16)
+   aeMB_sim #(16,16)
      dut (
 	  .sys_int_i(sys_int_i),
 	  .dwb_ack_i(dwb_ack_i),
@@ -279,3 +243,43 @@ module edk32 ();
 	  );
 
 endmodule // edk32
+
+/*
+ $Log: not supported by cvs2svn $
+ Revision 1.11  2007/12/11 00:44:31  sybreon
+ Modified for AEMB2
+
+ Revision 1.10  2007/11/30 17:08:30  sybreon
+ Moved simulation kernel into code.
+
+ Revision 1.9  2007/11/20 18:36:00  sybreon
+ Removed unnecessary byte acrobatics with VMEM data.
+
+ Revision 1.8  2007/11/18 19:41:45  sybreon
+ Minor simulation fixes.
+
+ Revision 1.7  2007/11/14 22:11:41  sybreon
+ Added posedge/negedge bus interface.
+ Modified interrupt test system.
+
+ Revision 1.6  2007/11/13 23:37:28  sybreon
+ Updated simulation to also check BRI 0x00 instruction.
+
+ Revision 1.5  2007/11/09 20:51:53  sybreon
+ Added GET/PUT support through a FSL bus.
+
+ Revision 1.4  2007/11/08 14:18:00  sybreon
+ Parameterised optional components.
+
+ Revision 1.3  2007/11/05 10:59:31  sybreon
+ Added random seed for simulation.
+
+ Revision 1.2  2007/11/02 19:16:10  sybreon
+ Added interrupt simulation.
+ Changed "human readable" simulation output.
+
+ Revision 1.1  2007/11/02 03:25:45  sybreon
+ New EDK 3.2 compatible design with optional barrel-shifter and multiplier.
+ Fixed various minor data hazard bugs.
+ Code compatible with -O0/1/2/3/s generated code.
+ */
