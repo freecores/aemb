@@ -1,53 +1,23 @@
-// $Id: aeMB_xecu.v,v 1.9 2007-11-30 16:42:51 sybreon Exp $
-//
-// AEMB MAIN EXECUTION ALU
-//
-// Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
-//  
-// This file is part of AEMB.
-//
-// AEMB is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Lesser General Public License as
-// published by the Free Software Foundation, either version 3 of the
-// License, or (at your option) any later version.
-//
-// AEMB is distributed in the hope that it will be useful, but WITHOUT
-// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-// or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General
-// Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public
-// License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
-//
-// $Log: not supported by cvs2svn $
-// Revision 1.8  2007/11/16 21:52:03  sybreon
-// Added fsl_tag_o to FSL bus (tag either address or data).
-//
-// Revision 1.7  2007/11/14 22:14:34  sybreon
-// Changed interrupt handling system (reported by M. Ettus).
-//
-// Revision 1.6  2007/11/10 16:39:38  sybreon
-// Upgraded license to LGPLv3.
-// Significant performance optimisations.
-//
-// Revision 1.5  2007/11/09 20:51:52  sybreon
-// Added GET/PUT support through a FSL bus.
-//
-// Revision 1.4  2007/11/08 14:17:47  sybreon
-// Parameterised optional components.
-//
-// Revision 1.3  2007/11/03 08:34:55  sybreon
-// Minor code cleanup.
-//
-// Revision 1.2  2007/11/02 19:20:58  sybreon
-// Added better (beta) interrupt support.
-// Changed MSR_IE to disabled at reset as per MB docs.
-//
-// Revision 1.1  2007/11/02 03:25:41  sybreon
-// New EDK 3.2 compatible design with optional barrel-shifter and multiplier.
-// Fixed various minor data hazard bugs.
-// Code compatible with -O0/1/2/3/s generated code.
-//
+/* $Id: aeMB_xecu.v,v 1.10 2007-12-25 22:15:09 sybreon Exp $
+**
+** AEMB MAIN EXECUTION ALU
+** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
+**  
+** This file is part of AEMB.
+**
+** AEMB is free software: you can redistribute it and/or modify it
+** under the terms of the GNU Lesser General Public License as
+** published by the Free Software Foundation, either version 3 of the
+** License, or (at your option) any later version.
+**
+** AEMB is distributed in the hope that it will be useful, but WITHOUT
+** ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+** or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General
+** Public License for more details.
+**
+** You should have received a copy of the GNU Lesser General Public
+** License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 module aeMB_xecu (/*AUTOARG*/
    // Outputs
@@ -55,7 +25,7 @@ module aeMB_xecu (/*AUTOARG*/
    rMSR_IE, rMSR_BIP,
    // Inputs
    rREGA, rREGB, rMXSRC, rMXTGT, rRA, rRB, rMXALU, rBRA, rDLY, rALT,
-   rSIMM, rIMM, rOPC, rRD, rDWBDI, rPC, gclk, grst, gena
+   rSTALL, rSIMM, rIMM, rOPC, rRD, rDWBDI, rPC, gclk, grst, gena
    );
    parameter DW=32;
 
@@ -81,7 +51,8 @@ module aeMB_xecu (/*AUTOARG*/
    input [2:0] 	   rMXALU;
    input 	   rBRA, rDLY;
    input [10:0]    rALT;   
-   
+
+   input 	   rSTALL;   
    input [31:0]    rSIMM;
    input [15:0]    rIMM;
    input [5:0] 	   rOPC;
@@ -190,11 +161,22 @@ module aeMB_xecu (/*AUTOARG*/
    // --- MULTIPLIER ------------------------------------------
    // TODO: 2 stage multiplier
    
-   reg [31:0] 	    rRES_MUL;
+   reg [31:0] 	    rRES_MUL, rRES_MUL0, xRES_MUL;
    always @(/*AUTOSENSE*/rOPA or rOPB) begin
-      rRES_MUL <= (rOPA * rOPB);
+      xRES_MUL <= (rOPA * rOPB);
    end
 
+   always @(posedge gclk)
+     if (grst) begin
+	/*AUTORESET*/
+	// Beginning of autoreset for uninitialized flops
+	rRES_MUL <= 32'h0;
+	// End of automatics
+     end else if (rSTALL) begin
+	rRES_MUL <= #1 xRES_MUL;	
+     end
+
+   
    // --- BARREL SHIFTER --------------------------------------
 
    reg [31:0] 	 rRES_BSF;
@@ -245,11 +227,27 @@ module aeMB_xecu (/*AUTOARG*/
        5'd31: xBSRA <= {{(31){rOPA[31]}}, rOPA[31]};
      endcase // case (rOPB[4:0])
 
-   always @(/*AUTOSENSE*/rALT or xBSLL or xBSRA or xBSRL)
+   reg [31:0] 	 rBSRL, rBSRA, rBSLL;
+
+   always @(posedge gclk)
+     if (grst) begin
+	/*AUTORESET*/
+	// Beginning of autoreset for uninitialized flops
+	rBSLL <= 32'h0;
+	rBSRA <= 32'h0;
+	rBSRL <= 32'h0;
+	// End of automatics
+     end else if (rSTALL) begin
+	rBSRL <= #1 xBSRL;
+	rBSRA <= #1 xBSRA;
+	rBSLL <= #1 xBSLL;	
+     end
+   
+   always @(/*AUTOSENSE*/rALT or rBSLL or rBSRA or rBSRL)
      case (rALT[10:9])
-       2'd0: rRES_BSF <= xBSRL;
-       2'd1: rRES_BSF <= xBSRA;       
-       2'd2: rRES_BSF <= xBSLL;
+       2'd0: rRES_BSF <= rBSRL;
+       2'd1: rRES_BSF <= rBSRA;       
+       2'd2: rRES_BSF <= rBSLL;
        default: rRES_BSF <= 32'hX;       
      endcase // case (rALT[10:9])
    
@@ -370,7 +368,42 @@ module aeMB_xecu (/*AUTOARG*/
 	rMSR_IE <= #1 xMSR_IE;	
 	rMSR_BE <= #1 xMSR_BE;	
 	rMSR_BIP <= #1 xMSR_BIP;
-	rFSLADR <= #1 xFSLADR;	
+	rFSLADR <= #1 xFSLADR;
      end
    
 endmodule // aeMB_xecu
+
+/*
+ $Log: not supported by cvs2svn $
+ Revision 1.9  2007/11/30 16:42:51  sybreon
+ Minor code cleanup.
+
+ Revision 1.8  2007/11/16 21:52:03  sybreon
+ Added fsl_tag_o to FSL bus (tag either address or data).
+
+ Revision 1.7  2007/11/14 22:14:34  sybreon
+ Changed interrupt handling system (reported by M. Ettus).
+
+ Revision 1.6  2007/11/10 16:39:38  sybreon
+ Upgraded license to LGPLv3.
+ Significant performance optimisations.
+
+ Revision 1.5  2007/11/09 20:51:52  sybreon
+ Added GET/PUT support through a FSL bus.
+
+ Revision 1.4  2007/11/08 14:17:47  sybreon
+ Parameterised optional components.
+
+ Revision 1.3  2007/11/03 08:34:55  sybreon
+ Minor code cleanup.
+
+ Revision 1.2  2007/11/02 19:20:58  sybreon
+ Added better (beta) interrupt support.
+ Changed MSR_IE to disabled at reset as per MB docs.
+
+ Revision 1.1  2007/11/02 03:25:41  sybreon
+ New EDK 3.2 compatible design with optional barrel-shifter and multiplier.
+ Fixed various minor data hazard bugs.
+ Code compatible with -O0/1/2/3/s generated code.
+
+*/

@@ -1,51 +1,27 @@
-// $Id: aeMB_ibuf.v,v 1.7 2007-11-22 15:11:15 sybreon Exp $
-//
-// AEMB INSTRUCTION BUFFER
-// 
-// Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
-//  
-// This file is part of AEMB.
-//
-// AEMB is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Lesser General Public License as
-// published by the Free Software Foundation, either version 3 of the
-// License, or (at your option) any later version.
-//
-// AEMB is distributed in the hope that it will be useful, but WITHOUT
-// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-// or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General
-// Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public
-// License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
-//
-// $Log: not supported by cvs2svn $
-// Revision 1.6  2007/11/14 23:39:51  sybreon
-// Fixed interrupt signal synchronisation.
-//
-// Revision 1.5  2007/11/14 22:14:34  sybreon
-// Changed interrupt handling system (reported by M. Ettus).
-//
-// Revision 1.4  2007/11/10 16:39:38  sybreon
-// Upgraded license to LGPLv3.
-// Significant performance optimisations.
-//
-// Revision 1.3  2007/11/03 08:34:55  sybreon
-// Minor code cleanup.
-//
-// Revision 1.2  2007/11/02 19:20:58  sybreon
-// Added better (beta) interrupt support.
-// Changed MSR_IE to disabled at reset as per MB docs.
-//
-// Revision 1.1  2007/11/02 03:25:40  sybreon
-// New EDK 3.2 compatible design with optional barrel-shifter and multiplier.
-// Fixed various minor data hazard bugs.
-// Code compatible with -O0/1/2/3/s generated code.
-//
+/* $Id: aeMB_ibuf.v,v 1.8 2007-12-25 22:15:09 sybreon Exp $
+**
+** AEMB INSTRUCTION BUFFER
+** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
+**  
+** This file is part of AEMB.
+**
+** AEMB is free software: you can redistribute it and/or modify it
+** under the terms of the GNU Lesser General Public License as
+** published by the Free Software Foundation, either version 3 of the
+** License, or (at your option) any later version.
+**
+** AEMB is distributed in the hope that it will be useful, but WITHOUT
+** ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+** or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General
+** Public License for more details.
+**
+** You should have received a copy of the GNU Lesser General Public
+** License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 module aeMB_ibuf (/*AUTOARG*/
    // Outputs
-   rIMM, rRA, rRD, rRB, rALT, rOPC, rSIMM, xIREG, iwb_stb_o,
+   rIMM, rRA, rRD, rRB, rALT, rOPC, rSIMM, xIREG, rSTALL, iwb_stb_o,
    // Inputs
    rBRA, rMSR_IE, rMSR_BIP, iwb_dat_i, iwb_ack_i, sys_int_i, gclk,
    grst, gena
@@ -57,6 +33,7 @@ module aeMB_ibuf (/*AUTOARG*/
    output [5:0]  rOPC;
    output [31:0] rSIMM;
    output [31:0] xIREG;
+   output 	 rSTALL;   
    
    input 	 rBRA;
    //input [1:0] 	 rXCE;
@@ -86,6 +63,7 @@ module aeMB_ibuf (/*AUTOARG*/
    assign 	iwb_stb_o = 1'b1;
 
    reg [31:0] 	rSIMM, xSIMM;
+   reg 		rSTALL;   
 
    wire [31:0] 	wXCEOP = 32'hBA2D0008; // Vector 0x08
    wire [31:0] 	wINTOP = 32'hB9CE0010; // Vector 0x10
@@ -151,6 +129,50 @@ module aeMB_ibuf (/*AUTOARG*/
 	{rOPC, rRD, rRA, rIMM} <= #1 xIREG;
 	rSIMM <= #1 xSIMM;	
      end
+
+   // --- STALL FOR MUL/BSF -----------------------------------
+
+   wire [5:0] wOPC = xIREG[31:26];   
    
+   wire       fMUL = (wOPC == 6'o20) | (wOPC == 6'o30);
+   wire       fBSF = (wOPC == 6'o21) | (wOPC == 6'o31);   
+   
+   always @(posedge gclk)
+     if (grst) begin
+	/*AUTORESET*/
+	// Beginning of autoreset for uninitialized flops
+	rSTALL <= 1'h0;
+	// End of automatics
+     end else begin
+	rSTALL <= #1 !rSTALL & (fMUL | fBSF);	
+     end
    
 endmodule // aeMB_ibuf
+
+/*
+ $Log: not supported by cvs2svn $
+ Revision 1.7  2007/11/22 15:11:15  sybreon
+ Change interrupt to positive level triggered interrupts.
+
+ Revision 1.6  2007/11/14 23:39:51  sybreon
+ Fixed interrupt signal synchronisation.
+
+ Revision 1.5  2007/11/14 22:14:34  sybreon
+ Changed interrupt handling system (reported by M. Ettus).
+
+ Revision 1.4  2007/11/10 16:39:38  sybreon
+ Upgraded license to LGPLv3.
+ Significant performance optimisations.
+
+ Revision 1.3  2007/11/03 08:34:55  sybreon
+ Minor code cleanup.
+
+ Revision 1.2  2007/11/02 19:20:58  sybreon
+ Added better (beta) interrupt support.
+ Changed MSR_IE to disabled at reset as per MB docs.
+
+ Revision 1.1  2007/11/02 03:25:40  sybreon
+ New EDK 3.2 compatible design with optional barrel-shifter and multiplier.
+ Fixed various minor data hazard bugs.
+ Code compatible with -O0/1/2/3/s generated code.
+*/

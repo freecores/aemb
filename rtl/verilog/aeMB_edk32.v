@@ -1,4 +1,4 @@
-/* $Id: aeMB_edk32.v,v 1.12 2007-12-23 20:40:44 sybreon Exp $
+/* $Id: aeMB_edk32.v,v 1.13 2007-12-25 22:15:09 sybreon Exp $
 **
 ** AEMB EDK 3.2 Compatible Core
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -86,15 +86,16 @@ module aeMB_edk32 (/*AUTOARG*/
    wire [31:0]		rRESULT;		// From xecu of aeMB_xecu.v
    wire [4:0]		rRW;			// From ctrl of aeMB_ctrl.v
    wire [31:0]		rSIMM;			// From ibuf of aeMB_ibuf.v
+   wire			rSTALL;			// From ibuf of aeMB_ibuf.v
    wire [31:0]		xIREG;			// From ibuf of aeMB_ibuf.v
    // End of automatics
 
    input 		sys_clk_i;
    input 		sys_rst_i;
-   
+
    wire 		grst = sys_rst_i;
    wire 		gclk = sys_clk_i;
-   wire 		gena = !((dwb_stb_o ^ dwb_ack_i) | (fsl_stb_o ^ fsl_ack_i) | !iwb_ack_i);   
+   wire 		gena = !((dwb_stb_o ^ dwb_ack_i) | (fsl_stb_o ^ fsl_ack_i) | !iwb_ack_i) & !rSTALL;   
    
    // --- INSTANTIATIONS -------------------------------------
           
@@ -109,6 +110,7 @@ module aeMB_edk32 (/*AUTOARG*/
 	   .rOPC			(rOPC[5:0]),
 	   .rSIMM			(rSIMM[31:0]),
 	   .xIREG			(xIREG[31:0]),
+	   .rSTALL			(rSTALL),
 	   .iwb_stb_o			(iwb_stb_o),
 	   // Inputs
 	   .rBRA			(rBRA),
@@ -221,6 +223,7 @@ module aeMB_edk32 (/*AUTOARG*/
 	   .rBRA			(rBRA),
 	   .rDLY			(rDLY),
 	   .rALT			(rALT[10:0]),
+	   .rSTALL			(rSTALL),
 	   .rSIMM			(rSIMM[31:0]),
 	   .rIMM			(rIMM[15:0]),
 	   .rOPC			(rOPC[5:0]),
@@ -236,6 +239,9 @@ endmodule // aeMB_edk32
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.12  2007/12/23 20:40:44  sybreon
+ Abstracted simulation kernel (aeMB_sim) to split simulation models from synthesis models.
+
  Revision 1.11  2007/11/30 17:08:29  sybreon
  Moved simulation kernel into code.
  
