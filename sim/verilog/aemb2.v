@@ -1,7 +1,6 @@
-/* $Id: aemb2.v,v 1.2 2007-12-18 18:54:37 sybreon Exp $
+/* $Id: aemb2.v,v 1.3 2007-12-28 21:44:50 sybreon Exp $
 **
 ** AEMB2 TEST BENCH
-** 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
 **  
 ** This file is part of AEMB.
@@ -24,7 +23,7 @@ module aemb2 ();
    parameter IWB=16;
    parameter DWB=16;
 
-   parameter TXE = 1; ///< thread execution enable
+   parameter TXE = 0; ///< thread execution enable
    
    parameter MUL = 1; ///< enable hardware multiplier
    parameter BSF = 1; ///< enable barrel shifter
@@ -97,7 +96,7 @@ module aemb2 ();
    reg [15:2]  dadr, iadr;
 
    wire [31:0] dwb_dat_t = ram[dwb_adr_o];   
-   wire [31:0] iwb_dat_i = ram[iadr]; 
+   wire [31:0] iwb_dat_i = rom[iadr]; 
    wire [31:0] dwb_dat_i = ram[dadr];     
    wire [31:0] cwb_dat_i = cwb_adr_o;   
 
@@ -143,6 +142,7 @@ module aemb2 ();
       for (i=0;i<65535;i=i+1) begin
 	 ram[i] <= $random;
       end
+      #1 $readmemh("dump.vmem",rom);
       #1 $readmemh("dump.vmem",ram);
    end
 
@@ -193,7 +193,15 @@ module aemb2 ();
    // INTERNAL WIRING ////////////////////////////////////////////////////
    
    aeMB2_sim
-     #(/*AUTOINSTPARAM*/)
+     #(/*AUTOINSTPARAM*/
+       // Parameters
+       .IWB				(IWB),
+       .DWB				(DWB),
+       .TXE				(TXE),
+       .MUL				(MUL),
+       .BSF				(BSF),
+       .FSL				(FSL),
+       .DIV				(DIV))
    dut (/*AUTOINST*/
 	// Outputs
 	.cwb_adr_o			(cwb_adr_o[6:2]),
@@ -225,7 +233,6 @@ module aemb2 ();
 	.sys_rst_i			(sys_rst_i));
 
 endmodule // edk32
-
 
 /* $Log $ */
 
