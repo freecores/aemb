@@ -1,68 +1,27 @@
-/*
- * $Id: aeMB_testbench.c,v 1.13 2007-12-11 00:44:31 sybreon Exp $
- * 
- * AEMB Function Verification C Testbench
- * Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
- *  
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public License
- * as published by the Free Software Foundation; either version 2.1 of
- * the License, or (at your option) any later version.
- * 
- * This library is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
- * 
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
- * USA
- *
- * DESCRIPTION 
- * It tests a whole gamut of operations and is tightly linked to the
- * ae68_testbench.v testbench module for verification.
- * 
- * HISTORY
- * $Log: not supported by cvs2svn $
- * Revision 1.12  2007/11/18 19:41:45  sybreon
- * Minor simulation fixes.
- *
- * Revision 1.11  2007/11/14 23:41:06  sybreon
- * Fixed minor interrupt test typo.
- *
- * Revision 1.10  2007/11/14 22:12:02  sybreon
- * Added interrupt test routine.
- *
- * Revision 1.9  2007/11/09 20:51:53  sybreon
- * Added GET/PUT support through a FSL bus.
- *
- * Revision 1.8  2007/11/03 08:40:18  sybreon
- * Minor code cleanup.
- *
- * Revision 1.7  2007/11/02 18:32:19  sybreon
- * Enable MSR_IE with software.
- *
- * Revision 1.6  2007/04/30 15:57:10  sybreon
- * Removed byte acrobatics.
- *
- * Revision 1.5  2007/04/27 15:17:59  sybreon
- * Added code documentation.
- * Added new tests that test floating point, modulo arithmetic and multiplication/division.
- *
- * Revision 1.4  2007/04/25 22:15:05  sybreon
- * Added support for 8-bit and 16-bit data types.
- *
- * Revision 1.3  2007/04/04 14:09:04  sybreon
- * Added initial interrupt/exception support.
- *
- * Revision 1.2  2007/04/04 06:07:45  sybreon
- * Fixed C code bug which passes the test
- *
- * Revision 1.1  2007/03/09 17:41:57  sybreon
- * initial import
- *
- */
+/* $Id: aeMB_testbench.c,v 1.14 2007-12-28 21:44:04 sybreon Exp $
+** 
+** AEMB Function Verification C Testbench
+** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
+**
+** This file is part of AEMB.
+**
+** AEMB is free software: you can redistribute it and/or modify it
+** under the terms of the GNU General Public License as published by
+** the Free Software Foundation, either version 3 of the License, or
+** (at your option) any later version.
+**
+** AEMB is distributed in the hope that it will be useful, but WITHOUT
+** ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+** or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+** License for more details.
+**
+** You should have received a copy of the GNU General Public License
+** along with AEMB.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+#include <malloc.h>
+#include <errno.h>
+#include <reent.h>
 
 #include "libaemb.h"
 
@@ -95,7 +54,8 @@ void int_handler()
 int int_test ()
 {
   // Delay loop until hardware interrupt triggers
-  for (volatile int i=0; i < 999; i++) {
+  volatile int i;
+  for (i=0; i < 999; i++) {
     if (service == 0) return 0;
   };
 
@@ -304,6 +264,27 @@ int fsl_test ()
   return 0;  
 }
 
+// static int errnum;
+/*
+int *__errno ()
+{
+  return &_REENT->_errno;
+  // return &errnum;
+}
+*/
+
+int malloc_test()
+{
+  void *alloc;
+
+  alloc = (void *)malloc(256); // allocate 32 bytes
+
+  if (alloc == NULL)
+    return -1;
+  else
+    return (int) alloc;
+}
+
 /**
    MAIN TEST PROGRAMME
 
@@ -319,11 +300,23 @@ int main ()
   // Number of each test to run
   int max = 10;
 
+  // lock T0 if it's multi-threaded
+  /*
+  if ((aemb_isthreaded() == 0) && (aemb_isthread1() != 0)) {
+    while (1) {
+      asm volatile ("nop;");
+    }
+  }
+  */
+
   // Enable Global Interrupts
   aemb_enable_interrupt();
 
   // INT TEST
   //if (int_test() == -1) { *mpi = 0x4641494C; }
+
+  // TEST MALLOC
+  if (malloc_test() == -1) { *mpi = 0x4641494C; }
 
   // FSL TEST
   //if (fsl_test() == -1) { *mpi = 0x4641494C; }
@@ -343,3 +336,47 @@ int main ()
   // ALL PASSED
   return 0;
 }
+
+/*
+  HISTORY
+  $Log: not supported by cvs2svn $
+  Revision 1.13  2007/12/11 00:44:31  sybreon
+  Modified for AEMB2
+  
+  Revision 1.12  2007/11/18 19:41:45  sybreon
+  Minor simulation fixes.
+  
+  Revision 1.11  2007/11/14 23:41:06  sybreon
+  Fixed minor interrupt test typo.
+  
+  Revision 1.10  2007/11/14 22:12:02  sybreon
+  Added interrupt test routine.
+  
+  Revision 1.9  2007/11/09 20:51:53  sybreon
+  Added GET/PUT support through a FSL bus.
+  
+  Revision 1.8  2007/11/03 08:40:18  sybreon
+  Minor code cleanup.
+  
+  Revision 1.7  2007/11/02 18:32:19  sybreon
+  Enable MSR_IE with software.
+  
+  Revision 1.6  2007/04/30 15:57:10  sybreon
+  Removed byte acrobatics.
+  
+  Revision 1.5  2007/04/27 15:17:59  sybreon
+  Added code documentation.
+  Added new tests that test floating point, modulo arithmetic and multiplication/division.
+  
+  Revision 1.4  2007/04/25 22:15:05  sybreon
+  Added support for 8-bit and 16-bit data types.
+  
+  Revision 1.3  2007/04/04 14:09:04  sybreon
+  Added initial interrupt/exception support.
+  
+  Revision 1.2  2007/04/04 06:07:45  sybreon
+  Fixed C code bug which passes the test
+  
+  Revision 1.1  2007/03/09 17:41:57  sybreon
+  initial import  
+*/
