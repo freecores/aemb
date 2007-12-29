@@ -1,7 +1,6 @@
-/* $Id: aeMB2_sim.v,v 1.1 2007-12-18 18:54:36 sybreon Exp $
+/* $Id: aeMB2_sim.v,v 1.2 2007-12-29 00:31:48 sybreon Exp $
 **
 ** AEMB2 SIMULATION WRAPPER
-** 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
 **  
 ** This file is part of AEMB.
@@ -42,35 +41,35 @@ module aeMB2_sim (/*AUTOARG*/
    
    /*AUTOOUTPUT*/
    // Beginning of automatic outputs (from unused autoinst outputs)
-   output [6:2]		cwb_adr_o;		// From cpu of aeMB2_edk32.v
-   output [31:0]	cwb_dat_o;		// From cpu of aeMB2_edk32.v
-   output [3:0]		cwb_sel_o;		// From cpu of aeMB2_edk32.v
-   output		cwb_stb_o;		// From cpu of aeMB2_edk32.v
-   output [1:0]		cwb_tga_o;		// From cpu of aeMB2_edk32.v
-   output		cwb_wre_o;		// From cpu of aeMB2_edk32.v
-   output [DWB-1:2]	dwb_adr_o;		// From cpu of aeMB2_edk32.v
-   output		dwb_cyc_o;		// From cpu of aeMB2_edk32.v
-   output [31:0]	dwb_dat_o;		// From cpu of aeMB2_edk32.v
-   output [3:0]		dwb_sel_o;		// From cpu of aeMB2_edk32.v
-   output		dwb_stb_o;		// From cpu of aeMB2_edk32.v
-   output		dwb_tga_o;		// From cpu of aeMB2_edk32.v
-   output		dwb_wre_o;		// From cpu of aeMB2_edk32.v
-   output [IWB-1:2]	iwb_adr_o;		// From cpu of aeMB2_edk32.v
-   output		iwb_stb_o;		// From cpu of aeMB2_edk32.v
-   output		iwb_tga_o;		// From cpu of aeMB2_edk32.v
-   output		iwb_wre_o;		// From cpu of aeMB2_edk32.v
+   output [6:2]		cwb_adr_o;		// From sim of aeMB2_edk32.v
+   output [31:0]	cwb_dat_o;		// From sim of aeMB2_edk32.v
+   output [3:0]		cwb_sel_o;		// From sim of aeMB2_edk32.v
+   output		cwb_stb_o;		// From sim of aeMB2_edk32.v
+   output [1:0]		cwb_tga_o;		// From sim of aeMB2_edk32.v
+   output		cwb_wre_o;		// From sim of aeMB2_edk32.v
+   output [DWB-1:2]	dwb_adr_o;		// From sim of aeMB2_edk32.v
+   output		dwb_cyc_o;		// From sim of aeMB2_edk32.v
+   output [31:0]	dwb_dat_o;		// From sim of aeMB2_edk32.v
+   output [3:0]		dwb_sel_o;		// From sim of aeMB2_edk32.v
+   output		dwb_stb_o;		// From sim of aeMB2_edk32.v
+   output		dwb_tga_o;		// From sim of aeMB2_edk32.v
+   output		dwb_wre_o;		// From sim of aeMB2_edk32.v
+   output [IWB-1:2]	iwb_adr_o;		// From sim of aeMB2_edk32.v
+   output		iwb_stb_o;		// From sim of aeMB2_edk32.v
+   output		iwb_tga_o;		// From sim of aeMB2_edk32.v
+   output		iwb_wre_o;		// From sim of aeMB2_edk32.v
    // End of automatics
    /*AUTOINPUT*/
    // Beginning of automatic inputs (from unused autoinst inputs)
-   input		cwb_ack_i;		// To cpu of aeMB2_edk32.v
-   input [31:0]		cwb_dat_i;		// To cpu of aeMB2_edk32.v
-   input		dwb_ack_i;		// To cpu of aeMB2_edk32.v
-   input [31:0]		dwb_dat_i;		// To cpu of aeMB2_edk32.v
-   input		iwb_ack_i;		// To cpu of aeMB2_edk32.v
-   input [31:0]		iwb_dat_i;		// To cpu of aeMB2_edk32.v
-   input		sys_clk_i;		// To cpu of aeMB2_edk32.v
-   input		sys_int_i;		// To cpu of aeMB2_edk32.v
-   input		sys_rst_i;		// To cpu of aeMB2_edk32.v
+   input		cwb_ack_i;		// To sim of aeMB2_edk32.v
+   input [31:0]		cwb_dat_i;		// To sim of aeMB2_edk32.v
+   input		dwb_ack_i;		// To sim of aeMB2_edk32.v
+   input [31:0]		dwb_dat_i;		// To sim of aeMB2_edk32.v
+   input		iwb_ack_i;		// To sim of aeMB2_edk32.v
+   input [31:0]		iwb_dat_i;		// To sim of aeMB2_edk32.v
+   input		sys_clk_i;		// To sim of aeMB2_edk32.v
+   input		sys_int_i;		// To sim of aeMB2_edk32.v
+   input		sys_rst_i;		// To sim of aeMB2_edk32.v
    // End of automatics
    /*AUTOWIRE*/
    
@@ -321,8 +320,10 @@ module aeMB2_sim (/*AUTOARG*/
    end // if (sim.ena_i)
    
    // synopsys translate_on
-   
-   
+      
 endmodule // aeMB2_sim
 
-/* $Log: not supported by cvs2svn $ */
+/* $Log: not supported by cvs2svn $
+/* Revision 1.1  2007/12/18 18:54:36  sybreon
+/* Partitioned simulation model.
+/* */
