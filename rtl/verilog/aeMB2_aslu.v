@@ -1,4 +1,4 @@
-/* $Id: aeMB2_aslu.v,v 1.8 2008-01-09 19:12:59 sybreon Exp $
+/* $Id: aeMB2_aslu.v,v 1.9 2008-01-09 19:17:33 sybreon Exp $
 **
 ** AEMB2 INTEGER ARITHMETIC SHIFT LOGIC UNIT
 ** 
@@ -315,12 +315,11 @@ module aeMB2_aslu (/*AUTOARG*/
     speed. */
    
    reg [31:0] 	    rRES_MUL;
-   always @(posedge clk_i)
-     rMUL_MA <= #1 rRES_MUL;
+   always @(posedge clk_i) if (ena_i) begin
+      rMUL_MA <= #1 rRES_MUL;
+      rRES_MUL <= #1 (rOPA * rOPB);
+   end
    
-   always @(posedge clk_i) 
-     rRES_MUL <= #1 (rOPA * rOPB);
-
    /* 
     BARREL SHIFTER
     
@@ -564,6 +563,9 @@ module aeMB2_aslu (/*AUTOARG*/
 endmodule // aeMB2_aslu
 
 /* $Log: not supported by cvs2svn $
+/* Revision 1.8  2008/01/09 19:12:59  sybreon
+/* multiplier issues
+/*
 /* Revision 1.7  2007/12/17 12:53:27  sybreon
 /* Fixed Carry bit bug.
 /*
