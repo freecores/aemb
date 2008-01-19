@@ -1,4 +1,4 @@
-/* $Id: aeMB_ibuf.v,v 1.8 2007-12-25 22:15:09 sybreon Exp $
+/* $Id: aeMB_ibuf.v,v 1.9 2008-01-19 16:01:22 sybreon Exp $
 **
 ** AEMB INSTRUCTION BUFFER
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -24,7 +24,7 @@ module aeMB_ibuf (/*AUTOARG*/
    rIMM, rRA, rRD, rRB, rALT, rOPC, rSIMM, xIREG, rSTALL, iwb_stb_o,
    // Inputs
    rBRA, rMSR_IE, rMSR_BIP, iwb_dat_i, iwb_ack_i, sys_int_i, gclk,
-   grst, gena
+   grst, gena, oena
    );
    // INTERNAL
    output [15:0] rIMM;
@@ -49,7 +49,7 @@ module aeMB_ibuf (/*AUTOARG*/
    input 	 sys_int_i;   
 
    // SYSTEM
-   input 	 gclk, grst, gena;
+   input 	 gclk, grst, gena, oena;
 
    reg [15:0] 	 rIMM;
    reg [4:0] 	 rRA, rRD;
@@ -144,13 +144,16 @@ module aeMB_ibuf (/*AUTOARG*/
 	rSTALL <= 1'h0;
 	// End of automatics
      end else begin
-	rSTALL <= #1 !rSTALL & (fMUL | fBSF);	
+	rSTALL <= #1 (!rSTALL & (fMUL | fBSF)) | (oena & rSTALL);	
      end
    
 endmodule // aeMB_ibuf
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.8  2007/12/25 22:15:09  sybreon
+ Stalls pipeline on MUL/BSF instructions results in minor speed improvements.
+
  Revision 1.7  2007/11/22 15:11:15  sybreon
  Change interrupt to positive level triggered interrupts.
 

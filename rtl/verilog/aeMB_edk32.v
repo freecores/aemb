@@ -1,4 +1,4 @@
-/* $Id: aeMB_edk32.v,v 1.13 2007-12-25 22:15:09 sybreon Exp $
+/* $Id: aeMB_edk32.v,v 1.14 2008-01-19 16:01:22 sybreon Exp $
 **
 ** AEMB EDK 3.2 Compatible Core
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -32,7 +32,7 @@ module aeMB_edk32 (/*AUTOARG*/
    parameter DW = 32; /// Data bus address width
 
    // Optional functions
-   parameter MUL = 1; // Multiplier
+   parameter MUL = 0; // Multiplier
    parameter BSF = 1; // Barrel Shifter
    
    /*AUTOOUTPUT*/
@@ -96,6 +96,7 @@ module aeMB_edk32 (/*AUTOARG*/
    wire 		grst = sys_rst_i;
    wire 		gclk = sys_clk_i;
    wire 		gena = !((dwb_stb_o ^ dwb_ack_i) | (fsl_stb_o ^ fsl_ack_i) | !iwb_ack_i) & !rSTALL;   
+   wire 		oena = ((dwb_stb_o ^ dwb_ack_i) | (fsl_stb_o ^ fsl_ack_i) | !iwb_ack_i);   
    
    // --- INSTANTIATIONS -------------------------------------
           
@@ -121,7 +122,8 @@ module aeMB_edk32 (/*AUTOARG*/
 	   .sys_int_i			(sys_int_i),
 	   .gclk			(gclk),
 	   .grst			(grst),
-	   .gena			(gena));   
+	   .gena			(gena),
+	   .oena			(oena));   
    
    aeMB_ctrl
      ctrl (/*AUTOINST*/
@@ -239,6 +241,9 @@ endmodule // aeMB_edk32
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.13  2007/12/25 22:15:09  sybreon
+ Stalls pipeline on MUL/BSF instructions results in minor speed improvements.
+
  Revision 1.12  2007/12/23 20:40:44  sybreon
  Abstracted simulation kernel (aeMB_sim) to split simulation models from synthesis models.
 
