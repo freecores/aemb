@@ -1,4 +1,4 @@
-/* $Id: aeMB_xecu.v,v 1.10 2007-12-25 22:15:09 sybreon Exp $
+/* $Id: aeMB_xecu.v,v 1.11 2008-01-19 15:57:36 sybreon Exp $
 **
 ** AEMB MAIN EXECUTION ALU
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -255,7 +255,7 @@ module aeMB_xecu (/*AUTOARG*/
    // --- MSR REGISTER -----------------
    
    // C
-   wire 	   fMTS = (rOPC == 6'o45) & rIMM[14];
+   wire 	   fMTS = (rOPC == 6'o45) & rIMM[14] & !fSKIP;
    wire 	   fADDC = ({rOPC[5:4], rOPC[2]} == 3'o0);
    
    always @(/*AUTOSENSE*/fADDC or fMTS or fSKIP or rMSR_C or rMXALU
@@ -272,11 +272,11 @@ module aeMB_xecu (/*AUTOARG*/
 	 3'o4: xMSR_C <= rMSR_C;	 
 	 3'o5: xMSR_C <= rMSR_C;	 
 	 default: xMSR_C <= 1'hX;       
-       endcase
+       endcase // case (rMXALU)
 
    // IE/BIP/BE
-   wire 	    fRTID = (rOPC == 6'o55) & rRD[0];   
-   wire 	    fRTBD = (rOPC == 6'o55) & rRD[1];
+   wire 	    fRTID = (rOPC == 6'o55) & rRD[0] & !fSKIP;   
+   wire 	    fRTBD = (rOPC == 6'o55) & rRD[1] & !fSKIP;
    wire 	    fBRK = ((rOPC == 6'o56) | (rOPC == 6'o66)) & (rRA == 5'hC);
    wire 	    fINT = ((rOPC == 6'o56) | (rOPC == 6'o66)) & (rRA == 5'hE);
    
@@ -361,7 +361,7 @@ module aeMB_xecu (/*AUTOARG*/
 	rMSR_IE <= 1'h0;
 	rRESULT <= 32'h0;
 	// End of automatics
-     end else if (gena) begin
+     end else if (gena) begin // if (grst)
 	rRESULT <= #1 xRESULT;
 	rDWBSEL <= #1 xDWBSEL;
 	rMSR_C <= #1 xMSR_C;
@@ -375,6 +375,9 @@ endmodule // aeMB_xecu
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.10  2007/12/25 22:15:09  sybreon
+ Stalls pipeline on MUL/BSF instructions results in minor speed improvements.
+
  Revision 1.9  2007/11/30 16:42:51  sybreon
  Minor code cleanup.
 
