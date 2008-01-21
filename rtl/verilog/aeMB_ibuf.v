@@ -1,4 +1,4 @@
-/* $Id: aeMB_ibuf.v,v 1.9 2008-01-19 16:01:22 sybreon Exp $
+/* $Id: aeMB_ibuf.v,v 1.10 2008-01-21 01:02:26 sybreon Exp $
 **
 ** AEMB INSTRUCTION BUFFER
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -89,9 +89,14 @@ module aeMB_ibuf (/*AUTOARG*/
 	rDINT <= 2'h0;
 	rFINT <= 1'h0;
 	// End of automatics
-     end else if (rMSR_IE) begin
-	rDINT <= #1 {rDINT[0], sys_int_i};	
-	rFINT <= #1 (wIREG == wINTOP) ? 1'b0 : (rFINT | wSHOT);
+     end else begin
+	if (rMSR_IE)
+	  rDINT <= #1 
+		   {rDINT[0], sys_int_i};
+	
+	rFINT <= #1 
+		 //(wIREG == wINTOP) ? 1'b0 : 
+		 (rFINT | wSHOT) & rMSR_IE;
      end
 
    wire 	fIMM = (rOPC == 6'o54);
@@ -151,6 +156,9 @@ endmodule // aeMB_ibuf
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.9  2008/01/19 16:01:22  sybreon
+ Patched problem where memory access followed by dual cycle instructions were not stalling correctly (submitted by M. Ettus)
+
  Revision 1.8  2007/12/25 22:15:09  sybreon
  Stalls pipeline on MUL/BSF instructions results in minor speed improvements.
 
