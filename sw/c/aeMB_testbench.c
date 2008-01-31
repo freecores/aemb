@@ -1,4 +1,4 @@
-/* $Id: aeMB_testbench.c,v 1.14 2007-12-28 21:44:04 sybreon Exp $
+/* $Id: aeMB_testbench.c,v 1.15 2008-01-31 19:07:14 sybreon Exp $
 ** 
 ** AEMB Function Verification C Testbench
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -22,6 +22,7 @@
 #include <malloc.h>
 #include <errno.h>
 #include <reent.h>
+#include <stdlib.h>
 
 #include "libaemb.h"
 
@@ -264,25 +265,18 @@ int fsl_test ()
   return 0;  
 }
 
-// static int errnum;
-/*
-int *__errno ()
-{
-  return &_REENT->_errno;
-  // return &errnum;
-}
+/**
+   MALLOC TEST
+   Works well with newlib malloc routine.
 */
 
 int malloc_test()
 {
-  void *alloc;
-
-  alloc = (void *)malloc(256); // allocate 32 bytes
-
-  if (alloc == NULL)
-    return -1;
-  else
-    return (int) alloc;
+  int *alloc;
+  int *mpi = (int*)0xFFFFFFFF;
+  alloc = malloc(8 * sizeof(int)); // allocate 32 byte
+  *mpi = _REENT->_errno; // for debugging purpose
+  return (alloc == NULL) ? -1 : 0;
 }
 
 /**
@@ -313,14 +307,14 @@ int main ()
   aemb_enable_interrupt();
 
   // INT TEST
-  //if (int_test() == -1) { *mpi = 0x4641494C; }
+  if (int_test() == -1) { *mpi = 0x4641494C; }
 
   // TEST MALLOC
   if (malloc_test() == -1) { *mpi = 0x4641494C; }
 
   // FSL TEST
   //if (fsl_test() == -1) { *mpi = 0x4641494C; }
-
+  
   // Fibonacci Test
   if (fib_test(max) == -1) { *mpi = 0x4641494C; }
 
@@ -340,6 +334,9 @@ int main ()
 /*
   HISTORY
   $Log: not supported by cvs2svn $
+  Revision 1.14  2007/12/28 21:44:04  sybreon
+  Added malloc() test
+
   Revision 1.13  2007/12/11 00:44:31  sybreon
   Modified for AEMB2
   
