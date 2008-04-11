@@ -1,4 +1,4 @@
-/* $Id: msr.hh,v 1.1 2008-04-09 19:48:37 sybreon Exp $
+/* $Id: msr.hh,v 1.2 2008-04-11 11:48:37 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -54,7 +54,7 @@ namespace aemb {
   inline int getMSR()
   {
     int rmsr;
-    asm ("mfs %0, rmsr":"=r"(rmsr));
+    asm volatile ("mfs %0, rmsr":"=r"(rmsr));
     return rmsr;
   }
   
@@ -65,12 +65,36 @@ namespace aemb {
   
   inline void setMSR(int rmsr)
   {
-    asm ("mts rmsr, %0"::"r"(rmsr));
+    asm volatile ("mts rmsr, %0"::"r"(rmsr));
   }
+
+  /**
+  Enable global interrupts
+  */
+  inline void enableInterrupts()
+  {
+    int rmsr = getMSR();
+    rmsr |= MSR_IE;
+    setMSR(rmsr);
+  }
+
+  /**
+  Disable global interrupts
+  */
+  inline void disableInterrupts()
+  {
+    int rmsr = getMSR();
+    rmsr &= ~MSR_IE;
+    setMSR(rmsr);
+  }
+  
 
 };
 #endif
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.1  2008/04/09 19:48:37  sybreon
+  Added new C++ files
+
 */
