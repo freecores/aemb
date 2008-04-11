@@ -1,4 +1,4 @@
-/* $Id: msr.hh,v 1.2 2008-04-11 11:48:37 sybreon Exp $
+/* $Id: msr.hh,v 1.3 2008-04-11 12:24:12 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -61,39 +61,39 @@ namespace aemb {
   /**
   Write a value to the MSR register
   @param rmsr value to write
-  */
-  
-  inline void setMSR(int rmsr)
-  {
-    asm volatile ("mts rmsr, %0"::"r"(rmsr));
+  */  
+
+  inline void setMSR(int rmsr) 
+  { 
+    asm volatile ("mts rmsr, %0"::"r"(rmsr)); 
   }
 
-  /**
-  Enable global interrupts
-  */
-  inline void enableInterrupts()
-  {
-    int rmsr = getMSR();
-    rmsr |= MSR_IE;
-    setMSR(rmsr);
-  }
+  /** Enable global interrupts */
+  inline void enableInterrupts() { setMSR(getMSR() | MSR_IE); }
 
-  /**
-  Disable global interrupts
-  */
-  inline void disableInterrupts()
-  {
-    int rmsr = getMSR();
-    rmsr &= ~MSR_IE;
-    setMSR(rmsr);
-  }
-  
+  /** Disable global interrupts */
+  inline void disableInterrupts() { setMSR(getMSR() & ~MSR_IE); }
+
+  /** Enable data caches */
+  inline void enableDataCache() { setMSR(getMSR() | MSR_DCE); }
+
+  /** Disable data caches */  
+  inline void disableDataCache()  { setMSR(getMSR() & ~MSR_DCE); }
+
+  /** Enable inst caches */
+  inline void enableInstCache() { setMSR(getMSR() | MSR_ICE); }
+
+  /** Disable inst caches */  
+  inline void disableInstCache()  { setMSR(getMSR() & ~MSR_ICE); }
 
 };
 #endif
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.2  2008/04/11 11:48:37  sybreon
+  added interrupt controls (may need to be factorised out)
+
   Revision 1.1  2008/04/09 19:48:37  sybreon
   Added new C++ files
 
