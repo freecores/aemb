@@ -1,4 +1,4 @@
-/* $Id: thread.hh,v 1.1 2008-04-09 19:48:37 sybreon Exp $
+/* $Id: thread.hh,v 1.2 2008-04-11 11:34:30 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -80,14 +80,14 @@ namespace aemb {
   a specialised add/sub/load register.
   */
   
-  class Semaphore {
+  class semaphore {
     volatile int _sem; ///< Semaphore in Memory
   public:
     /**
     Preload the semaphore
     @param pval preload value
     */
-    Semaphore(int pval) { _sem = pval; } 
+    semaphore(int pval) { _sem = pval; } 
     
     /**
     Increment the semaphore
@@ -108,4 +108,7 @@ namespace aemb {
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.1  2008/04/09 19:48:37  sybreon
+  Added new C++ files
+
 */
