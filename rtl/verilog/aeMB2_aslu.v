@@ -1,4 +1,4 @@
-/* $Id: aeMB2_aslu.v,v 1.9 2008-01-09 19:17:33 sybreon Exp $
+/* $Id: aeMB2_aslu.v,v 1.10 2008-04-11 15:53:43 sybreon Exp $
 **
 ** AEMB2 INTEGER ARITHMETIC SHIFT LOGIC UNIT
 ** 
@@ -122,9 +122,9 @@ module aeMB2_aslu (/*AUTOARG*/
     MSR bits
     31 - CC (carry copy)
     
-    10 - HTE (hardware thread enabled)
-     9 - PHA (current phase)
-     8 - TXE (enable threads)
+    30 - HTE (hardware thread enabled)
+    29 - PHA (current phase)
+    28 - TXE (enable threads)
     
      7 - DCE (data cache enable)   
      5 - ICE (instruction cache enable)
@@ -137,13 +137,12 @@ module aeMB2_aslu (/*AUTOARG*/
     
     */
 
-   wire [31:0] 		wMSR = {rMSR_C, // MSR_CC
-				
-				20'd0, // Reserved
-				
+   wire [31:0] 		wMSR = {rMSR_C, // MSR_CC								
 				TXE[0], // (PVR)
 				pha_i, // (EIP)
 				TXE[0], // (EE)
+
+				20'd0, // Reserved
 				
 				dwb_tga_o, // MSR_DCE
 				1'b0, // reserved for DZ
@@ -563,6 +562,9 @@ module aeMB2_aslu (/*AUTOARG*/
 endmodule // aeMB2_aslu
 
 /* $Log: not supported by cvs2svn $
+/* Revision 1.9  2008/01/09 19:17:33  sybreon
+/* Made multiplier pause with pipeline
+/*
 /* Revision 1.8  2008/01/09 19:12:59  sybreon
 /* multiplier issues
 /*

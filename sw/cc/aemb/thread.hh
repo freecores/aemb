@@ -1,4 +1,4 @@
-/* $Id: thread.hh,v 1.2 2008-04-11 11:34:30 sybreon Exp $
+/* $Id: thread.hh,v 1.3 2008-04-11 15:53:24 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -42,7 +42,7 @@ namespace aemb {
   inline bool isThread1() 
   {
     int rmsr = aemb::getMSR();
-    return ((rmsr & aemb::MSR_HTE) and (rmsr & aemb::MSR_PHA));
+    return ((rmsr & aemb::MSR_HTX) && (rmsr & aemb::MSR_HTP));
   }
   
   /**
@@ -53,7 +53,7 @@ namespace aemb {
   inline bool isThread0()
   {
     int rmsr = aemb::getMSR();
-    return ((rmsr & aemb::MSR_HTE) and (not (rmsr & aemb::MSR_PHA)));
+    return ((rmsr & aemb::MSR_HTX) && (!(rmsr & aemb::MSR_HTP)));
   }
   
   /**
@@ -63,7 +63,7 @@ namespace aemb {
   inline bool isThreaded()
   {
     int rmsr = aemb::getMSR();
-    return (rmsr & aemb::MSR_HTE);
+    return (rmsr & aemb::MSR_HTX);
   }
   
   // TODO: Extend this library to include threading mechanisms such as
@@ -108,6 +108,9 @@ namespace aemb {
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.2  2008/04/11 11:34:30  sybreon
+  changed semaphore case
+
   Revision 1.1  2008/04/09 19:48:37  sybreon
   Added new C++ files
 

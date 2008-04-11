@@ -1,4 +1,4 @@
-/* $Id: msr.hh,v 1.3 2008-04-11 12:24:12 sybreon Exp $
+/* $Id: msr.hh,v 1.4 2008-04-11 15:53:03 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -42,9 +42,9 @@ namespace aemb {
   const int MSR_DZ  = 0x00000040; ///< Division by Zero
   const int MSR_DCE = 0x00000080; ///< Data Cache Enable
 
-  const int MSR_TXE = 0x00000100; ///< thread enable
-  const int MSR_PHA = 0x00000200; ///< thread phase
-  const int MSR_HTE = 0x00000400; ///< hardware thread capable
+  const int MSR_HTE = 0x10000000; ///< Hardware Threads Enable
+  const int MSR_HTP = 0x20000000; ///< Hardware Thread Phase
+  const int MSR_HTX = 0x40000000; ///< Hardware Threads Extension
 
   /**
   Read the value of the MSR register
@@ -91,6 +91,9 @@ namespace aemb {
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.3  2008/04/11 12:24:12  sybreon
+  added cache controls
+
   Revision 1.2  2008/04/11 11:48:37  sybreon
   added interrupt controls (may need to be factorised out)
 
