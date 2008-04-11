@@ -1,4 +1,4 @@
-/* $Id: hook.hh,v 1.1 2008-04-09 19:48:37 sybreon Exp $
+/* $Id: hook.hh,v 1.2 2008-04-11 15:20:31 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -28,18 +28,24 @@
    be compiled with optimisations turned on (at least -O1).
  */
 
-#include "aemb/msr.hh"
 #include "aemb/stack.hh"
 #include "aemb/heap.hh"
 #include "aemb/thread.hh"
+
+#ifndef __OPTIMIZE__
+// ugly hack to check if optimisation is used.
+OPTIMISATION_REQUIRED XXX
+#endif
 
 #ifndef AEMB_HOOK_HH
 #define AEMB_HOOK_HH
 
 namespace aemb {
 
-  void hookProgramInit() asm ("_program_init"); // hook aliasing
-  void hookProgramClean() asm ("_program_clean"); // hook aliasing
+  //void hookProgramInit() asm ("_program_init"); // hook aliasing
+  //void hookProgramClean() asm ("_program_clean"); // hook aliasing
+  extern "C" void _program_init();
+  extern "C" void _program_clean();
 
   /**
   Finalisation hook
@@ -49,7 +55,8 @@ namespace aemb {
   during initialisation.
   */
   
-  void hookProgramClean()
+  //void hookProgramClean()
+  void _program_clean()
   {     
     if (aemb::isThread1()) {    
       // unify the stack backwards
@@ -69,7 +76,8 @@ namespace aemb {
   between the threads.
   */
   
-  void hookProgramInit() 
+  //void hookProgramInit() 
+  void _program_init()
   {
     if (aemb::isThread1()) {  // check if PHASE 1    
       // split and shift the stack
@@ -86,4 +94,7 @@ namespace aemb {
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.1  2008/04/09 19:48:37  sybreon
+  Added new C++ files
+
 */
