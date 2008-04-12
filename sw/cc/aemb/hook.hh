@@ -1,4 +1,4 @@
-/* $Id: hook.hh,v 1.2 2008-04-11 15:20:31 sybreon Exp $
+/* $Id: hook.hh,v 1.3 2008-04-12 13:46:02 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -23,77 +23,110 @@
    Basic begin/end hooks
    @file hook.hh  
 
-   These routines hook themselves onto the startup and ending parts of
-   the main programme. In order to use it, the main programme needs to
-   be compiled with optimisations turned on (at least -O1).
+   These routines hook themselves onto parts of the main programme to
+   enable the hardware threads to work properly. 
  */
 
 #include "aemb/stack.hh"
 #include "aemb/heap.hh"
 #include "aemb/thread.hh"
 
-#ifndef __OPTIMIZE__
-// ugly hack to check if optimisation is used.
-OPTIMISATION_REQUIRED XXX
-#endif
-
 #ifndef AEMB_HOOK_HH
 #define AEMB_HOOK_HH
 
 namespace aemb {
 
-  //void hookProgramInit() asm ("_program_init"); // hook aliasing
-  //void hookProgramClean() asm ("_program_clean"); // hook aliasing
   extern "C" void _program_init();
   extern "C" void _program_clean();
+  extern "C" void __malloc_lock();
+  extern "C" void __malloc_unlock();
+  extern "C" void __env_lock();
+  extern "C" void __env_unlock();
 
   /**
-  Finalisation hook
-  
-  This function executes during the shutdown phase after the
-  finalisation routine is called. It will merge the changes made
-  during initialisation.
+     Finalisation hook
+     
+     This function executes during the shutdown phase after the
+     finalisation routine is called. It will merge the changes made
+     during initialisation.
   */
   
-  //void hookProgramClean()
   void _program_clean()
   {     
-    if (aemb::isThread1()) {    
-      // unify the stack backwards
-      aemb::setStack(aemb::getStack() + 
-			 (aemb::getStackSize() >> 1));
-      
-      // FIXME: unify the heap
-      
-    }
+    // unify the stack backwards for thread 1
+    if (aemb::isThread1()) 
+      {
+	aemb::setStack(aemb::getStack() + (aemb::getStackSize() >> 1));        
+      }
   }
   
   /**
-  Initialisation hook
+     Initialisation hook
   
-  This function executes during the startup phase before the
-  initialisation routine is called. It splits the heap and stack
-  between the threads.
+     This function executes during the startup phase before the
+     initialisation routine is called. It splits the stack between the
+     threads.
   */
   
-  //void hookProgramInit() 
   void _program_init()
   {
-    if (aemb::isThread1()) {  // check if PHASE 1    
-      // split and shift the stack
-      aemb::setStack(aemb::getStack() - 
-			 (aemb::getStackSize() >> 1));
-      
-      // FIXME: split and shift the heap
-      
-    }      
+    // split and shift the stack for thread 1
+    if (aemb::isThread1()) 
+      {
+	aemb::setStack(aemb::getStack() - (aemb::getStackSize() >> 1));   
+      }
+    else
+      {
+	for(int i=0; i<10; ++i) 
+	  {
+	    asm volatile ("nop"); // delay loop to offset thread 0
+	  }
+      }
   }
-};
 
+  // FIXME: Implement with a single hardware mutex
+
+  semaphore __malloc_mutex(1); ///< private mutex
+
+  /**
+     Heap Lock
+
+     This function is called during malloc() to lock out the shared
+     heap to avoid data corruption.
+   */
+
+  void __malloc_lock()
+  {
+    __malloc_mutex.wait();
+  }
+
+  /**
+     Heap Unlock
+
+     This function is called during malloc() to indicate that the
+     shared heap is now available for another thread.
+  */
+
+  void __malloc_unlock()
+  {
+    __malloc_mutex.signal();
+  }
+  
+}
+
+#endif
+
+#ifndef __OPTIMIZE__
+// The main programme needs to be compiled with optimisations turned
+// on (at least -O1).
+OPTIMISATION_REQUIRED XXX
 #endif
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.2  2008/04/11 15:20:31  sybreon
+  added static assert hack
+
   Revision 1.1  2008/04/09 19:48:37  sybreon
   Added new C++ files
 
