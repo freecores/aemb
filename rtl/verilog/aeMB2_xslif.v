@@ -1,4 +1,4 @@
-/* $Id: aeMB2_xslif.v,v 1.1 2008-04-18 00:21:52 sybreon Exp $
+/* $Id: aeMB2_xslif.v,v 1.2 2008-04-20 16:34:32 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -65,61 +65,34 @@ module aeMB2_xslif (/*AUTOARG*/
    
    /*AUTOREG*/
    // Beginning of automatic regs (for this module's undeclared outputs)
+   reg [AEMB_XWB+1:2]	xwb_adr_o;
    reg [31:0]		xwb_dat_o;
    reg [31:0]		xwb_mx;
+   reg			xwb_tag_o;
+   reg			xwb_wre_o;
    // End of automatics
-
-   reg [3:0] 		xSEL;   
-   reg			xSTB, xTAG, xWRE, xACK;      
-   reg [AEMB_XWB+1:2] 	xADR;   
-
-   assign 		xwb_sel_o = (AEMB_XSL[0]) ? xSEL : 4'hX;
-   assign 		xwb_stb_o = (AEMB_XSL[0]) ? xSTB : 1'b0;
-   assign 		xwb_cyc_o = xwb_stb_o;   
-   assign 		xwb_wre_o = (AEMB_XSL[0]) ? xWRE : 1'bX;
-   assign 		xwb_tag_o = (AEMB_XSL[0]) ? xTAG : 1'bX;
-   assign 		xwb_adr_o = (AEMB_XSL[0]) ? xADR :
-				    {(AEMB_XWB){1'bX}};   
-
+   
    // ENABLE FEEDBACK
-   assign 		xwb_fb = (!xwb_stb_o | xwb_ack_i | xACK); 
-
-   // Independent on pipeline
-   reg [31:0] 		xwb_lat;   
-   always @(posedge gclk)
-     if (grst) begin
-	/*AUTORESET*/
-	// Beginning of autoreset for uninitialized flops
-	xwb_lat <= 32'h0;
-	// End of automatics
-     end else if (xwb_stb_o & (xwb_ack_i | xACK)) begin
-	// LATCH READS	
-	xwb_lat <= #1 xwb_dat_i;	
-     end
-      
+   assign 		xwb_fb = (AEMB_XSL[0]) ? 
+				 (xwb_stb_o ~^ xwb_ack_i) : 
+				 1'b1; 
+   // FIXME: perform NGET/NPUT checks
+   
    // XSEL bus
    always @(posedge gclk)
      if (grst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
-	xACK <= 1'h0;
-	xADR <= {(1+(AEMB_XWB+1)-(2)){1'b0}};
-	xSEL <= 4'h0;
-	xTAG <= 1'h0;
-	xWRE <= 1'h0;
+	xwb_adr_o <= {(1+(AEMB_XWB+1)-(2)){1'b0}};
 	xwb_dat_o <= 32'h0;
-	xwb_mx <= 32'h0;
+	xwb_tag_o <= 1'h0;
+	xwb_wre_o <= 1'h0;
 	// End of automatics
      end else if (dena) begin // if (grst)	
 
-	xwb_mx <= #1 (xwb_stb_o & (xwb_ack_i | xACK)) ?
-		  xwb_dat_i : xwb_lat;	
-	
-	xADR <= #1 imm_of[11:0]; // FSLx	
-	xWRE <= #1 imm_of[15]; // PUT
-	xACK <= #1 imm_of[14]; // nGET/nPUT	
-	xTAG <= #1 imm_of[13]; // cGET/cPUT
-	xSEL <= #1 4'hF; // 32-bit transfers only
+	xwb_adr_o <= #1 (AEMB_XSL[0]) ? imm_of[11:0] : {(AEMB_XWB-2){1'bX}}; // FSLx	
+	xwb_wre_o <= #1 (AEMB_XSL[0]) ? imm_of[15] : 1'bX; // PUT
+	xwb_tag_o <= #1 (AEMB_XSL[0]) ? imm_of[13] : 1'bX; // cGET/cPUT	
 
 	case (opc_of[1:0])
 	  2'o3: xwb_dat_o <= #1 opa_of;
@@ -128,18 +101,42 @@ module aeMB2_xslif (/*AUTOARG*/
 	
      end // if (dena)
 
-   // dislocate from pipeline
+   assign xwb_sel_o = (AEMB_XSL[0]) ? 4'hF : 4'hX;   
+   
+   // Independent on pipeline
+   reg 			xBLK;
+   reg 			xSTB;
+
    always @(posedge gclk)
      if (grst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
+	xwb_mx <= 32'h0;
+	// End of automatics
+     end else if (xwb_ack_i | xBLK) begin
+	xwb_mx <= #1 xwb_dat_i;	
+     end      
+   
+   always @(posedge gclk)
+     if (grst) begin
+	/*AUTORESET*/
+	// Beginning of autoreset for uninitialized flops
+	xBLK <= 1'h0;
 	xSTB <= 1'h0;
 	// End of automatics
-     end else begin
+     end else if (xwb_fb) begin
+	xBLK <= #1 (AEMB_XSL[0]) ? imm_of[14] : 1'b0; // nGET/nPUT	
 	xSTB <= #1 (dena) ? &{!opc_of[5],opc_of[4:3]} : // GET/PUT
-		(xSTB & !xwb_ack_i);	
+		     (xwb_stb_o & !xwb_ack_i);	
      end
+
+   assign xwb_cyc_o = xwb_stb_o;
+   assign xwb_stb_o = (AEMB_XSL[0]) ? xSTB : 1'bX;
+   
    
 endmodule // aeMB2_memif
 
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/04/18 00:21:52  sybreon
+// Initial import.
+//

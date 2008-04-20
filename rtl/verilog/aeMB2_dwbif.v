@@ -1,4 +1,4 @@
-/* $Id: aeMB2_dwbif.v,v 1.1 2008-04-18 00:21:52 sybreon Exp $
+/* $Id: aeMB2_dwbif.v,v 1.2 2008-04-20 16:34:32 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -83,7 +83,7 @@ module aeMB2_dwbif (/*AUTOARG*/
    wire [3:0] 		wSEL = {opc_of[1:0], wOFF};
    
    // ENABLE FEEDBACK
-   assign 		dwb_fb = (!dwb_stb_o | dwb_ack_i);   
+   assign 		dwb_fb = (dwb_stb_o ~^ dwb_ack_i);   
 
    // Independent on pipeline
    reg [31:0] 		dwb_lat;
@@ -92,11 +92,11 @@ module aeMB2_dwbif (/*AUTOARG*/
      if (grst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
-	dwb_lat <= 32'h0;
+	dwb_mx <= 32'h0;
 	// End of automatics
-     end else if (dwb_ack_i & dwb_stb_o) begin
+     end else if (dwb_ack_i) begin
 	// LATCH READS
-	dwb_lat <= #1 dwb_dat_i;
+	dwb_mx <= #1 dwb_dat_i;	
      end
       
    // DATA bus
@@ -123,7 +123,6 @@ module aeMB2_dwbif (/*AUTOARG*/
      if (grst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
-	dwb_mx <= 32'h0;
 	dwb_sel_o <= 4'h0;
 	dwb_tag_o <= 1'h0;
 	dwb_wre_o <= 1'h0;
@@ -134,7 +133,8 @@ module aeMB2_dwbif (/*AUTOARG*/
 	dwb_tag_o <= #1 msr_ex[7]; // DCE	
 	dwb_wre_o <= #1 opc_of[2]; // SXX
 
-	dwb_mx <= #1 (dwb_stb_o & dwb_ack_i) ? dwb_dat_i : dwb_lat;	
+	//dwb_mx <= #1 (dwb_stb_o & dwb_ack_i) ? 
+	// dwb_dat_i : dwb_lat;	
 	
 	case (wSEL)
 	  // 32'bit
@@ -172,3 +172,6 @@ module aeMB2_dwbif (/*AUTOARG*/
 endmodule // aeMB2_memif
 
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/04/18 00:21:52  sybreon
+// Initial import.
+//

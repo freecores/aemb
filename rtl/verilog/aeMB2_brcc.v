@@ -1,4 +1,4 @@
-/* $Id: aeMB2_brcc.v,v 1.1 2008-04-18 00:21:52 sybreon Exp $
+/* $Id: aeMB2_brcc.v,v 1.2 2008-04-20 16:34:32 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -32,8 +32,10 @@ module aeMB2_brcc (/*AUTOARG*/
    // Outputs
    bra_ex,
    // Inputs
-   opd_of, ra_of, rd_of, opc_of, gclk, grst, dena, gpha
-   );      
+   opd_of, ra_of, rd_of, opc_of, gclk, grst, dena, iena, gpha
+   );
+   parameter AEMB_HTX = 1;   
+   
    input [31:0] opd_of;   
    input [4:0] 	ra_of;
    input [4:0] 	rd_of;
@@ -45,6 +47,7 @@ module aeMB2_brcc (/*AUTOARG*/
    input 	gclk,
 		grst,
 		dena,
+		iena,
 		gpha;      
 
    /*AUTOREG*/
@@ -89,9 +92,12 @@ module aeMB2_brcc (/*AUTOARG*/
 	// End of automatics
      end else if (dena) begin
 	bra_ex[1] <= #1 (wRTD | wBRU | (wBCC & xcc)); // branch
-	bra_ex[0] <= #1 (wBCC) ? rd_of[4] : ra_of[4]; // delay	
+	bra_ex[0] <= #1 (wBRU) ? ra_of[4] : rd_of[4]; // delay	
      end
       
 endmodule // aeMB2_brcc
 
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/04/18 00:21:52  sybreon
+// Initial import.
+//

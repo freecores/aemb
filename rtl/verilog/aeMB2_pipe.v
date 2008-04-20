@@ -1,4 +1,4 @@
-/* $Id: aeMB2_pipe.v,v 1.1 2008-04-18 00:21:52 sybreon Exp $
+/* $Id: aeMB2_pipe.v,v 1.2 2008-04-20 16:34:32 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -32,8 +32,8 @@ module aeMB2_pipe (/*AUTOARG*/
    // Outputs
    gpha, gclk, grst, dena, iena,
    // Inputs
-   bra_ex, dwb_fb, xwb_fb, ich_fb, fet_fb, sys_clk_i, sys_rst_i,
-   sys_ena_i
+   bra_ex, dwb_fb, xwb_fb, ich_fb, fet_fb, iwb_ack_i, sys_clk_i,
+   sys_rst_i, sys_ena_i
    );
    parameter AEMB_HTX = 1;   
 
@@ -41,7 +41,9 @@ module aeMB2_pipe (/*AUTOARG*/
    input       dwb_fb;
    input       xwb_fb;   
    input       ich_fb;
-   input       fet_fb;   
+   input       fet_fb;
+   input       iwb_ack_i;
+   
    output      gpha,
 	       gclk,
 	       grst,
@@ -57,17 +59,25 @@ module aeMB2_pipe (/*AUTOARG*/
    reg			gpha;
    // End of automatics
    reg [1:0] 		rst;   
-
+   reg 			por;
+   reg 			fet;
+   reg 			hit;   
+   
    // Instantiate clock/reset managers
    assign 		gclk = sys_clk_i;
    assign 		grst = !rst[1];
 
    // run instruction side pipeline
-   assign 		iena = fet_fb & xwb_fb & dwb_fb & sys_ena_i;
+   assign 		iena = ich_fb &
+			       xwb_fb & 
+			       dwb_fb & 
+			       sys_ena_i;
    // run data side pipeline
-   //assign 		dena = ((dwb_fb & xwb_fb & ich_fb) | bra_ex[1]) & sys_ena_i; 
-   assign 		dena = dwb_fb & xwb_fb & ich_fb & sys_ena_i; 
-   
+   assign 		dena = dwb_fb & 
+			       xwb_fb & 
+			       ich_fb &
+			       sys_ena_i;
+
    // RESET DELAY
    always @(posedge sys_clk_i)
      if (sys_rst_i) begin
@@ -77,6 +87,7 @@ module aeMB2_pipe (/*AUTOARG*/
 	// End of automatics
      end else begin
 	rst <= #1 {rst[0], !sys_rst_i};
+	//hit <= #1 ich_fb;	
      end
 
    // PHASE TOGGLE
@@ -87,9 +98,12 @@ module aeMB2_pipe (/*AUTOARG*/
 	gpha <= 1'h0;
 	// End of automatics
      end else if (dena | grst) begin
-	gpha <= #1 !gpha;	
+	gpha <= #1 !gpha;
      end
    
 endmodule // aeMB2_pipe
 
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/04/18 00:21:52  sybreon
+// Initial import.
+//

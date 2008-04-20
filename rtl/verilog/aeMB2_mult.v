@@ -1,4 +1,4 @@
-/* $Id: aeMB2_mult.v,v 1.1 2008-04-18 00:21:52 sybreon Exp $
+/* $Id: aeMB2_mult.v,v 1.2 2008-04-20 16:34:32 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -51,23 +51,26 @@ module aeMB2_mult (/*AUTOARG*/
 
    /*AUTOREG*/
    
-   reg [31:0] 	 rMULA, 
-		 rMULB;
+   reg [31:0] 	 rMUL0, 
+		 rMUL1;
 
-   assign 	 mul_mx = (AEMB_MUL[0]) ? rMULB : 32'hX;   
-   
    always @(posedge gclk)
      if (grst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
-	rMULA <= 32'h0;
-	rMULB <= 32'h0;
+	rMUL0 <= 32'h0;
+	rMUL1 <= 32'h0;
 	// End of automatics
      end else if (dena) begin
-	rMULB <= #1 rMULA;
-	rMULA <= #1 (opa_of * opb_of);
+	rMUL1 <= #1 rMUL0;	
+	rMUL0 <= #1 (AEMB_MUL[0]) ? (opa_of * opb_of) : 32'hX;
      end
-   
+
+   assign 	 mul_mx = rMUL1;
+      
 endmodule // aeMB2_mult
 
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/04/18 00:21:52  sybreon
+// Initial import.
+//

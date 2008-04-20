@@ -1,4 +1,4 @@
-/* $Id: aeMB2_edk62.v,v 1.1 2008-04-18 00:21:52 sybreon Exp $
+/* $Id: aeMB2_edk62.v,v 1.2 2008-04-20 16:34:32 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -32,8 +32,8 @@ module aeMB2_edk62 (/*AUTOARG*/
    // Outputs
    xwb_wre_o, xwb_tag_o, xwb_stb_o, xwb_sel_o, xwb_dat_o, xwb_cyc_o,
    xwb_adr_o, iwb_wre_o, iwb_stb_o, iwb_sel_o, iwb_cyc_o, iwb_adr_o,
-   dwb_wre_o, dwb_tag_o, dwb_stb_o, dwb_sel_o, dwb_dat_o, dwb_cyc_o,
-   dwb_adr_o,
+   ich_stb, dwb_wre_o, dwb_tag_o, dwb_stb_o, dwb_sel_o, dwb_dat_o,
+   dwb_cyc_o, dwb_adr_o,
    // Inputs
    xwb_dat_i, xwb_ack_i, sys_rst_i, sys_ena_i, sys_clk_i, iwb_dat_i,
    iwb_ack_i, dwb_dat_i, dwb_ack_i, alu_c
@@ -41,11 +41,12 @@ module aeMB2_edk62 (/*AUTOARG*/
    parameter AEMB_IWB = 32; ///< INST bus width
    parameter AEMB_DWB = 32; ///< DATA bus width
    parameter AEMB_XWB = 3; ///< XSEL bus width
-
+  
    parameter AEMB_HTX = 1; ///< hardware thread extension
    
    parameter AEMB_ICH = 11; ///< instruction cache size
-      
+   parameter AEMB_IDX = 6; ///< cache index size
+   
    parameter AEMB_BSF = 1; ///< implement barrel shift
    parameter AEMB_MUL = 1; ///< implement multiplier
    parameter AEMB_XSL = 1; ///< implement XSL bus
@@ -59,6 +60,7 @@ module aeMB2_edk62 (/*AUTOARG*/
    output		dwb_stb_o;		// From memif0 of aeMB2_memif.v
    output		dwb_tag_o;		// From memif0 of aeMB2_memif.v
    output		dwb_wre_o;		// From memif0 of aeMB2_memif.v
+   output		ich_stb;		// From iwbif0 of aeMB2_iwbif.v
    output [AEMB_IWB-1:2] iwb_adr_o;		// From iwbif0 of aeMB2_iwbif.v
    output		iwb_cyc_o;		// From iwbif0 of aeMB2_iwbif.v
    output [3:0]		iwb_sel_o;		// From iwbif0 of aeMB2_iwbif.v
@@ -77,7 +79,7 @@ module aeMB2_edk62 (/*AUTOARG*/
    input		alu_c;			// To regs0 of aeMB2_regs.v
    input		dwb_ack_i;		// To memif0 of aeMB2_memif.v
    input [31:0]		dwb_dat_i;		// To memif0 of aeMB2_memif.v
-   input		iwb_ack_i;		// To iche0 of aeMB2_iche.v, ...
+   input		iwb_ack_i;		// To pip0 of aeMB2_pipe.v, ...
    input [31:0]		iwb_dat_i;		// To iche0 of aeMB2_iche.v, ...
    input		sys_clk_i;		// To pip0 of aeMB2_pipe.v
    input		sys_ena_i;		// To pip0 of aeMB2_pipe.v
@@ -104,7 +106,6 @@ module aeMB2_edk62 (/*AUTOARG*/
    wire [AEMB_IWB-1:2]	ich_adr;		// From iwbif0 of aeMB2_iwbif.v
    wire [31:0]		ich_dat;		// From iche0 of aeMB2_iche.v
    wire			ich_fb;			// From iche0 of aeMB2_iche.v
-   wire			ich_fil;		// From iwbif0 of aeMB2_iwbif.v
    wire			ich_hit;		// From iche0 of aeMB2_iche.v
    wire			iena;			// From pip0 of aeMB2_pipe.v
    wire [15:0]		imm_of;			// From ctrl0 of aeMB2_ctrl.v
@@ -147,6 +148,7 @@ module aeMB2_edk62 (/*AUTOARG*/
 	.xwb_fb				(xwb_fb),
 	.ich_fb				(ich_fb),
 	.fet_fb				(fet_fb),
+	.iwb_ack_i			(iwb_ack_i),
 	.sys_clk_i			(sys_clk_i),
 	.sys_rst_i			(sys_rst_i),
 	.sys_ena_i			(sys_ena_i));   
@@ -156,6 +158,7 @@ module aeMB2_edk62 (/*AUTOARG*/
        // Parameters
        .AEMB_IWB			(AEMB_IWB),
        .AEMB_ICH			(AEMB_ICH),
+       .AEMB_IDX			(AEMB_IDX),
        .AEMB_HTX			(AEMB_HTX))
    iche0
      (/*AUTOINST*/
@@ -165,10 +168,8 @@ module aeMB2_edk62 (/*AUTOARG*/
       .ich_fb				(ich_fb),
       // Inputs
       .ich_adr				(ich_adr[AEMB_IWB-1:2]),
-      .ich_fil				(ich_fil),
       .iwb_dat_i			(iwb_dat_i[31:0]),
       .iwb_ack_i			(iwb_ack_i),
-      .rpc_if				(rpc_if[31:2]),
       .gclk				(gclk),
       .grst				(grst),
       .iena				(iena),
@@ -188,7 +189,7 @@ module aeMB2_edk62 (/*AUTOARG*/
       .iwb_wre_o			(iwb_wre_o),
       .iwb_cyc_o			(iwb_cyc_o),
       .ich_adr				(ich_adr[AEMB_IWB-1:2]),
-      .ich_fil				(ich_fil),
+      .ich_stb				(ich_stb),
       .fet_fb				(fet_fb),
       .rpc_if				(rpc_if[31:2]),
       .rpc_mx				(rpc_mx[31:2]),
@@ -240,7 +241,9 @@ module aeMB2_edk62 (/*AUTOARG*/
       .gpha				(gpha));
 
    aeMB2_brcc
-     #(/*AUTOINSTPARAM*/)
+     #(/*AUTOINSTPARAM*/
+       // Parameters
+       .AEMB_HTX			(AEMB_HTX))
    brcc0
      (/*AUTOINST*/
       // Outputs
@@ -253,6 +256,7 @@ module aeMB2_edk62 (/*AUTOARG*/
       .gclk				(gclk),
       .grst				(grst),
       .dena				(dena),
+      .iena				(iena),
       .gpha				(gpha));   
 
    aeMB2_exec
@@ -369,3 +373,6 @@ module aeMB2_edk62 (/*AUTOARG*/
 endmodule // aeMB2_edk62
 
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/04/18 00:21:52  sybreon
+// Initial import.
+//

@@ -1,4 +1,4 @@
-/* $Id: aeMB2_ctrl.v,v 1.1 2008-04-18 00:21:52 sybreon Exp $
+/* $Id: aeMB2_ctrl.v,v 1.2 2008-04-20 16:34:32 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -216,12 +216,15 @@ module aeMB2_ctrl (/*AUTOARG*/
 				   ((wRD == rd_ex) & fSTR)) &
 				  fwd_ex & wrb_ex;   
 
+   reg [2:0] 		mux_mx;
+   
    always @(posedge gclk)
      if (grst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	fwd_ex <= 1'h0;
 	mux_ex <= 3'h0;
+	mux_mx <= 3'h0;
 	rd_ex <= 5'h0;
 	wrb_ex <= 1'h0;
 	// End of automatics
@@ -229,6 +232,7 @@ module aeMB2_ctrl (/*AUTOARG*/
 	wrb_ex <= #1 |rd_of & |mux_of; // FIXME: check mux	
 	fwd_ex <= #1 |mux_of; // FIXME: check mux
 
+	mux_mx <= #1 mux_ex;	
 	mux_ex <= #1 mux_of;	
 	rd_ex <= #1 rd_of;	
      end
@@ -282,3 +286,6 @@ module aeMB2_ctrl (/*AUTOARG*/
 endmodule // aeMB2_ctrl
 
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/04/18 00:21:52  sybreon
+// Initial import.
+//

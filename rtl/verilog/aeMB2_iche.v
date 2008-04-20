@@ -1,4 +1,4 @@
-/* $Id: aeMB2_iche.v,v 1.1 2008-04-18 00:21:52 sybreon Exp $
+/* $Id: aeMB2_iche.v,v 1.2 2008-04-20 16:34:32 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -23,113 +23,174 @@
  * Instruction Cache Block
  * @file aeMB2_iche.v
 
- * This is a non-optional instruction cache. If it is not enabled, the
-   processor will not work. It can be set to the size of a single
-   block of RAM to reduce resources.
+ * This is a non-optional instruction cache for single cycle
+   operations. The maximum line width is 16 words (512 bits)
+ 
+ * Single port synchronous RAM is used as the main cache DATA
+   block. A single port asynchronous RAM is used as the TAG block.
+
+ * The sizes need to be selected carefully to minimise resource
+   wastage. Details are provided in the documentation.
  
  */
+
+// 63@158 - X3S
 
 module aeMB2_iche (/*AUTOARG*/
    // Outputs
    ich_dat, ich_hit, ich_fb,
    // Inputs
-   ich_adr, ich_fil, iwb_dat_i, iwb_ack_i, rpc_if, gclk, grst, iena,
-   gpha
+   ich_adr, iwb_dat_i, iwb_ack_i, gclk, grst, iena, gpha
    );
    parameter AEMB_IWB = 32;   
    parameter AEMB_ICH = 11;
+   parameter AEMB_IDX = 6;   
    parameter AEMB_HTX = 1;   
    
    // Cache
    input [AEMB_IWB-1:2] ich_adr;
-   input 		ich_fil;   
    output [31:0] 	ich_dat;
-   output 		ich_hit;
-   output 		ich_fb;
+   output 		ich_hit; ///< cache hit
+   output 		ich_fb; ///< cache hit
    
    // Wishbone
    input [31:0] 	iwb_dat_i;
-   input 		iwb_ack_i;   
-
-   // Internal
-   input [31:2] 	rpc_if;   
+   input 		iwb_ack_i;
    
    // SYS signals
    input 		gclk,
 			grst,
 			iena,
 			gpha;      
+
+   // SOME MATH
+   localparam 		SIZ = AEMB_ICH-2; // 2^SIZ entries
+   localparam 		BLK = AEMB_ICH-AEMB_IDX; // 2^BLK blocks 
+   localparam 		LNE = AEMB_IDX-2; // 2^LNE lines per block
+       
+   localparam 		TAG = AEMB_IWB-AEMB_ICH; // TAG length
+   localparam 		VAL = (1<<LNE); // VAL values (max 16)
    
    /*AUTOWIRE*/
    /*AUTOREG*/
+   
+   assign 		ich_fb = ich_hit;
+   
+   // 1-of-X decoder
+   // FIXME: Make decoder dynamic.
+   // TODO: Factorise into primitive
+   reg [VAL:1] 		rDEC; 		
+   always @(/*AUTOSENSE*/ich_adr)
+     case (ich_adr[AEMB_IDX-1:2])
+       4'h0: rDEC <= #1 16'h0001;
+       4'h1: rDEC <= #1 16'h0002;
+       4'h2: rDEC <= #1 16'h0004;
+       4'h3: rDEC <= #1 16'h0008;
+       4'h4: rDEC <= #1 16'h0010;
+       4'h5: rDEC <= #1 16'h0020;
+       4'h6: rDEC <= #1 16'h0040;
+       4'h7: rDEC <= #1 16'h0080;
+       4'h8: rDEC <= #1 16'h0100;
+       4'h9: rDEC <= #1 16'h0200;
+       4'hA: rDEC <= #1 16'h0400;
+       4'hB: rDEC <= #1 16'h0800;
+       4'hC: rDEC <= #1 16'h1000;
+       4'hD: rDEC <= #1 16'h2000;
+       4'hE: rDEC <= #1 16'h4000;
+       4'hF: rDEC <= #1 16'h8000;      
+     endcase // case (ich_adr[5:2])
+   
+   wire [VAL:1] 	wDEC = rDEC[VAL:1]; // resize decoder   
 
-   wire 		wTAG_HIT, wCHK_HIT;   
-   wire [31:0] 		wODAT, wIDAT;
+   // explode the address bits
+   wire [SIZ:1] 	aLNE = ich_adr[AEMB_ICH-1:2]; // line address
+   wire [BLK:1] 	aTAG = ich_adr[AEMB_ICH-1:AEMB_IDX]; // block address   
+   wire [TAG:1] 	iTAG = ich_adr[AEMB_IWB-1:AEMB_ICH]; // current TAG value
+
+   wire [VAL:1] 	oVAL, iVAL;   
+   wire [TAG:1] 	oTAG; 		
    
-   wire [AEMB_IWB-1:AEMB_ICH-1] wTAG_RD, // Tags
-				wTAG_PC, 
-				wTAG_WR; 
-   wire [7:0] 			wCHK_RD, // Checks
-				wCHK_WR; 
-     
-   // TAGS AND HITS
-   assign 		ich_fb = ich_hit ;   
+   // HIT CHECKS
+   wire 		hTAG = (iTAG == oTAG);   
+			//((iTAG ^ oTAG) == {(TAG){1'b0}});
+   wire 		hVAL = |(oVAL & wDEC);   
+			//((oVAL & wDEC) != {(VAL){1'b0}});
    
-   assign 		wTAG_PC = rpc_if[AEMB_IWB-1:AEMB_ICH-1];
-   assign 		ich_hit = wCHK_HIT & wTAG_HIT;
-   
-   assign 		wTAG_HIT = (wTAG_PC == wTAG_RD);   
-   assign		wCHK_HIT = (wCHK_RD == 8'hAE); 
-   
-   assign 		wTAG_WR = ich_adr[AEMB_IWB-1:AEMB_ICH-1];
-   assign 		wCHK_WR = 8'hAE; // Magic code
-   // TODO: Play with the Magic codes
-   
-   // CACHE RAM INTERFACE
-   
-   // HTX is enabled, split the cache to avoid trashing.
-   assign 		{wTAG_RD, wCHK_RD} = wODAT;   
-   assign 		wIDAT = {32'd0, wTAG_WR, wCHK_WR};
-   
-   wire 		wWRE = iwb_ack_i & ich_fil;   
-   wire [AEMB_ICH-2:1] 	wTLNE = {ich_adr[AEMB_ICH-2:2], 1'b1};   
-   wire [AEMB_ICH-2:1] 	wDLNE = {ich_adr[AEMB_ICH-2:2], 1'b0};
-   
-   /* fasm_dpsram AUTO_TEMPLATE (
-    .xdat_o(wODAT),
-    .xdat_i(wIDAT),
-    .xwre_i(wWRE),
-    .xadr_i(wTLNE),
-    .xclk_i(gclk),
-    .xena_i(iena),
-    
-    .dat_o(ich_dat[31:0]),
+   assign 		ich_hit = hTAG & hVAL;
+   assign 		iVAL = (hTAG) ? // BLOCK/LINE fill check
+			       oVAL | wDEC : // LINE fill
+			       wDEC; // BLOCK replace
+		      
+   /* 
+    aeMB2_tpsram AUTO_TEMPLATE (
+    .dat_o(),
     .dat_i(iwb_dat_i[31:0]),
-    .adr_i(wDLNE),
-    .ena_i(iena),
+    .adr_i(aLNE[SIZ:1]),
+    .rst_i(),
+    .ena_i(iwb_ack_i),
     .clk_i(gclk),
-    .wre_i(wWRE),
-    ) */
-   
-   fasm_dpsram
-     #(.AW(AEMB_ICH-2), .DW(32))
-   cache0
+    .wre_i(iwb_ack_i),
+    
+    .xdat_o(ich_dat[31:0]),
+    .xdat_i(),    
+    .xadr_i(aLNE[SIZ:1]),
+    .xrst_i(grst),
+    .xena_i(iena),
+    .xclk_i(gclk),
+    .xwre_i(),            
+    ) 
+    
+    aeMB2_sparam AUTO_TEMPLATE (
+    .dat_o({oVAL, oTAG}),
+    .dat_i({iVAL, iTAG}),
+    .adr_i(aTAG[BLK:1]),
+    .ena_i(iwb_ack_i),
+    .clk_i(gclk),
+    .wre_i(iwb_ack_i),
+    )    
+    */
+
+   // CACHE TAG BLOCK
+   aeMB2_sparam
+     #(.AW(BLK), .DW(VAL+TAG))
+   tag0
      (/*AUTOINST*/
       // Outputs
-      .dat_o				(ich_dat[31:0]),	 // Templated
-      .xdat_o				(wODAT),		 // Templated
+      .dat_o				({oVAL, oTAG}),		 // Templated
       // Inputs
-      .adr_i				(wDLNE),		 // Templated
-      .dat_i				(iwb_dat_i[31:0]),	 // Templated
-      .wre_i				(wWRE),			 // Templated
-      .xadr_i				(wTLNE),		 // Templated
-      .xdat_i				(wIDAT),		 // Templated
-      .xwre_i				(wWRE),			 // Templated
+      .adr_i				(aTAG[BLK:1]),		 // Templated
+      .dat_i				({iVAL, iTAG}),		 // Templated
+      .wre_i				(iwb_ack_i),		 // Templated
       .clk_i				(gclk),			 // Templated
-      .ena_i				(iena),			 // Templated
-      .xclk_i				(gclk),			 // Templated
-      .xena_i				(iena));			 // Templated
+      .ena_i				(iwb_ack_i));		 // Templated
+
+   // CACHE DATA BLOCK   
+   // Writes on successful IWB bus transfers.
+   // Reads on pipeline enable.
+   aeMB2_tpsram
+     #(.AW(SIZ), .DW(32))
+   data0
+     (/*AUTOINST*/
+      // Outputs
+      .dat_o				(),			 // Templated
+      .xdat_o				(ich_dat[31:0]),	 // Templated
+      // Inputs
+      .adr_i				(aLNE[SIZ:1]),		 // Templated
+      .dat_i				(iwb_dat_i[31:0]),	 // Templated
+      .wre_i				(iwb_ack_i),		 // Templated
+      .ena_i				(iwb_ack_i),		 // Templated
+      .rst_i				(),			 // Templated
+      .clk_i				(gclk),			 // Templated
+      .xadr_i				(aLNE[SIZ:1]),		 // Templated
+      .xdat_i				(),			 // Templated
+      .xwre_i				(),			 // Templated
+      .xena_i				(iena),			 // Templated
+      .xrst_i				(grst),			 // Templated
+      .xclk_i				(gclk));			 // Templated
    
 endmodule // aeMB2_iche
 
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/04/18 00:21:52  sybreon
+// Initial import.
+//

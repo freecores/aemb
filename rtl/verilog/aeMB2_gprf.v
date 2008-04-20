@@ -1,4 +1,4 @@
-/* $Id: aeMB2_gprf.v,v 1.1 2008-04-18 00:21:52 sybreon Exp $
+/* $Id: aeMB2_gprf.v,v 1.2 2008-04-20 16:34:32 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -95,7 +95,7 @@ module aeMB2_gprf (/*AUTOARG*/
      end
 
    // LOAD SIZER   
-   always @(/*AUTOSENSE*/dwb_mx or sel_mx or xwb_mx) begin
+   always @(/*AUTOSENSE*/dwb_mx or sel_mx) begin
       case (sel_mx)
 	// 8'bits
 	4'h8: mem_mx <= #1 {24'd0, dwb_mx[31:24]};
@@ -107,7 +107,7 @@ module aeMB2_gprf (/*AUTOARG*/
 	4'h3: mem_mx <= #1 {16'd0, dwb_mx[15:0]};
 	// 32'bits
 	4'hF: mem_mx <= #1 dwb_mx;
-	4'h0: mem_mx <= #1 xwb_mx;
+	//4'h0: mem_mx <= #1 xwb_mx;
 	default: mem_mx <= 32'hX;	
       endcase // case (sel_mx)
    end // always @ (...
@@ -168,3 +168,6 @@ module aeMB2_gprf (/*AUTOARG*/
 endmodule // aeMB2_gprf
 
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/04/18 00:21:52  sybreon
+// Initial import.
+//

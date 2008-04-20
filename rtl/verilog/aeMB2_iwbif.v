@@ -1,4 +1,4 @@
-/* $Id: aeMB2_iwbif.v,v 1.1 2008-04-18 00:21:52 sybreon Exp $
+/* $Id: aeMB2_iwbif.v,v 1.2 2008-04-20 16:34:32 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -32,7 +32,7 @@
 module aeMB2_iwbif (/*AUTOARG*/
    // Outputs
    iwb_adr_o, iwb_stb_o, iwb_sel_o, iwb_wre_o, iwb_cyc_o, ich_adr,
-   ich_fil, fet_fb, rpc_if, rpc_mx,
+   ich_stb, fet_fb, rpc_if, rpc_mx,
    // Inputs
    iwb_ack_i, iwb_dat_i, ich_hit, hzd_bpc, hzd_fwd, bra_ex, bpc_ex,
    gclk, grst, dena, iena, gpha
@@ -51,14 +51,13 @@ module aeMB2_iwbif (/*AUTOARG*/
    
    // Cache
    output [AEMB_IWB-1:2] ich_adr;
-   output 		 ich_fil;   
+   output 		 ich_stb;   
    input 		 ich_hit;
    
    // Internal
    output 		 fet_fb;   
    
    output [31:2] 	 rpc_if,
-			 //rpc_of,
 			 rpc_mx;
 
    input 		 hzd_bpc,
@@ -74,71 +73,55 @@ module aeMB2_iwbif (/*AUTOARG*/
 			 iena,
 			 gpha;      
 
-   assign 		 fet_fb = !iwb_stb_o | iwb_ack_i;   
-   
    /*AUTOWIRE*/   
    /*AUTOREG*/
    // Beginning of automatic regs (for this module's undeclared outputs)
-   reg [3:0]		iwb_sel_o;
    reg			iwb_stb_o;
    reg [31:2]		rpc_if;
    reg [31:2]		rpc_mx;
    // End of automatics
 
-   reg [31:2] 		rADR, rADR_;
-   reg [31:2] 		rPC0, rPC1;
-   
-   assign 		iwb_adr_o = rADR;
-   assign 		iwb_wre_o = 1'b0;
-   assign 		iwb_cyc_o = iwb_stb_o;
 
-   assign 		ich_adr = rADR;
-   assign 		ich_fil = iwb_stb_o;
-   
    // Hazard detection
    
    // ADDRESS
-   wire [31:2] 		wPCINC = (ich_adr + 1); // incrementer
-   wire [31:2] 		wPCNXT = rADR_;
-   //(gpha & AEMB_HTX[0]) ? rPC1 : rPC0;
 
 
    reg [31:2] 		rpc_of, rpc_ex;
    reg 			ich_stb;
-   wire 		ich_fb = !ich_stb | ich_hit;
 
-   wire 		fHZD = !ich_fb | hzd_fwd;   
+
+   wire [1:0] 		wHZD = {hzd_fwd & dena, bra_ex[1] & dena};   
    
    // BARREL
+   reg [31:2] 		rADR, rADR_;
+   wire [31:2] 		wPCINC = (rADR + 1); // incrementer
+   wire [31:2] 		wPCNXT = rADR_;
+   
    always @(posedge gclk)
      if (grst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
-	iwb_sel_o <= 4'h0;
 	rADR <= 30'h0;
 	rADR_ <= 30'h0;
 	// End of automatics
-     end else if (iena) begin
-	/*
-	if (gpha)
-	  rPC0 <= #1 wPCINC;
-	else
-	  rPC1 <= #1 wPCINC;
-	*/
-		
-	case ({fHZD, bra_ex[1]})
-	  2'o0: rADR <= #1 wPCNXT[AEMB_IWB-1:2]; // normal increment
-	  2'o1: rADR <= #1 bpc_ex[AEMB_IWB-1:2]; // brach/return/break
-	  2'o2: rADR <= #1 rpc_if[AEMB_IWB-1:2]; // bubble/hazard
-	  2'o3: rADR <= #1 rpc_if[AEMB_IWB-1:2]; // bubble/hazard
+     end else if (iena) begin // (iwb_ack_i ~^ iwb_stb_o)) begin // | iwb_ack_i) begin
+	
+	case (wHZD)
+	  2'o0: {rADR} <= #1 {rADR_[AEMB_IWB-1:2]}; // normal increment
+	  2'o1: {rADR} <= #1 {bpc_ex[AEMB_IWB-1:2]}; // brach/return/break
+	  2'o2: {rADR} <= #1 {rpc_if[AEMB_IWB-1:2]}; // bubble/hazard
+	  default: {rADR} <= #1 32'hX;	  
+	  //2'o3: rADR <= #1 rpc_if[AEMB_IWB-1:2]; // bubble/hazard
+	  //2'o3: rADR <= #1 bpc_ex[AEMB_IWB-1:2]; // brach/return/break
 	endcase // case ({fHZD, bra_ex[1]})
 
-	rADR_ <= #1 wPCINC;
+	rADR_ <= #1 wPCINC;	
 	
-	//1'b1;	
-	iwb_sel_o <= #1 4'hF;	
-     end // if (iena)
+     end // if ((iwb_stb_o ~^ iwb_ack_i))
 
+   assign 		ich_adr = rADR;
+   
    always @(posedge gclk)
      if (grst) begin
 	/*AUTORESET*/
@@ -148,49 +131,40 @@ module aeMB2_iwbif (/*AUTOARG*/
 	rpc_mx <= 30'h0;
 	rpc_of <= 30'h0;
 	// End of automatics
-     end else if (dena) begin
-	/*
-	case ({fHZD, bra_ex[1]})
-	  2'o0: rADR <= #1 wPCNXT[AEMB_IWB-1:2]; // normal increment
-	  2'o1: rADR <= #1 bpc_ex[AEMB_IWB-1:2]; // brach/return/break
-	  2'o2: rADR <= #1 rpc_if[AEMB_IWB-1:2]; // bubble/hazard
-	 // 2'o3: rADR <= #1 (bra_ex[0]) ? rpc_if[AEMB_IWB-1:2] : bpc_ex[AEMB_IWB-1:2]; // brach/return/break
-	  //2'o3: rADR <= #1 bpc_ex[AEMB_IWB-1:2]; // brach/return/break
-	  2'o3: rADR <= #1 rpc_if[AEMB_IWB-1:2]; // bubble/hazard
-	  //default: rADR <= #1 32'hX; // illegal	  
-	endcase // case ({fHZD, bra_ex[1]})
-	 */
-	
-	{rpc_mx, // PC PIPELINE
-	 rpc_ex, 
-	 rpc_of, 
-	 rpc_if} <= #1 {rpc_ex, 
-			rpc_of, 
-			rpc_if, 
-			rADR};		
+     end else begin
+	if (dena) begin
+	   {rpc_mx, // PC PIPELINE
+	    rpc_ex, 
+	    rpc_of} <= #1 {rpc_ex, 
+			   rpc_of, 
+			   rpc_if};		    
+	end
+	if (iena) begin
+	   rpc_if <= #1 rADR;	   
+	end
      end
-
-
-
    
-      
-   // dislocated from pipeline
+   // WISHBONE SIGNALS
    always @(posedge gclk)
      if (grst) begin
-	//iwb_stb_o <= 1'b1;	
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	iwb_stb_o <= 1'h0;
 	// End of automatics
      end else begin
-	iwb_stb_o <= #1 (!ich_hit & ich_stb) & !iwb_ack_i;
-	//& !bra_ex[1];
-	//	     iwb_stb_o & !iwb_ack_i;	
-	//iwb_stb_o <= #1 (iena) ? (!ich_hit & ich_stb) & !iwb_ack_i : //& !bra_ex[1];
-	  //iwb_stb_o & !iwb_ack_i;	
+	iwb_stb_o <= #1 (iwb_stb_o & !iwb_ack_i) | (!iwb_stb_o & !ich_hit);
      end
 
+   assign 		iwb_adr_o = rADR;
+   assign 		iwb_wre_o = 1'b0;
+   assign 		iwb_sel_o = 4'hF;   
+   assign 		iwb_cyc_o = iwb_stb_o;
+
+   assign 		 fet_fb = !iwb_stb_o | iwb_ack_i; // no WB cycle      
    
-endmodule // aeMB2_fetch
+endmodule // aeMB2_iwbif
 
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/04/18 00:21:52  sybreon
+// Initial import.
+//
