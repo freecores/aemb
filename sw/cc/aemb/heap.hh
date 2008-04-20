@@ -1,4 +1,4 @@
-/* $Id: heap.hh,v 1.1 2008-04-09 19:48:37 sybreon Exp $
+/* $Id: heap.hh,v 1.2 2008-04-20 16:35:53 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -27,7 +27,9 @@
 #ifndef AEMB_HEAP_HH
 #define AEMB_HEAP_HH
 
+#ifdef __cplusplus
 namespace aemb {
+#endif
 
   /**
   Extracts the heap size from the linker
@@ -64,9 +66,15 @@ namespace aemb {
     asm ("la %0, r0, _heap":"=r"(tmp));
     return tmp;
   }
+#ifdef __cplusplus
 }
 #endif
   
+#endif
+
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.1  2008/04/09 19:48:37  sybreon
+  Added new C++ files
+
 */

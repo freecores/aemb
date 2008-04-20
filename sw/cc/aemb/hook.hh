@@ -1,4 +1,4 @@
-/* $Id: hook.hh,v 1.3 2008-04-12 13:46:02 sybreon Exp $
+/* $Id: hook.hh,v 1.4 2008-04-20 16:35:53 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -34,14 +34,24 @@
 #ifndef AEMB_HOOK_HH
 #define AEMB_HOOK_HH
 
+#ifdef __cplusplus
 namespace aemb {
-
-  extern "C" void _program_init();
-  extern "C" void _program_clean();
-  extern "C" void __malloc_lock();
-  extern "C" void __malloc_unlock();
-  extern "C" void __env_lock();
-  extern "C" void __env_unlock();
+  extern "C" {
+    void _program_init();
+    void _program_clean();
+    void __malloc_lock();
+    void __malloc_unlock();
+    void __env_lock();
+    void __env_unlock();
+  }  
+#else
+  void _program_init();
+  void _program_clean();
+  void __malloc_lock();
+  void __malloc_unlock();
+  void __env_lock();
+  void __env_unlock();  
+#endif
 
   /**
      Finalisation hook
@@ -49,15 +59,18 @@ namespace aemb {
      This function executes during the shutdown phase after the
      finalisation routine is called. It will merge the changes made
      during initialisation.
-  */
-  
+  */  
   void _program_clean()
   {     
+    waitMutex(); // enter critical section
+
     // unify the stack backwards for thread 1
-    if (aemb::isThread1()) 
-      {
-	aemb::setStack(aemb::getStack() + (aemb::getStackSize() >> 1));        
+    if (isThread1())       
+      {	
+	setStack(getStack() + (getStackSize() >> 1));        
       }
+    
+    signalMutex(); // exit critical section
   }
   
   /**
@@ -66,27 +79,19 @@ namespace aemb {
      This function executes during the startup phase before the
      initialisation routine is called. It splits the stack between the
      threads.
-  */
-  
+  */  
   void _program_init()
   {
+    waitMutex(); // enter critical section
+
     // split and shift the stack for thread 1
-    if (aemb::isThread1()) 
+    if (isThread1()) 
       {
-	aemb::setStack(aemb::getStack() - (aemb::getStackSize() >> 1));   
+	setStack(getStack() - (getStackSize() >> 1));   
       }
-    else
-      {
-	for(int i=0; i<10; ++i) 
-	  {
-	    asm volatile ("nop"); // delay loop to offset thread 0
-	  }
-      }
+
+    signalMutex(); // exit critical section
   }
-
-  // FIXME: Implement with a single hardware mutex
-
-  semaphore __malloc_mutex(1); ///< private mutex
 
   /**
      Heap Lock
@@ -94,10 +99,9 @@ namespace aemb {
      This function is called during malloc() to lock out the shared
      heap to avoid data corruption.
    */
-
   void __malloc_lock()
   {
-    __malloc_mutex.wait();
+    waitMutex();
   }
 
   /**
@@ -106,13 +110,14 @@ namespace aemb {
      This function is called during malloc() to indicate that the
      shared heap is now available for another thread.
   */
-
   void __malloc_unlock()
   {
-    __malloc_mutex.signal();
+    signalMutex();
   }
-  
+
+#ifdef __cplusplus  
 }
+#endif
 
 #endif
 
@@ -124,6 +129,9 @@ OPTIMISATION_REQUIRED XXX
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.3  2008/04/12 13:46:02  sybreon
+  Added malloc() lock and unlock routines
+
   Revision 1.2  2008/04/11 15:20:31  sybreon
   added static assert hack
 
