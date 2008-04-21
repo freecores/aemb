@@ -1,4 +1,4 @@
-/* $Id: literate.hh,v 1.1 2008-04-11 15:31:47 sybreon Exp $
+/* $Id: literate.hh,v 1.2 2008-04-21 11:32:33 sybreon Exp $
 ** 
 ** AEMB Function Verification C++ Testbench
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -27,6 +27,7 @@
 */
 
 #include <cstdlib>
+#include "simboard.hh"
 
 #ifndef LITERATE_HH
 #define LITERATE_HH
@@ -51,15 +52,17 @@ unsigned int fibFast(unsigned int n)
   unsigned int *p=a;
   unsigned int i;
   
-  for(i=0; i<=n; ++i) {
-    if(i<2) *p=i;
-    else {
-      if(p==a) *p=*(a+1)+*(a+2);
-      else if(p==a+1) *p=*a+*(a+2);
-      else *p=*a+*(a+1);
+  for(i=0; i<=n; ++i) 
+    {
+      if(i<2) *p=i;
+      else 
+	{
+	  if(p==a) *p=*(a+1)+*(a+2);
+	  else if(p==a+1) *p=*a+*(a+2);
+	  else *p=*a+*(a+1);
+	}
+      if(++p>a+2) p=a;
     }
-    if(++p>a+2) p=a;
-  }
   
   return p==a?*(p+2):*(p-1);
 }
@@ -80,16 +83,17 @@ int fibonacciTest(int max) {
     0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233
   };  
   
-  for (n=0;n<max;n++) {
-    slow = fibSlow(n);    
-    fast = fibFast(n);
-    if ((slow != fast) || 
-	(fast != fib_lut32[n]) || 
-	(fast != fib_lut16[n]) || 
-	(fast != fib_lut8[n])) {
-      return EXIT_FAILURE;      
-    }
-  }      
+  for (n=0;n<max;n++) 
+    {
+      slow = fibSlow(n);    
+      fast = fibFast(n);
+      if ((slow != fast) || 
+	  (fast != fib_lut32[n]) || 
+	  (fast != fib_lut16[n]) || 
+	  (fast != fib_lut8[n])) {
+	return EXIT_FAILURE;      
+      }
+    }      
   return EXIT_SUCCESS;  
 }
 
@@ -134,12 +138,15 @@ int euclideanTest(int max)
     1, 1, 1, 2, 1, 1, 1, 1, 6, 4, 1, 3, 2, 1
   };
     
-  for (n=0;n<max;n++) {
-    euclid = euclidGCD(euclid_a[n],euclid_b[n]);
-    if (euclid != euclid_lut[n]) {
-      return EXIT_FAILURE;
+  for (n=0;n<max;n++) 
+    {
+      euclid = euclidGCD(euclid_a[n],euclid_b[n]);
+      if (euclid != euclid_lut[n]) 
+	{
+	  return EXIT_FAILURE;
+	}
     }
-  }
+
   return EXIT_SUCCESS;
 }
 
@@ -149,6 +156,7 @@ int euclideanTest(int max)
 
    This tests for the following:
    - Multiplication & Division
+   - Barrel Shifts
    - Floating point arithmetic
    - Integer to Float conversion
 */
@@ -170,7 +178,7 @@ float newtonSqrt(float n)
 	  break;
 	}
     }  
-  while (!(iters++ >= 100
+  while (!(iters++ >= 10
 	   || x == xn))
     {
       x = xn;
@@ -182,31 +190,34 @@ float newtonSqrt(float n)
 int newtonTest (int max) {
   int n;
   float newt;
-  // 32-bit LUT
+  // 32-bit LUT in IEEE754 hex representation
   float newt_lut[] = {
-    0.000000000000000000000000,
-    1.000000000000000000000000,
-    1.414213538169860839843750,
-    1.732050776481628417968750,
-    2.000000000000000000000000,
-    2.236068010330200195312500,
-    2.449489831924438476562500,
-    2.645751237869262695312500,
-    2.828427076339721679687500,
-    3.000000000000000000000000,
-    3.162277698516845703125000,
-    3.316624879837036132812500,
-    3.464101552963256835937500,
-    3.605551242828369140625000,
-    3.741657495498657226562500
+    0x00000000, //0.000000000000000000000000,
+    0x3f800000, //1.000000000000000000000000,
+    0x3fb504f3, //1.414213538169860839843750,
+    0x3fddb3d7, //1.732050776481628417968750,
+    0x40000000, //2.000000000000000000000000,
+    0x400f1bbd, //2.236068010330200195312500,
+    0x401cc471, //2.449489831924438476562500,
+    0x402953fd, //2.645751237869262695312500,
+    0x403504f3, //2.828427076339721679687500,
+    0x40400000, //3.000000000000000000000000,
+    0x404a62c2, //3.162277698516845703125000,
+    0x40544394, //3.316624879837036132812500,
+    0x405db3d7, //3.464101552963256835937500,
+    0x4066c15a, //3.605551242828369140625000,
+    0x406F7750  //3.741657495498657226562500
   };
 
-  for (n=0;n<max;n++) {
-    newt = newtonSqrt(n);
-    if (newt != newt_lut[n]) {
-      return EXIT_FAILURE;
-    }
-  } 
+  for (n=0;n<max;n++)
+    {
+      newt = newtonSqrt(n);    
+      if (newt != newt_lut[n]) 
+	{
+	  return EXIT_FAILURE;
+	}
+    } 
+
   return EXIT_SUCCESS;
 }
 
