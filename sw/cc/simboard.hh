@@ -1,4 +1,4 @@
-/* $Id: simboard.hh,v 1.1 2008-04-11 15:32:28 sybreon Exp $
+/* $Id: simboard.hh,v 1.2 2008-04-21 12:13:12 sybreon Exp $
 ** 
 ** AEMB Function Verification C++ Testbench
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -92,6 +92,12 @@ void outbyte(char c)
   *COUT = c;
 }
 
+void outfloat(float f) 
+{
+  volatile float *FOUT = (float *) 0xFFFFFFD0;
+  *FOUT = f;
+}
+
 void outword(long l) 
 {
   volatile long *DOUT = (long *) 0xFFFFFFD0;
@@ -103,10 +109,7 @@ void trap(long e)
   outword(e);
   outword(CODE_FAIL);
   // hang the machine
-  while(true)
-    {
-      asm volatile("nop");
-    }
+  exit(e);  
 }
 
 void pass()
@@ -123,4 +126,7 @@ char inbyte()
 
 /*
 $Log: not supported by cvs2svn $
+Revision 1.1  2008/04/11 15:32:28  sybreon
+initial checkin
+
 */

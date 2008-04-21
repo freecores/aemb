@@ -1,4 +1,4 @@
-/* $Id: aeMB2_edk62.v,v 1.2 2008-04-20 16:34:32 sybreon Exp $
+/* $Id: aeMB2_edk62.v,v 1.3 2008-04-21 12:11:38 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -32,11 +32,11 @@ module aeMB2_edk62 (/*AUTOARG*/
    // Outputs
    xwb_wre_o, xwb_tag_o, xwb_stb_o, xwb_sel_o, xwb_dat_o, xwb_cyc_o,
    xwb_adr_o, iwb_wre_o, iwb_stb_o, iwb_sel_o, iwb_cyc_o, iwb_adr_o,
-   ich_stb, dwb_wre_o, dwb_tag_o, dwb_stb_o, dwb_sel_o, dwb_dat_o,
-   dwb_cyc_o, dwb_adr_o,
+   dwb_wre_o, dwb_tag_o, dwb_stb_o, dwb_sel_o, dwb_dat_o, dwb_cyc_o,
+   dwb_adr_o,
    // Inputs
    xwb_dat_i, xwb_ack_i, sys_rst_i, sys_ena_i, sys_clk_i, iwb_dat_i,
-   iwb_ack_i, dwb_dat_i, dwb_ack_i, alu_c
+   iwb_ack_i, dwb_dat_i, dwb_ack_i
    );
    parameter AEMB_IWB = 32; ///< INST bus width
    parameter AEMB_DWB = 32; ///< DATA bus width
@@ -60,7 +60,6 @@ module aeMB2_edk62 (/*AUTOARG*/
    output		dwb_stb_o;		// From memif0 of aeMB2_memif.v
    output		dwb_tag_o;		// From memif0 of aeMB2_memif.v
    output		dwb_wre_o;		// From memif0 of aeMB2_memif.v
-   output		ich_stb;		// From iwbif0 of aeMB2_iwbif.v
    output [AEMB_IWB-1:2] iwb_adr_o;		// From iwbif0 of aeMB2_iwbif.v
    output		iwb_cyc_o;		// From iwbif0 of aeMB2_iwbif.v
    output [3:0]		iwb_sel_o;		// From iwbif0 of aeMB2_iwbif.v
@@ -76,7 +75,6 @@ module aeMB2_edk62 (/*AUTOARG*/
    // End of automatics
    /*AUTOINPUT*/
    // Beginning of automatic inputs (from unused autoinst inputs)
-   input		alu_c;			// To regs0 of aeMB2_regs.v
    input		dwb_ack_i;		// To memif0 of aeMB2_memif.v
    input [31:0]		dwb_dat_i;		// To memif0 of aeMB2_memif.v
    input		iwb_ack_i;		// To pip0 of aeMB2_pipe.v, ...
@@ -189,7 +187,6 @@ module aeMB2_edk62 (/*AUTOARG*/
       .iwb_wre_o			(iwb_wre_o),
       .iwb_cyc_o			(iwb_cyc_o),
       .ich_adr				(ich_adr[AEMB_IWB-1:2]),
-      .ich_stb				(ich_stb),
       .fet_fb				(fet_fb),
       .rpc_if				(rpc_if[31:2]),
       .rpc_mx				(rpc_mx[31:2]),
@@ -346,7 +343,6 @@ module aeMB2_edk62 (/*AUTOARG*/
       .opb_if				(opb_if[31:0]),
       .opd_if				(opd_if[31:0]),
       // Inputs
-      .alu_c				(alu_c),
       .alu_mx				(alu_mx[31:0]),
       .bsf_mx				(bsf_mx[31:0]),
       .dena				(dena),
@@ -355,16 +351,11 @@ module aeMB2_edk62 (/*AUTOARG*/
       .gpha				(gpha),
       .grst				(grst),
       .ich_dat				(ich_dat[31:0]),
-      .imm_of				(imm_of[15:0]),
       .mul_mx				(mul_mx[31:0]),
       .mux_ex				(mux_ex[2:0]),
       .mux_of				(mux_of[2:0]),
-      .opa_of				(opa_of[31:0]),
-      .opc_of				(opc_of[5:0]),
-      .ra_of				(ra_of[4:0]),
       .rd_ex				(rd_ex[4:0]),
       .rd_of				(rd_of[4:0]),
-      .rpc_if				(rpc_if[31:2]),
       .rpc_mx				(rpc_mx[31:2]),
       .sel_mx				(sel_mx[3:0]),
       .sfr_mx				(sfr_mx[31:0]),
@@ -373,6 +364,9 @@ module aeMB2_edk62 (/*AUTOARG*/
 endmodule // aeMB2_edk62
 
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2008/04/20 16:34:32  sybreon
+// Basic version with some features left out.
+//
 // Revision 1.1  2008/04/18 00:21:52  sybreon
 // Initial import.
 //

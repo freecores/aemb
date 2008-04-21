@@ -1,4 +1,4 @@
-/* $Id: aeMB2_xslif.v,v 1.2 2008-04-20 16:34:32 sybreon Exp $
+/* $Id: aeMB2_xslif.v,v 1.3 2008-04-21 12:11:38 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -113,7 +113,7 @@ module aeMB2_xslif (/*AUTOARG*/
 	// Beginning of autoreset for uninitialized flops
 	xwb_mx <= 32'h0;
 	// End of automatics
-     end else if (xwb_ack_i | xBLK) begin
+     end else if (xwb_stb_o & (xwb_ack_i | xBLK)) begin
 	xwb_mx <= #1 xwb_dat_i;	
      end      
    
@@ -137,6 +137,9 @@ module aeMB2_xslif (/*AUTOARG*/
 endmodule // aeMB2_memif
 
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2008/04/20 16:34:32  sybreon
+// Basic version with some features left out.
+//
 // Revision 1.1  2008/04/18 00:21:52  sybreon
 // Initial import.
 //

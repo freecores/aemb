@@ -1,4 +1,4 @@
-/* $Id: aeMB2_intu.v,v 1.1 2008-04-18 00:21:52 sybreon Exp $
+/* $Id: aeMB2_intu.v,v 1.2 2008-04-21 12:11:38 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -83,27 +83,32 @@ module aeMB2_intu (/*AUTOARG*/
    
    // ADDER
    
-   /* Infer a ADDER cell because ADD/SUB cannot be inferred cross
+   /* Infer a ADD cell because ADD/SUB cannot be inferred cross
     technologies. */
    
    // FIXME: Redesign this critical path
-
+   
    reg [31:0] 		add_ex;
    reg 			add_c;
+   wire [31:0] 		wADD;
+   wire 		wADC;
 
    wire 		fCCC = !opc_of[5] & !opc_of[4] & opc_of[1];
    wire 		fSUB = !opc_of[5] & !opc_of[4] & opc_of[0];
-   wire 		fCMP = !opc_of[3] & !imm_of[1] & imm_of[0];   
+   wire 		fCMP = !opc_of[3] & imm_of[1] & imm_of[0]; // unsigned
+   //wire 		wTOG = fCMP & (opa_of[31] ^ opb_of[31]); // toggle unsigned
+   wire 		wCMP = (fCMP) ? (opa_of > opb_of) : wADD[31];   
    
    wire [31:0] 		wOPA = (fSUB) ? ~opa_of : opa_of;   
    wire 		wOPC = (fCCC) ? rMSR_CC : fSUB;
-   wire [31:0] 		wADD;
-   wire 		wADC;
    
    assign 		{wADC, wADD} = (opb_of + wOPA) + wOPC;   
    
-   always @(/*AUTOSENSE*/fCMP or wADC or wADD) begin
-      {add_c, add_ex} <= #1 {wADC, (wADD[31] ^ fCMP) , wADD[30:0]}; // add with carry
+   always @(/*AUTOSENSE*/imm_of or opc_of or wADC or wADD or wCMP) begin
+      {add_c, add_ex} <= #1 
+			 (!opc_of[3] & imm_of[0]) ? 
+			 {wADC, wCMP , wADD[30:0]} : // add with carry
+			 {wADC, wADD[31:0]} ; // add with carry
    end
       
    // SHIFT/LOGIC/MOVE
@@ -125,7 +130,7 @@ module aeMB2_intu (/*AUTOARG*/
 	       3'o5: slm_ex <= #1 {1'b0,opa_of[31:1]}; // SRL
 	       3'o6: slm_ex <= #1 {{(24){opa_of[7]}}, opa_of[7:0]}; // SEXT8
 	       3'o7: slm_ex <= #1  {{(16){opa_of[15]}}, opa_of[15:0]}; // SEXT16
-	       default: slm_ex <= #1 32'hX;	       
+	       default: slm_ex <= #1 32'hX;
 	     endcase // case ({imm_of[6:5],imm_of[0]})
        // MFS/MTS/MSET/MCLR
        //3'o5: slm_ex <= #1 sfr_of;       
@@ -136,7 +141,6 @@ module aeMB2_intu (/*AUTOARG*/
    
    always @(/*AUTOSENSE*/imm_of or opa_of or rMSR_CC)
      slm_c <= #1 (&imm_of[6:5]) ? rMSR_CC : opa_of[0];
-
 
    // BRANCH CALC
    always @(posedge gclk)
@@ -181,13 +185,13 @@ module aeMB2_intu (/*AUTOARG*/
     30 - HTE (hardware thread enabled)
     29 - PHA (current phase)
     
-     7 - DCE (data cache enable)   
-     5 - ICE (instruction cache enable)    
-     4 - MTX (hardware mutex bit)
-     3 - BIP (break in progress)
-     2 - C (carry flag)
-     1 - IE (interrupt enable)
-     0 - BE (bus-lock enable)        
+    7  - DCE (data cache enable)       
+    5  - ICE (instruction cache enable)    
+    4  - MTX (hardware mutex bit)
+    3  - BIP (break in progress)
+    2  - C (carry flag)
+    1  - IE (interrupt enable)
+    0  - BE (bus-lock enable)        
     */
 
    assign msr_ex = {
@@ -212,8 +216,10 @@ module aeMB2_intu (/*AUTOARG*/
    // 3 - Reserved
    wire 	    fRTID = (opc_of == 6'o55) & rd_of[0];
    wire 	    fRTBD = (opc_of == 6'o55) & rd_of[1];
+   
    wire 	    fBRKI = (opc_of == 6'o56) & (ra_of[4:0] == 5'hD);
    wire 	    fBRKB = ((opc_of == 6'o46) | (opc_of == 6'o56)) & (ra_of[4:0] == 5'hC);
+   
    wire 	    fMOV = (opc_of == 6'o45);
    wire 	    fMTS = fMOV & &imm_of[15:14];
    wire 	    fMOP = fMOV & ~|imm_of[15:14];   
@@ -284,12 +290,12 @@ module aeMB2_intu (/*AUTOARG*/
 		    (fMOP) ? wRES[3] :
 		    rMSR_BIP;
 	
-     end
+     end // if (dena)
 
    // BARREL C
    wire fADDSUB = (opc_of[5:2] == 4'h0) | (opc_of[5:2] == 4'h2);
    wire fSHIFT  = (opc_of[5:2] == 4'h9) & (imm_of[6:5] != 2'o3);
-   
+
    always @(posedge gclk)
      if (grst) begin
 	/*AUTORESET*/
@@ -299,7 +305,7 @@ module aeMB2_intu (/*AUTOARG*/
      end else if (dena) begin
 	rMSR_CC <= #1 rMSR_C;
      end
-
+   
    always @(posedge gclk)
      if (grst) begin
 	/*AUTORESET*/
@@ -318,3 +324,6 @@ module aeMB2_intu (/*AUTOARG*/
 endmodule // aeMB2_intu
 
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/04/18 00:21:52  sybreon
+// Initial import.
+//

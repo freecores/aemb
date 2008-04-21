@@ -1,4 +1,4 @@
-/* $Id: aeMB2_iwbif.v,v 1.2 2008-04-20 16:34:32 sybreon Exp $
+/* $Id: aeMB2_iwbif.v,v 1.3 2008-04-21 12:11:38 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -32,7 +32,7 @@
 module aeMB2_iwbif (/*AUTOARG*/
    // Outputs
    iwb_adr_o, iwb_stb_o, iwb_sel_o, iwb_wre_o, iwb_cyc_o, ich_adr,
-   ich_stb, fet_fb, rpc_if, rpc_mx,
+   fet_fb, rpc_if, rpc_mx,
    // Inputs
    iwb_ack_i, iwb_dat_i, ich_hit, hzd_bpc, hzd_fwd, bra_ex, bpc_ex,
    gclk, grst, dena, iena, gpha
@@ -51,7 +51,6 @@ module aeMB2_iwbif (/*AUTOARG*/
    
    // Cache
    output [AEMB_IWB-1:2] ich_adr;
-   output 		 ich_stb;   
    input 		 ich_hit;
    
    // Internal
@@ -80,19 +79,9 @@ module aeMB2_iwbif (/*AUTOARG*/
    reg [31:2]		rpc_if;
    reg [31:2]		rpc_mx;
    // End of automatics
+   reg [31:2] 		rpc_of, 
+			rpc_ex;
 
-
-   // Hazard detection
-   
-   // ADDRESS
-
-
-   reg [31:2] 		rpc_of, rpc_ex;
-   reg 			ich_stb;
-
-
-   wire [1:0] 		wHZD = {hzd_fwd & dena, bra_ex[1] & dena};   
-   
    // BARREL
    reg [31:2] 		rADR, rADR_;
    wire [31:2] 		wPCINC = (rADR + 1); // incrementer
@@ -107,7 +96,7 @@ module aeMB2_iwbif (/*AUTOARG*/
 	// End of automatics
      end else if (iena) begin // (iwb_ack_i ~^ iwb_stb_o)) begin // | iwb_ack_i) begin
 	
-	case (wHZD)
+	case ({hzd_fwd,bra_ex[1]})
 	  2'o0: {rADR} <= #1 {rADR_[AEMB_IWB-1:2]}; // normal increment
 	  2'o1: {rADR} <= #1 {bpc_ex[AEMB_IWB-1:2]}; // brach/return/break
 	  2'o2: {rADR} <= #1 {rpc_if[AEMB_IWB-1:2]}; // bubble/hazard
@@ -160,11 +149,14 @@ module aeMB2_iwbif (/*AUTOARG*/
    assign 		iwb_sel_o = 4'hF;   
    assign 		iwb_cyc_o = iwb_stb_o;
 
-   assign 		 fet_fb = !iwb_stb_o | iwb_ack_i; // no WB cycle      
+   assign 		fet_fb = iwb_stb_o ~^ iwb_ack_i; // no WB cycle      
    
 endmodule // aeMB2_iwbif
 
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2008/04/20 16:34:32  sybreon
+// Basic version with some features left out.
+//
 // Revision 1.1  2008/04/18 00:21:52  sybreon
 // Initial import.
 //

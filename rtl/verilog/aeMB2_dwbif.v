@@ -1,4 +1,4 @@
-/* $Id: aeMB2_dwbif.v,v 1.2 2008-04-20 16:34:32 sybreon Exp $
+/* $Id: aeMB2_dwbif.v,v 1.3 2008-04-21 12:11:38 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -34,7 +34,7 @@ module aeMB2_dwbif (/*AUTOARG*/
    dwb_dat_o, dwb_fb, sel_mx, dwb_mx,
    // Inputs
    dwb_dat_i, dwb_ack_i, imm_of, opd_of, opc_of, opa_of, opb_of,
-   msr_ex, mem_ex, gclk, grst, dena, gpha
+   msr_ex, mem_ex, sfr_mx, gclk, grst, dena, gpha
    );
    parameter AEMB_DWB = 32; ///< data bus address width   
 
@@ -60,6 +60,7 @@ module aeMB2_dwbif (/*AUTOARG*/
    input [1:0] 		 opb_of;
    input [7:0] 		 msr_ex;   
    input [AEMB_DWB-1:2]  mem_ex;
+   input [5:7] 		 sfr_mx;   
          
    // SYS signals
    input 		 gclk,
@@ -74,7 +75,6 @@ module aeMB2_dwbif (/*AUTOARG*/
    reg [31:0]		dwb_mx;
    reg [3:0]		dwb_sel_o;
    reg			dwb_stb_o;
-   reg			dwb_tag_o;
    reg			dwb_wre_o;
    reg [3:0]		sel_mx;
    // End of automatics
@@ -94,7 +94,7 @@ module aeMB2_dwbif (/*AUTOARG*/
 	// Beginning of autoreset for uninitialized flops
 	dwb_mx <= 32'h0;
 	// End of automatics
-     end else if (dwb_ack_i) begin
+     end else if (dwb_stb_o & dwb_ack_i) begin
 	// LATCH READS
 	dwb_mx <= #1 dwb_dat_i;	
      end
@@ -102,14 +102,21 @@ module aeMB2_dwbif (/*AUTOARG*/
    // DATA bus
    assign 		dwb_adr_o = mem_ex; // passthru
 
-   // STORE SIZER   
+   // STORE SIZER
+   // TODO: Move the right words to the right place
+   // TODO: Make this work with dwb_mx to for partial word loads.
+   
+   reg [31:0] 		opd_ex;   
    always @(posedge gclk)
      if (grst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	dwb_dat_o <= 32'h0;
+	opd_ex <= 32'h0;
 	// End of automatics
-     end else if (dena) begin	
+     end else if (dena) begin
+	opd_ex <= #1 opd_of;
+	
 	case (opc_of[1:0])
 	  2'o0: dwb_dat_o <= #1 {(4){opd_of[7:0]}};
 	  2'o1: dwb_dat_o <= #1 {(2){opd_of[15:0]}};
@@ -124,18 +131,18 @@ module aeMB2_dwbif (/*AUTOARG*/
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	dwb_sel_o <= 4'h0;
-	dwb_tag_o <= 1'h0;
 	dwb_wre_o <= 1'h0;
 	sel_mx <= 4'h0;
 	// End of automatics
      end else if (dena) begin
-	sel_mx <= #1 dwb_sel_o;
-	dwb_tag_o <= #1 msr_ex[7]; // DCE	
+	sel_mx <= #1 dwb_sel_o; // FIXME: do away with this! Combine
+				// dwb_dat_o & dwb_mx. dwb_dat_o can
+				// hold the existing RD value and have
+				// dwb_mx latch the correct bytes
+				// depending on dwb_sel_o.
+	
 	dwb_wre_o <= #1 opc_of[2]; // SXX
 
-	//dwb_mx <= #1 (dwb_stb_o & dwb_ack_i) ? 
-	// dwb_dat_i : dwb_lat;	
-	
 	case (wSEL)
 	  // 32'bit
 	  4'h8: dwb_sel_o <= #1 4'hF;
@@ -160,7 +167,7 @@ module aeMB2_dwbif (/*AUTOARG*/
 	dwb_cyc_o <= 1'h0;
 	dwb_stb_o <= 1'h0;
 	// End of automatics
-     end else begin
+     end else if (dwb_ack_i ~^ dwb_stb_o) begin
 	dwb_stb_o <= #1
 		     (dena) ? &opc_of[5:4] : // LXX/SSS
 		     (dwb_stb_o & !dwb_ack_i); // LXX/SSS
@@ -168,10 +175,15 @@ module aeMB2_dwbif (/*AUTOARG*/
 		     (dena) ? &opc_of[5:4] | msr_ex[0] :
 		     (dwb_stb_o & !dwb_ack_i) | msr_ex[0];	
      end
+
+   assign dwb_tag_o = msr_ex[7]; // MSR_DCE	
    
 endmodule // aeMB2_memif
 
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2008/04/20 16:34:32  sybreon
+// Basic version with some features left out.
+//
 // Revision 1.1  2008/04/18 00:21:52  sybreon
 // Initial import.
 //
