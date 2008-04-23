@@ -1,4 +1,4 @@
-/* $Id: thread.hh,v 1.5 2008-04-20 16:35:53 sybreon Exp $
+/* $Id: thread.hh,v 1.6 2008-04-23 14:19:39 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -80,7 +80,9 @@ namespace aemb {
 
   /**
      Hardware Mutex Wait.
-     Waits until the hardware mutex is unlocked.
+
+     Waits until the hardware mutex is unlocked. This should be used
+     as part of a larger software mutex mechanism.
    */
   inline void waitMutex()
   {
@@ -96,36 +98,27 @@ namespace aemb {
   // semaphores, mutexes and such.
 
   /**
-     Semaphore class.     
+     Semaphore struct.     
      Presently implemented as software solution but a hardware one may be
      required as the threads are hardware.
   */
   
-  class semaphore {
-  private:
-    volatile int _sem; ///< Semaphore in Memory
-  public:
-    /**
-       Preload the semaphore
-       @param pval preload value
-    */
-    semaphore(int pval) { _sem = pval; } 
+  typedef volatile int semaphore;
+
+  /**
+     Increment the semaphore
+  */
+  inline void signal(semaphore _sem) { _sem++; }
     
-    /**
-       Increment the semaphore
-    */
-    inline void signal() { _sem++; }
-    
-    /**
-       Decrement the semaphore and block if < 0
-    */
-    inline void wait() { _sem--; while (_sem < 0); } // block while
+  /**
+     Decrement the semaphore and block if < 0
+  */
+  inline void wait(semaphore _sem) { _sem--; while (_sem < 0); } // block while
 						     // semaphore is
 						     // negative
-  };
 
-  semaphore __mutex_rendezvous0(0); ///< internal rendezvous mutex
-  semaphore __mutex_rendezvous1(1); ///< internal rendezvous mutex
+  semaphore __mutex_rendezvous0 = 0; ///< internal rendezvous mutex
+  semaphore __mutex_rendezvous1 = 1; ///< internal rendezvous mutex
 
   /**
      Implements a simple rendezvous mechanism
@@ -135,13 +128,13 @@ namespace aemb {
   {
     if (isThread1())
       {
-	__mutex_rendezvous0.wait();
-	__mutex_rendezvous1.signal();
+	wait(__mutex_rendezvous0);
+	signal(__mutex_rendezvous1);
       }
     else
       {
-	__mutex_rendezvous0.signal();
-	__mutex_rendezvous1.wait();
+	signal(__mutex_rendezvous0);
+	wait(__mutex_rendezvous1);
       }
   }
 
@@ -153,6 +146,9 @@ namespace aemb {
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.5  2008/04/20 16:35:53  sybreon
+  Added C/C++ compatible #ifdef statements
+
   Revision 1.4  2008/04/12 14:07:26  sybreon
   added a rendezvous function
 

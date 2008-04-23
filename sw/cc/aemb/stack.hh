@@ -1,4 +1,4 @@
-/* $Id: stack.hh,v 1.2 2008-04-20 16:35:53 sybreon Exp $
+/* $Id: stack.hh,v 1.3 2008-04-23 14:19:39 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -75,7 +75,7 @@ namespace aemb {
   inline int getStack()
   {
     int tmp;
-    asm ("or %0, r0, r1":"=r"(tmp));
+    asm ("addk %0, r0, r1":"=r"(tmp));
     return tmp;
   }
   
@@ -86,7 +86,7 @@ namespace aemb {
   
   inline void setStack(int stk)
   {
-    asm ("or r1, r0, %0"::"r"(stk));
+    asm ("addk r1, r0, %0"::"r"(stk));
   }
 
 #ifdef __cplusplus
@@ -97,6 +97,9 @@ namespace aemb {
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.2  2008/04/20 16:35:53  sybreon
+  Added C/C++ compatible #ifdef statements
+
   Revision 1.1  2008/04/09 19:48:37  sybreon
   Added new C++ files
 

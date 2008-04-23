@@ -1,4 +1,4 @@
-/* $Id: hook.hh,v 1.4 2008-04-20 16:35:53 sybreon Exp $
+/* $Id: hook.hh,v 1.5 2008-04-23 14:19:39 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -43,6 +43,7 @@ namespace aemb {
     void __malloc_unlock();
     void __env_lock();
     void __env_unlock();
+
   }  
 #else
   void _program_init();
@@ -51,7 +52,7 @@ namespace aemb {
   void __malloc_unlock();
   void __env_lock();
   void __env_unlock();  
-#endif
+#endif  
 
   /**
      Finalisation hook
@@ -68,7 +69,7 @@ namespace aemb {
     if (isThread1())       
       {	
 	setStack(getStack() + (getStackSize() >> 1));        
-      }
+      }   
     
     signalMutex(); // exit critical section
   }
@@ -87,11 +88,13 @@ namespace aemb {
     // split and shift the stack for thread 1
     if (isThread1()) 
       {
-	setStack(getStack() - (getStackSize() >> 1));   
+	setStack(getStack() - (getStackSize() >> 1));        
       }
 
     signalMutex(); // exit critical section
   }
+
+  semaphore __malloc_mutex = 1;  
 
   /**
      Heap Lock
@@ -101,7 +104,7 @@ namespace aemb {
    */
   void __malloc_lock()
   {
-    waitMutex();
+    waitMutex();   
   }
 
   /**
@@ -129,6 +132,9 @@ OPTIMISATION_REQUIRED XXX
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.4  2008/04/20 16:35:53  sybreon
+  Added C/C++ compatible #ifdef statements
+
   Revision 1.3  2008/04/12 13:46:02  sybreon
   Added malloc() lock and unlock routines
 
