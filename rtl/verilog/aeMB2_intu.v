@@ -1,4 +1,4 @@
-/* $Id: aeMB2_intu.v,v 1.2 2008-04-21 12:11:38 sybreon Exp $
+/* $Id: aeMB2_intu.v,v 1.3 2008-04-23 14:18:30 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -244,7 +244,7 @@ module aeMB2_intu (/*AUTOARG*/
 	sfr_ex <= #1
 		  {rMSR_CC,
 		   AEMB_HTX[0],
-		   !gpha,
+		   gpha,
 		   21'd0,
 		   rMSR_DCE,
 		   1'b0,
@@ -324,6 +324,9 @@ module aeMB2_intu (/*AUTOARG*/
 endmodule // aeMB2_intu
 
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2008/04/21 12:11:38  sybreon
+// Passes arithmetic tests with single thread.
+//
 // Revision 1.1  2008/04/18 00:21:52  sybreon
 // Initial import.
 //
