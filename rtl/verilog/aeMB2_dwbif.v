@@ -1,4 +1,4 @@
-/* $Id: aeMB2_dwbif.v,v 1.3 2008-04-21 12:11:38 sybreon Exp $
+/* $Id: aeMB2_dwbif.v,v 1.4 2008-04-23 14:18:52 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -85,20 +85,6 @@ module aeMB2_dwbif (/*AUTOARG*/
    // ENABLE FEEDBACK
    assign 		dwb_fb = (dwb_stb_o ~^ dwb_ack_i);   
 
-   // Independent on pipeline
-   reg [31:0] 		dwb_lat;
-   
-   always @(posedge gclk)
-     if (grst) begin
-	/*AUTORESET*/
-	// Beginning of autoreset for uninitialized flops
-	dwb_mx <= 32'h0;
-	// End of automatics
-     end else if (dwb_stb_o & dwb_ack_i) begin
-	// LATCH READS
-	dwb_mx <= #1 dwb_dat_i;	
-     end
-      
    // DATA bus
    assign 		dwb_adr_o = mem_ex; // passthru
 
@@ -142,6 +128,9 @@ module aeMB2_dwbif (/*AUTOARG*/
 				// depending on dwb_sel_o.
 	
 	dwb_wre_o <= #1 opc_of[2]; // SXX
+	
+	// FIXME: May clash during cache refills
+	dwb_mx <= #1 (dwb_ack_i) ?  dwb_dat_i : dwb_lat;	
 
 	case (wSEL)
 	  // 32'bit
@@ -159,7 +148,21 @@ module aeMB2_dwbif (/*AUTOARG*/
 	endcase // case (wSEL)
      end // if (dena)
 
-   // dislocate from pipeline
+   // Independent on pipeline
+
+   reg [31:0] dwb_lat;   
+   always @(posedge gclk)
+     if (grst) begin
+	/*AUTORESET*/
+	// Beginning of autoreset for uninitialized flops
+	dwb_lat <= 32'h0;
+	dwb_mx <= 32'h0;
+	// End of automatics
+     end else if (dwb_stb_o & dwb_ack_i) begin
+	// LATCH READS
+	dwb_lat <= #1 dwb_dat_i;	
+     end
+      
    always @(posedge gclk)
      if (grst) begin
 	/*AUTORESET*/
@@ -167,7 +170,7 @@ module aeMB2_dwbif (/*AUTOARG*/
 	dwb_cyc_o <= 1'h0;
 	dwb_stb_o <= 1'h0;
 	// End of automatics
-     end else if (dwb_ack_i ~^ dwb_stb_o) begin
+     end else if (dwb_fb) begin
 	dwb_stb_o <= #1
 		     (dena) ? &opc_of[5:4] : // LXX/SSS
 		     (dwb_stb_o & !dwb_ack_i); // LXX/SSS
@@ -181,6 +184,9 @@ module aeMB2_dwbif (/*AUTOARG*/
 endmodule // aeMB2_memif
 
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2008/04/21 12:11:38  sybreon
+// Passes arithmetic tests with single thread.
+//
 // Revision 1.2  2008/04/20 16:34:32  sybreon
 // Basic version with some features left out.
 //
