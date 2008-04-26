@@ -1,4 +1,4 @@
-/* $Id: aeMB2_gprf.v,v 1.3 2008-04-26 01:09:06 sybreon Exp $
+/* $Id: aeMB2_gprf.v,v 1.4 2008-04-26 17:57:43 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -94,7 +94,7 @@ module aeMB2_gprf (/*AUTOARG*/
      end
 
    // LOAD SIZER   
-   always @(/*AUTOSENSE*/dwb_mx or sel_mx) begin
+   always @(/*AUTOSENSE*/dwb_mx or sel_mx or xwb_mx) begin
       case (sel_mx)
 	// 8'bits
 	4'h8: mem_mx <= #1 {24'd0, dwb_mx[31:24]};
@@ -106,18 +106,20 @@ module aeMB2_gprf (/*AUTOARG*/
 	4'h3: mem_mx <= #1 {16'd0, dwb_mx[15:0]};
 	// 32'bits
 	4'hF: mem_mx <= #1 dwb_mx;
-	//4'h0: mem_mx <= #1 xwb_mx;
+	// XSL bus
+	4'h0: mem_mx <= #1 xwb_mx;
 	default: mem_mx <= 32'hX;	
       endcase // case (sel_mx)
    end // always @ (...
    
    // SELECT SOURCE
-   localparam [2:0] MUX_ALU = 3'o7,
-		    MUX_SFR = 3'o5,
-		    MUX_BSF = 3'o4,
-		    MUX_MUL = 3'o3,
-		    MUX_MEM = 3'o2,
-		    MUX_RPC = 3'o1,
+   localparam [2:0] MUX_SFR = 3'o7,
+		    MUX_BSF = 3'o6,
+		    MUX_MUL = 3'o5,
+		    MUX_MEM = 3'o4,
+		    
+		    MUX_RPC = 3'o2,
+		    MUX_ALU = 3'o1,
 		    MUX_NOP = 3'o0;   
    
    always @(/*AUTOSENSE*/alu_mx or bsf_mx or mem_mx or mul_mx
@@ -131,46 +133,283 @@ module aeMB2_gprf (/*AUTOARG*/
        MUX_NOP: regd <= #1 32'h0;
        MUX_SFR: regd <= #1 sfr_mx;       
        default: regd <= #1 32'hX;                     
-     endcase // case (mux_rd)
-
+     endcase // case (mux_mx)
    
    // REGISTER FILE - Infer LUT memory
-   wire [5:0] 	 wRD = {gpha, ich_dat[25:21]};
-   wire [5:0] 	 wRA = {gpha, ich_dat[20:16]};
-   wire [5:0] 	 wRB = {gpha, ich_dat[15:11]};
-   wire [5:0] 	 wRW = {!gpha, rd_mx};
+   wire [5:0] 	    wRD0 = {gpha, ich_dat[25:21]};   
+   wire [5:0] 	    wRA0 = {gpha, ich_dat[20:16]};
+   wire [5:0] 	    wRB0 = {gpha, ich_dat[15:11]};
+   wire [5:0] 	    wRW0 = {!gpha, rd_mx};
+   wire 	    wWRE = grst | wrb_fb;
    
-   assign 	 opd_wr = rMEMD[wRW];   
-   assign 	 opa_if = rMEMA[wRA];
-   assign 	 opb_if = rMEMB[wRB];
-   assign 	 opd_if = rMEMD[wRD];   
+   wire [31:0] 	    wDA0,
+		    wDB0,
+		    wDD0;
    
-   always @(posedge gclk)
-     if (grst | (dena & wrb_fb)) begin
-	rMEMA[wRW] <= #1 regd;
-	rMEMB[wRW] <= #1 regd;	
-	rMEMD[wRW] <= #1 regd;
-     end
+   assign 	    opa_if = wDA0;
+   assign 	    opb_if = wDB0;
+   assign 	    opd_if = wDD0;   
    
-   // synopsys translate_off
-   // initialise RAM to random contents for simulation only
-   integer 	 i;
-   initial begin
-      for (i=0;i<64;i=i+1) begin
-	 rMEMA[i] <= $random;
-	 rMEMB[i] <= $random;
-	 rMEMD[i] <= $random;      
-      end
-   end
-   // synopsys translate_on
+   /* aeMB2_dparam AUTO_TEMPLATE "_\([a-z,0-9]+\)" (
+    .AW(6'd6), 
+    .DW(6'd32),
+    
+    .clk_i(gclk),
+    .ena_i(dena),
+    
+    .dat_i(regd),
+    .adr_i(wRW0[5:0]),
+    .wre_i(wWRE),
+    .dat_o(),
+    
+    .xwre_i(),
+    .xdat_i(),
+    .xadr_i(wR@[5:0]),
+    .xdat_o(wD@[31:0]),
+    ) */
+
+   aeMB2_dparam
+     #(/*AUTOINSTPARAM*/
+       // Parameters
+       .AW				(6'd6),			 // Templated
+       .DW				(6'd32))		 // Templated
+   bank_A0
+     (/*AUTOINST*/
+      // Outputs
+      .dat_o				(),			 // Templated
+      .xdat_o				(wDA0[31:0]),		 // Templated
+      // Inputs
+      .adr_i				(wRW0[5:0]),		 // Templated
+      .dat_i				(regd),			 // Templated
+      .wre_i				(wWRE),			 // Templated
+      .xadr_i				(wRA0[5:0]),		 // Templated
+      .xdat_i				(),			 // Templated
+      .xwre_i				(),			 // Templated
+      .clk_i				(gclk),			 // Templated
+      .ena_i				(dena));			 // Templated
    
+   aeMB2_dparam
+     #(/*AUTOINSTPARAM*/
+       // Parameters
+       .AW				(6'd6),			 // Templated
+       .DW				(6'd32))		 // Templated
+   bank_B0
+     (/*AUTOINST*/
+      // Outputs
+      .dat_o				(),			 // Templated
+      .xdat_o				(wDB0[31:0]),		 // Templated
+      // Inputs
+      .adr_i				(wRW0[5:0]),		 // Templated
+      .dat_i				(regd),			 // Templated
+      .wre_i				(wWRE),			 // Templated
+      .xadr_i				(wRB0[5:0]),		 // Templated
+      .xdat_i				(),			 // Templated
+      .xwre_i				(),			 // Templated
+      .clk_i				(gclk),			 // Templated
+      .ena_i				(dena));			 // Templated
+   
+   aeMB2_dparam
+     #(/*AUTOINSTPARAM*/
+       // Parameters
+       .AW				(6'd6),			 // Templated
+       .DW				(6'd32))		 // Templated
+   bank_D0
+     (/*AUTOINST*/
+      // Outputs
+      .dat_o				(),			 // Templated
+      .xdat_o				(wDD0[31:0]),		 // Templated
+      // Inputs
+      .adr_i				(wRW0[5:0]),		 // Templated
+      .dat_i				(regd),			 // Templated
+      .wre_i				(wWRE),			 // Templated
+      .xadr_i				(wRD0[5:0]),		 // Templated
+      .xdat_i				(),			 // Templated
+      .xwre_i				(),			 // Templated
+      .clk_i				(gclk),			 // Templated
+      .ena_i				(dena));			 // Templated
+      
 endmodule // aeMB2_gprf
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.3  2008/04/26 01:09:06  sybreon
+ Passes basic tests. Minor documentation changes to make it compatible with iverilog pre-processor.
+
  Revision 1.2  2008/04/20 16:34:32  sybreon
  Basic version with some features left out.
 
  Revision 1.1  2008/04/18 00:21:52  sybreon
  Initial import.
 */
+
+`ifdef XXX
+   
+   wire [4:0] 	    wRD0 = (gpha) ? ich_dat[25:21] : 5'd0;   
+   wire [4:0] 	    wRA0 = (gpha) ? ich_dat[20:16] : 5'd0;   
+   wire [4:0] 	    wRB0 = (gpha) ? ich_dat[15:11] : 5'd0;   
+
+   wire [4:0] 	    wRD1 = (!gpha) ? ich_dat[25:21] : 5'd0;   
+   wire [4:0] 	    wRA1 = (!gpha) ? ich_dat[20:16] : 5'd0;   
+   wire [4:0] 	    wRB1 = (!gpha) ? ich_dat[15:11] : 5'd0;   
+
+   wire [4:0] 	    wRW  = rd_mx;   
+   
+   wire 	    wWR0 = (!gpha & dena & wrb_fb) | grst;
+   wire 	    wWR1 = (gpha & dena & wrb_fb) | grst; 
+
+   wire 	    wWA0 = wWR0;
+   wire 	    wWB0 = wWR0;
+   wire 	    wWD0 = wWR0;
+   wire 	    wWA1 = wWR1;
+   wire 	    wWB1 = wWR1;
+   wire 	    wWD1 = wWR1;   
+
+   wire [31:0] 	    wDA0, 
+		    wDA1,
+		    wDB0,
+		    wDB1,
+		    wDD0,
+		    wDD1;   
+
+   assign 	    opa_if = wDA0 | wDA1;
+   assign 	    opb_if = wDB0 | wDB1;
+   assign 	    opd_if = wDD0 | wDD1;   
+   
+   /* aeMB2_dparam AUTO_TEMPLATE "_\([a-z,0-9]+\)" (
+    .AW(6'd5), 
+    .DW(6'd32),
+    
+    .clk_i(gclk),
+    .ena_i(dena),
+    
+    .dat_i(regd),
+    .adr_i(wRW[4:0]),
+    .wre_i(wW@),
+    .dat_o(),
+    
+    .xwre_i(),
+    .xdat_i(),
+    .xadr_i(wR@[4:0]),
+    .xdat_o(wD@[31:0]),
+    ) */
+   
+   aeMB2_dparam
+     #(/*AUTOINSTPARAM*/
+       // Parameters
+       .AW				(6'd5),			 // Templated
+       .DW				(6'd32))		 // Templated
+   bank_A0
+     (/*AUTOINST*/
+      // Outputs
+      .dat_o				(),			 // Templated
+      .xdat_o				(wDA0[31:0]),		 // Templated
+      // Inputs
+      .adr_i				(wRW[4:0]),		 // Templated
+      .dat_i				(regd),			 // Templated
+      .wre_i				(wWA0),			 // Templated
+      .xadr_i				(wRA0[4:0]),		 // Templated
+      .xdat_i				(),			 // Templated
+      .xwre_i				(),			 // Templated
+      .clk_i				(gclk),			 // Templated
+      .ena_i				(dena));			 // Templated
+
+   aeMB2_dparam
+     #(/*AUTOINSTPARAM*/
+       // Parameters
+       .AW				(6'd5),			 // Templated
+       .DW				(6'd32))		 // Templated
+   bank_B0
+     (/*AUTOINST*/
+      // Outputs
+      .dat_o				(),			 // Templated
+      .xdat_o				(wDB0[31:0]),		 // Templated
+      // Inputs
+      .adr_i				(wRW[4:0]),		 // Templated
+      .dat_i				(regd),			 // Templated
+      .wre_i				(wWB0),			 // Templated
+      .xadr_i				(wRB0[4:0]),		 // Templated
+      .xdat_i				(),			 // Templated
+      .xwre_i				(),			 // Templated
+      .clk_i				(gclk),			 // Templated
+      .ena_i				(dena));			 // Templated
+   
+   aeMB2_dparam
+     #(/*AUTOINSTPARAM*/
+       // Parameters
+       .AW				(6'd5),			 // Templated
+       .DW				(6'd32))		 // Templated
+   bank_D0
+     (/*AUTOINST*/
+      // Outputs
+      .dat_o				(),			 // Templated
+      .xdat_o				(wDD0[31:0]),		 // Templated
+      // Inputs
+      .adr_i				(wRW[4:0]),		 // Templated
+      .dat_i				(regd),			 // Templated
+      .wre_i				(wWD0),			 // Templated
+      .xadr_i				(wRD0[4:0]),		 // Templated
+      .xdat_i				(),			 // Templated
+      .xwre_i				(),			 // Templated
+      .clk_i				(gclk),			 // Templated
+      .ena_i				(dena));			 // Templated
+   
+   aeMB2_dparam
+     #(/*AUTOINSTPARAM*/
+       // Parameters
+       .AW				(6'd5),			 // Templated
+       .DW				(6'd32))		 // Templated
+   bank_A1
+     (/*AUTOINST*/
+      // Outputs
+      .dat_o				(),			 // Templated
+      .xdat_o				(wDA1[31:0]),		 // Templated
+      // Inputs
+      .adr_i				(wRW[4:0]),		 // Templated
+      .dat_i				(regd),			 // Templated
+      .wre_i				(wWA1),			 // Templated
+      .xadr_i				(wRA1[4:0]),		 // Templated
+      .xdat_i				(),			 // Templated
+      .xwre_i				(),			 // Templated
+      .clk_i				(gclk),			 // Templated
+      .ena_i				(dena));			 // Templated
+   
+   aeMB2_dparam
+     #(/*AUTOINSTPARAM*/
+       // Parameters
+       .AW				(6'd5),			 // Templated
+       .DW				(6'd32))		 // Templated
+   bank_B1
+     (/*AUTOINST*/
+      // Outputs
+      .dat_o				(),			 // Templated
+      .xdat_o				(wDB1[31:0]),		 // Templated
+      // Inputs
+      .adr_i				(wRW[4:0]),		 // Templated
+      .dat_i				(regd),			 // Templated
+      .wre_i				(wWB1),			 // Templated
+      .xadr_i				(wRB1[4:0]),		 // Templated
+      .xdat_i				(),			 // Templated
+      .xwre_i				(),			 // Templated
+      .clk_i				(gclk),			 // Templated
+      .ena_i				(dena));			 // Templated
+   
+   aeMB2_dparam
+     #(/*AUTOINSTPARAM*/
+       // Parameters
+       .AW				(6'd5),			 // Templated
+       .DW				(6'd32))		 // Templated
+   bank_D1
+     (/*AUTOINST*/
+      // Outputs
+      .dat_o				(),			 // Templated
+      .xdat_o				(wDD1[31:0]),		 // Templated
+      // Inputs
+      .adr_i				(wRW[4:0]),		 // Templated
+      .dat_i				(regd),			 // Templated
+      .wre_i				(wWD1),			 // Templated
+      .xadr_i				(wRD1[4:0]),		 // Templated
+      .xdat_i				(),			 // Templated
+      .xwre_i				(),			 // Templated
+      .clk_i				(gclk),			 // Templated
+      .ena_i				(dena));			 // Templated
+`endif   

@@ -1,4 +1,4 @@
-/* $Id: aeMB2_mult.v,v 1.3 2008-04-26 01:09:06 sybreon Exp $
+/* $Id: aeMB2_mult.v,v 1.4 2008-04-26 17:57:43 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -49,7 +49,8 @@ module aeMB2_mult (/*AUTOARG*/
 		 gpha;      
 
    /*AUTOREG*/
-   
+
+   reg [31:0] 	 rOPA, rOPB;   
    reg [31:0] 	 rMUL0, 
 		 rMUL1;
 
@@ -59,10 +60,15 @@ module aeMB2_mult (/*AUTOARG*/
 	// Beginning of autoreset for uninitialized flops
 	rMUL0 <= 32'h0;
 	rMUL1 <= 32'h0;
+	rOPA <= 32'h0;
+	rOPB <= 32'h0;
 	// End of automatics
      end else if (dena) begin
-	rMUL1 <= #1 rMUL0;	
-	rMUL0 <= #1 (AEMB_MUL[0]) ? (opa_of * opb_of) : 32'hX;
+	//rMUL1 <= #1 rMUL0;
+	rMUL1 <= #1 rMUL0; //rOPA * rOPB;	
+	rMUL0 <= #1 (opa_of * opb_of);
+	rOPA <= #1 opa_of;
+	rOPB <= #1 opb_of;	
      end
 
    assign 	 mul_mx = rMUL1;
@@ -71,6 +77,9 @@ endmodule // aeMB2_mult
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.3  2008/04/26 01:09:06  sybreon
+ Passes basic tests. Minor documentation changes to make it compatible with iverilog pre-processor.
+
  Revision 1.2  2008/04/20 16:34:32  sybreon
  Basic version with some features left out.
 

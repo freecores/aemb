@@ -1,4 +1,4 @@
-/* $Id: aeMB2_intu.v,v 1.4 2008-04-26 01:09:06 sybreon Exp $
+/* $Id: aeMB2_intu.v,v 1.5 2008-04-26 17:57:43 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -78,10 +78,8 @@ module aeMB2_intu (/*AUTOARG*/
 			rMSR_BIP, 
 			rMSR_IE,
 			rMSR_BE;   
-   
-   
-   // ADDER
-   
+      
+   // ADDER   
    /* Infer a ADD cell because ADD/SUB cannot be inferred cross
     technologies. */
    
@@ -154,11 +152,11 @@ module aeMB2_intu (/*AUTOARG*/
      end else if (dena) begin
 	alu_mx <= #1 alu_ex;
 	alu_ex <= #1 (opc_of[5]) ? slm_ex : add_ex;	
-	mem_ex <= #1 add_ex[AEMB_DWB-1:2]; // LXX/SXX	
+	mem_ex <= #1 wADD[AEMB_DWB-1:2]; // LXX/SXX	
 	bpc_ex <= #1 
 		  (!opc_of[0] & ra_of[3]) ? // check for BRA
 		  opb_of[AEMB_IWB-1:2] : // BRA only
-		  add_ex[AEMB_IWB-1:2]; // RTD/BCC/BR
+		  wADD[AEMB_IWB-1:2]; // RTD/BCC/BR
      end
 
    // MSR SECTION
@@ -209,7 +207,8 @@ module aeMB2_intu (/*AUTOARG*/
    wire 	    fBRKI = (opc_of == 6'o56) & (ra_of[4:0] == 5'hD);
    wire 	    fBRKB = ((opc_of == 6'o46) | (opc_of == 6'o56)) & (ra_of[4:0] == 5'hC);
    
-   wire 	    fMOV = (opc_of == 6'o45);
+   //wire 	    fMOV = (opc_of == 6'o45);
+   wire 	    fMOV = opc_of[5] & !opc_of[4] & !opc_of[3] & opc_of[2] & !opc_of[1] & opc_of[0];
    wire 	    fMTS = fMOV & &imm_of[15:14];
    wire 	    fMOP = fMOV & ~|imm_of[15:14];   
 
@@ -244,12 +243,12 @@ module aeMB2_intu (/*AUTOARG*/
 		   rMSR_IE,
 		   rMSR_BE 
 		   };
-	
+	/*
 	rMSR_DCE <= #1
 		   (fMTS) ? opa_of[7] :
 		   (fMOP) ? wRES[7] :
 		   rMSR_DCE;	
-		
+
 	rMSR_ICE <= #1
 		   (fMTS) ? opa_of[5] :
 		   (fMOP) ? wRES[5] :
@@ -264,7 +263,46 @@ module aeMB2_intu (/*AUTOARG*/
 		   (fMTS) ? opa_of[0] :
 		   (fMOP) ? wRES[0] :
 		   rMSR_BE;	
+	 */
 	
+	case ({fMTS, fMOP})
+	  2'o2: {rMSR_DCE,
+		 rMSR_ICE,
+		 rMSR_MTX,
+		 rMSR_BE} <= #1 {opa_of[7],
+				 opa_of[5],
+				 opa_of[4],
+				 opa_of[0]};	  
+	  2'o1: {rMSR_DCE,
+		 rMSR_ICE,
+		 rMSR_MTX,
+		 rMSR_BE} <= #1 {wRES[7],
+				 wRES[5],
+				 wRES[4],
+				 wRES[0]};	  
+	  default: {rMSR_DCE,
+		    rMSR_ICE,
+		    rMSR_MTX,
+		    rMSR_BE} <= #1 {rMSR_DCE,
+				    rMSR_ICE,
+				    rMSR_MTX,
+				    rMSR_BE};	  
+	endcase // case ({fMTS, fMOP})
+
+	case ({fMTS, fMOP})
+	  2'o2: {rMSR_BIP,
+		 rMSR_IE} <= #1 {opa_of[3],
+				 opa_of[1]};
+	  2'o1: {rMSR_BIP,
+		 rMSR_IE} <= #1 {wRES[3],
+				 wRES[1]};
+	  default: begin
+	     rMSR_BIP <= #1 (fBRKB | fRTBD) ? !rMSR_BIP : rMSR_BIP;	     
+	     rMSR_IE <= #1 (fBRKI | fRTID) ? !rMSR_IE : rMSR_IE;
+	  end
+	endcase // case ({fMTS, fMOP})
+	
+	/*
 	rMSR_IE <= #1
 		   (fBRKI) ? 1'b0 :
 		   (fRTID) ? 1'b1 :
@@ -278,7 +316,7 @@ module aeMB2_intu (/*AUTOARG*/
 		    (fMTS) ? opa_of[3] :
 		    (fMOP) ? wRES[3] :
 		    rMSR_BIP;
-	
+	*/
      end // if (dena)
 
    // BARREL C
@@ -312,6 +350,9 @@ endmodule // aeMB2_intu
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.4  2008/04/26 01:09:06  sybreon
+ Passes basic tests. Minor documentation changes to make it compatible with iverilog pre-processor.
+
  Revision 1.3  2008/04/23 14:18:30  sybreon
  Fixed CMP bug.
 

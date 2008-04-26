@@ -1,4 +1,4 @@
-/* $Id: aeMB2_memif.v,v 1.2 2008-04-26 01:09:06 sybreon Exp $
+/* $Id: aeMB2_memif.v,v 1.3 2008-04-26 17:57:43 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -25,6 +25,8 @@
  * A wrapper for the data/xsel bus interfaces.
  
  */
+
+// 89@380
 
 module aeMB2_memif (/*AUTOARG*/
    // Outputs
@@ -150,6 +152,9 @@ endmodule // aeMB2_memif
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.2  2008/04/26 01:09:06  sybreon
+ Passes basic tests. Minor documentation changes to make it compatible with iverilog pre-processor.
+
  Revision 1.1  2008/04/18 00:21:52  sybreon
  Initial import.
 */

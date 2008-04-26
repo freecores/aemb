@@ -1,4 +1,4 @@
-/* $Id: aeMB2_xslif.v,v 1.4 2008-04-26 01:09:06 sybreon Exp $
+/* $Id: aeMB2_xslif.v,v 1.5 2008-04-26 17:57:43 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -73,12 +73,12 @@ module aeMB2_xslif (/*AUTOARG*/
    reg			xwb_wre_o;
    // End of automatics
    
-   // ENABLE FEEDBACK
    // FIXME: perform NGET/NPUT non-blocking operations
    assign 		xwb_fb = (xwb_stb_o ~^ xwb_ack_i);
   
    // XSEL bus
-   reg [31:0] 		xwb_lat;   
+   reg [31:0] 		xwb_lat;
+   
    always @(posedge gclk)
      if (grst) begin
 	/*AUTORESET*/
@@ -95,9 +95,9 @@ module aeMB2_xslif (/*AUTOARG*/
 	xwb_wre_o <= #1 imm_of[15]; // PUT
 	xwb_tag_o <= #1 imm_of[13]; // cGET/cPUT	
 
-	xwb_dat_o <= #1 opa_of;
+	xwb_dat_o <= #1 opa_of; // Latch output
 
-	xwb_mx <= #1 (xwb_ack_i) ? xwb_dat_i : xwb_lat;	
+	xwb_mx <= #1 (xwb_ack_i) ? xwb_dat_i : xwb_lat;	// Latch input
 	
      end // if (dena)
 
@@ -136,6 +136,9 @@ endmodule // aeMB2_xslif
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.4  2008/04/26 01:09:06  sybreon
+ Passes basic tests. Minor documentation changes to make it compatible with iverilog pre-processor.
+
  Revision 1.3  2008/04/21 12:11:38  sybreon
  Passes arithmetic tests with single thread.
 

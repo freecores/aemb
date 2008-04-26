@@ -1,4 +1,4 @@
-/* $Id: aeMB2_sfrf.v,v 1.1 2008-04-18 00:21:52 sybreon Exp $
+/* $Id: aeMB2_sfrf.v,v 1.2 2008-04-26 17:57:43 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -18,7 +18,6 @@
 ** You should have received a copy of the GNU Lesser General Public
 ** License along with AEMB. If not, see <http:**www.gnu.org/licenses/>.
 */
-
 /**
  * Special Function Register File
  * @file aeMB2_sfrf.v
@@ -199,4 +198,8 @@ module aeMB2_sfrf (/*AUTOARG*/
    
 endmodule // aeMB2_sfrf
 
-// $Log: not supported by cvs2svn $
+/*
+ $Log: not supported by cvs2svn $
+ Revision 1.1  2008/04/18 00:21:52  sybreon
+ Initial import.
+*/

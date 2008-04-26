@@ -1,4 +1,4 @@
-/* $Id: aeMB2_exec.v,v 1.3 2008-04-26 01:11:30 sybreon Exp $
+/* $Id: aeMB2_exec.v,v 1.4 2008-04-26 17:57:43 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -26,6 +26,8 @@
  * Collection of all the execution units.
  
  */
+
+// 382@130
 
 module aeMB2_exec (/*AUTOARG*/
    // Outputs
@@ -134,6 +136,9 @@ endmodule // aeMB2_exec
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.3  2008/04/26 01:11:30  sybreon
+ Fixed minor typos.
+
  Revision 1.2  2008/04/26 01:09:06  sybreon
  Passes basic tests. Minor documentation changes to make it compatible with iverilog pre-processor.
 

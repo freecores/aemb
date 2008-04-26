@@ -1,4 +1,4 @@
-/* $Id: aeMB2_iche.v,v 1.3 2008-04-26 01:09:06 sybreon Exp $
+/* $Id: aeMB2_iche.v,v 1.4 2008-04-26 17:57:43 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -108,10 +108,13 @@ module aeMB2_iche (/*AUTOARG*/
 
    wire [VAL:1] 	oVAL, iVAL;   
    wire [TAG:1] 	oTAG; 		
+
+   wire [31:0] 		wIREG;   
    
    // HIT CHECKS
-   wire 		hTAG = (iTAG == oTAG);   
-			//((iTAG ^ oTAG) == {(TAG){1'b0}});
+   wire 		hTAG = ~|(iTAG ^ oTAG);   
+			//(iTAG == oTAG);   
+			//((iTAG ^ oTAG) == {(TAG){1'b0}});			
    wire 		hVAL = |(oVAL & wDEC);   
 			//((oVAL & wDEC) != {(VAL){1'b0}});
    
@@ -119,7 +122,9 @@ module aeMB2_iche (/*AUTOARG*/
    assign 		iVAL = (hTAG) ? // BLOCK/LINE fill check
 			       oVAL | wDEC : // LINE fill
 			       wDEC; // BLOCK replace
-		      
+
+   assign 		ich_dat = wIREG;   
+   
    /* 
     aeMB2_tpsram AUTO_TEMPLATE (
     .dat_o(),
@@ -130,7 +135,7 @@ module aeMB2_iche (/*AUTOARG*/
     .clk_i(gclk),
     .wre_i(iwb_ack_i),
     
-    .xdat_o(ich_dat[31:0]),
+    .xdat_o(wIREG[31:0]),
     .xdat_i(),    
     .xadr_i(aLNE[SIZ:1]),
     .xrst_i(grst),
@@ -172,7 +177,7 @@ module aeMB2_iche (/*AUTOARG*/
      (/*AUTOINST*/
       // Outputs
       .dat_o				(),			 // Templated
-      .xdat_o				(ich_dat[31:0]),	 // Templated
+      .xdat_o				(wIREG[31:0]),		 // Templated
       // Inputs
       .adr_i				(aLNE[SIZ:1]),		 // Templated
       .dat_i				(iwb_dat_i[31:0]),	 // Templated
@@ -191,6 +196,9 @@ endmodule // aeMB2_iche
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.3  2008/04/26 01:09:06  sybreon
+ Passes basic tests. Minor documentation changes to make it compatible with iverilog pre-processor.
+
  Revision 1.2  2008/04/20 16:34:32  sybreon
  Basic version with some features left out.
 

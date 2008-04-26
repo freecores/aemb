@@ -1,4 +1,4 @@
-/* $Id: aeMB2_dwbif.v,v 1.5 2008-04-26 01:09:05 sybreon Exp $
+/* $Id: aeMB2_dwbif.v,v 1.6 2008-04-26 17:57:43 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -129,9 +129,9 @@ module aeMB2_dwbif (/*AUTOARG*/
 	
 	dwb_wre_o <= #1 opc_of[2]; // SXX
 	
-	dwb_mx <= #1 (dwb_ack_i) ? dwb_dat_i : dwb_lat;	
+	dwb_mx <= #1 (dwb_ack_i) ? dwb_dat_i : dwb_lat;	// Latch input
 
-	case (wSEL)
+	case (wSEL) // Latch output
 	  // 32'bit
 	  4'h8: dwb_sel_o <= #1 4'hF;
 	  // 16'bit
@@ -142,6 +142,9 @@ module aeMB2_dwbif (/*AUTOARG*/
 	  4'h1: dwb_sel_o <= #1 4'h4;
 	  4'h2: dwb_sel_o <= #1 4'h2;
 	  4'h3: dwb_sel_o <= #1 4'h1;	
+	  // XSL bus
+	  4'hC, 4'hD, 4'hE, 4'hF: 
+	    dwb_sel_o <= #1 4'h0;
 	  // TODO: ILLEGAL
 	  default: dwb_sel_o <= #1 4'hX;
 	endcase // case (wSEL)
@@ -183,6 +186,9 @@ endmodule // aeMB2_dwbif
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.5  2008/04/26 01:09:05  sybreon
+ Passes basic tests. Minor documentation changes to make it compatible with iverilog pre-processor.
+
  Revision 1.4  2008/04/23 14:18:52  sybreon
  Fixed pipelined latching of data bug.
 

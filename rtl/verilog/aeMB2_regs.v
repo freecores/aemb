@@ -1,4 +1,4 @@
-/* $Id: aeMB2_regs.v,v 1.3 2008-04-26 01:09:06 sybreon Exp $
+/* $Id: aeMB2_regs.v,v 1.4 2008-04-26 17:57:43 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -25,6 +25,8 @@
  * A collection of general purpose and special function registers.
  
  */
+
+// 200@207
 
 module aeMB2_regs (/*AUTOARG*/
    // Outputs
@@ -99,6 +101,9 @@ endmodule // aeMB2_regs
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.3  2008/04/26 01:09:06  sybreon
+ Passes basic tests. Minor documentation changes to make it compatible with iverilog pre-processor.
+
  Revision 1.2  2008/04/21 12:11:38  sybreon
  Passes arithmetic tests with single thread.
 

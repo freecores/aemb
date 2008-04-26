@@ -1,4 +1,4 @@
-/* $Id: aeMB2_edk62.v,v 1.5 2008-04-26 01:11:30 sybreon Exp $
+/* $Id: aeMB2_edk62.v,v 1.6 2008-04-26 17:57:43 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -27,6 +27,8 @@
  
  */
 
+// 973@95
+
 module aeMB2_edk62 (/*AUTOARG*/
    // Outputs
    xwb_wre_o, xwb_tag_o, xwb_stb_o, xwb_sel_o, xwb_dat_o, xwb_cyc_o,
@@ -39,16 +41,15 @@ module aeMB2_edk62 (/*AUTOARG*/
    );
    parameter AEMB_IWB = 32; ///< INST bus width
    parameter AEMB_DWB = 32; ///< DATA bus width
-   parameter AEMB_XWB = 3; ///< XSEL bus width
+   parameter AEMB_XWB = 5; ///< XSEL bus width
   
-   parameter AEMB_HTX = 1; ///< hardware thread extension
-   
    parameter AEMB_ICH = 11; ///< instruction cache size
    parameter AEMB_IDX = 6; ///< cache index size
    
    parameter AEMB_BSF = 1; ///< implement barrel shift
    parameter AEMB_MUL = 1; ///< implement multiplier
    parameter AEMB_XSL = 1; ///< implement XSL bus
+   parameter AEMB_HTX = 1; ///< hardware thread extension
       
    /*AUTOOUTPUT*/
    // Beginning of automatic outputs (from unused autoinst outputs)
@@ -366,6 +367,9 @@ endmodule // aeMB2_edk62
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.5  2008/04/26 01:11:30  sybreon
+ Fixed minor typos.
+
  Revision 1.4  2008/04/26 01:09:05  sybreon
  Passes basic tests. Minor documentation changes to make it compatible with iverilog pre-processor.
 

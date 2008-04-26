@@ -1,4 +1,4 @@
-/* $Id: aeMB2_ctrl.v,v 1.3 2008-04-26 01:09:05 sybreon Exp $
+/* $Id: aeMB2_ctrl.v,v 1.4 2008-04-26 17:57:43 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -123,12 +123,13 @@ module aeMB2_ctrl (/*AUTOARG*/
    wire [31:0] 		wINTOP = 32'hB9CE0010; // Vector 0x10   
    wire [31:0] 		wNOPOP = 32'h88000000; // branch-no-delay/stall
 
-   localparam [2:0] 	MUX_ALU = 3'o7,		
-			MUX_SFR = 3'o5,
-			MUX_BSF = 3'o4,
-			MUX_MUL = 3'o3,
-			MUX_MEM = 3'o2,
-			MUX_RPC = 3'o1,
+   localparam [2:0] 	MUX_SFR = 3'o7,
+			MUX_BSF = 3'o6,
+			MUX_MUL = 3'o5,
+			MUX_MEM = 3'o4,
+			
+			MUX_RPC = 3'o2,
+			MUX_ALU = 3'o1,
 			MUX_NOP = 3'o0;   
    
    always @(posedge gclk)
@@ -160,22 +161,21 @@ module aeMB2_ctrl (/*AUTOARG*/
 	
 	rd_of <= #1 wRD;	
 	ra_of <= #1 wRA;
-	//rb_of <= #1 wRB;
 	imm_of <= #1 wIMM;
 	
      end // if (dena)
-   
-   
+      
    // immediate implementation
    reg [15:0] 		rIMM0, rIMM1;
    reg 			rFIM0, rFIM1;
-   wire 		wFIMH = (gpha & AEMB_HTX[0]) ? rFIM1 : rFIM0;   
-   wire [15:0]		wIMMH = (gpha & AEMB_HTX[0]) ? rIMM1 : rIMM0;
+   //wire 		wFIMH = (gpha & AEMB_HTX[0]) ? rFIM1 : rFIM0;   
+   //wire [15:0] 		wIMMH = (gpha & AEMB_HTX[0]) ? rIMM1 : rIMM0;
 
    assign 		imm_if[15:0] = wIMM;
-   assign 		imm_if[31:16] = (wFIMH) ? wIMMH :
+   assign 		imm_if[31:16] = (rFIM1) ? rIMM1 :
 					{(16){wIMM[15]}};
 
+   // BARREL IMM
    always @(posedge gclk)
      if (grst) begin
 	/*AUTORESET*/
@@ -186,37 +186,33 @@ module aeMB2_ctrl (/*AUTOARG*/
 	rIMM1 <= 16'h0;
 	// End of automatics
      end else if (dena) begin
-	if (gpha) begin
-	   rFIM1 <= #1 fIMM & !hzd_bpc;
-	   rIMM1 <= #1 wIMM;	   
-	end else begin
-	   rFIM0 <= #1 fIMM & !hzd_bpc;
-	   rIMM0 <= #1 wIMM;	   
-	end
-     end
+	rFIM1 <= #1 rFIM0;
+	rFIM0 <= #1 fIMM & !hzd_bpc;	
 
+	rIMM1 <= #1 rIMM0;
+	rIMM0 <= #1 wIMM;	
+     end
    
    // operand latch   
    reg 			wrb_ex;
    reg 			fwd_ex;   
-
+   reg [2:0] 		mux_mx;
+   
    wire 		opb_fwd, opa_fwd, opd_fwd;
    
    assign 		mux_opb = {wOPC[3], opb_fwd};
-   assign 		opb_fwd = (wRB == rd_ex) & 
+   assign 		opb_fwd = ~|(wRB ^ rd_ex) & // RB forwarding needed
 				  fwd_ex & wrb_ex;   
 
    assign 		mux_opa = {(fBRU|fBCC), opa_fwd};
-   assign 		opa_fwd = (wRA == rd_ex) & 
+   assign 		opa_fwd = ~|(wRA ^ rd_ex) & // RA forwarding needed
 				  fwd_ex & wrb_ex;
 
    assign 		mux_opd = {fBCC, opd_fwd};		
-   assign 		opd_fwd = (((wRA == rd_ex) & fBCC) |
-				   ((wRD == rd_ex) & fSTR)) &
+   assign 		opd_fwd = (( ~|(wRA ^ rd_ex) & fBCC) |
+				   ( ~|(wRD ^ rd_ex) & fSTR)) &
 				  fwd_ex & wrb_ex;   
 
-   reg [2:0] 		mux_mx;
-   
    always @(posedge gclk)
      if (grst) begin
 	/*AUTORESET*/
@@ -235,8 +231,7 @@ module aeMB2_ctrl (/*AUTOARG*/
 	mux_ex <= #1 mux_of;	
 	rd_ex <= #1 rd_of;	
      end
-   
-   
+      
    always @(posedge gclk)
      if (grst) begin
 	/*AUTORESET*/
@@ -260,7 +255,6 @@ module aeMB2_ctrl (/*AUTOARG*/
 	  2'o1: opb_of <= #1 alu_ex;
 	  2'o2: opb_of <= #1 imm_if;
 	  2'o3: opb_of <= #1 imm_if;	  
-	  //default: 32'hX;
 	endcase // case (mux_opb)
 	
 	case (mux_opa)
@@ -278,14 +272,17 @@ module aeMB2_ctrl (/*AUTOARG*/
    wire 		wFMEM = (mux_ex == MUX_MEM);
    wire 		wFMOV = (mux_ex == MUX_SFR);   
    
-   assign 		hzd_fwd = (opd_fwd | opa_fwd | opb_fwd) & 
-				  (wFMUL | wFBSF | wFMEM | wFMOV);      
+   assign 		hzd_fwd = (opd_fwd | opa_fwd | opb_fwd) & mux_ex[2];   
+				  //(wFMUL | wFBSF | wFMEM | wFMOV);
    assign 		hzd_bpc = (bra_ex[1] & !bra_ex[0]);
    
 endmodule // aeMB2_ctrl
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.3  2008/04/26 01:09:05  sybreon
+ Passes basic tests. Minor documentation changes to make it compatible with iverilog pre-processor.
+
  Revision 1.2  2008/04/20 16:34:32  sybreon
  Basic version with some features left out.
 
