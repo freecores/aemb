@@ -1,4 +1,4 @@
-/* $Id: aeMB2_bsft.v,v 1.1 2008-04-18 00:21:52 sybreon Exp $
+/* $Id: aeMB2_bsft.v,v 1.2 2008-04-26 01:09:05 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -18,7 +18,6 @@
 ** You should have received a copy of the GNU Lesser General Public
 ** License along with AEMB. If not, see <http:**www.gnu.org/licenses/>.
 */
-
 /**
  * Two Cycle Barrel Shift Unit
  * @file aeMB2_bsft.v
@@ -135,8 +134,11 @@ module aeMB2_bsft (/*AUTOARG*/
 	endcase // case (imm_ex)
 	imm_ex <= #1 imm_of[10:9]; // delay 1 cycle	
      end
-   
-   
+      
 endmodule // aeMB2_bsft
 
-// $Log: not supported by cvs2svn $
+/*
+ $Log: not supported by cvs2svn $
+ Revision 1.1  2008/04/18 00:21:52  sybreon
+ Initial import.
+*/

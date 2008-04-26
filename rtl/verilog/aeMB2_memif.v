@@ -1,4 +1,4 @@
-/* $Id: aeMB2_memif.v,v 1.1 2008-04-18 00:21:52 sybreon Exp $
+/* $Id: aeMB2_memif.v,v 1.2 2008-04-26 01:09:06 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -18,7 +18,6 @@
 ** You should have received a copy of the GNU Lesser General Public
 ** License along with AEMB. If not, see <http:**www.gnu.org/licenses/>.
 */
-
 /**
  * Memory Interface Wrapper
  * @file aeMB2_memif.v
@@ -34,8 +33,9 @@ module aeMB2_memif (/*AUTOARG*/
    dwb_stb_o, dwb_sel_o, dwb_mx, dwb_fb, dwb_dat_o, dwb_cyc_o,
    dwb_adr_o,
    // Inputs
-   xwb_dat_i, xwb_ack_i, opd_of, opc_of, opb_of, opa_of, msr_ex,
-   mem_ex, imm_of, grst, gpha, gclk, dwb_dat_i, dwb_ack_i, dena
+   xwb_dat_i, xwb_ack_i, sfr_mx, opd_of, opc_of, opb_of, opa_of,
+   msr_ex, mem_ex, imm_of, grst, gpha, gclk, dwb_dat_i, dwb_ack_i,
+   dena
    );   
    parameter AEMB_DWB = 32;
    parameter AEMB_XWB = 3;
@@ -53,7 +53,7 @@ module aeMB2_memif (/*AUTOARG*/
    output		dwb_tag_o;		// From dwbif0 of aeMB2_dwbif.v
    output		dwb_wre_o;		// From dwbif0 of aeMB2_dwbif.v
    output [3:0]		sel_mx;			// From dwbif0 of aeMB2_dwbif.v
-   output [AEMB_XWB+1:2] xwb_adr_o;		// From xslif0 of aeMB2_xslif.v
+   output [AEMB_XWB-1:2] xwb_adr_o;		// From xslif0 of aeMB2_xslif.v
    output		xwb_cyc_o;		// From xslif0 of aeMB2_xslif.v
    output [31:0]	xwb_dat_o;		// From xslif0 of aeMB2_xslif.v
    output		xwb_fb;			// From xslif0 of aeMB2_xslif.v
@@ -78,6 +78,7 @@ module aeMB2_memif (/*AUTOARG*/
    input [1:0]		opb_of;			// To dwbif0 of aeMB2_dwbif.v
    input [5:0]		opc_of;			// To xslif0 of aeMB2_xslif.v, ...
    input [31:0]		opd_of;			// To dwbif0 of aeMB2_dwbif.v
+   input [7:5]		sfr_mx;			// To dwbif0 of aeMB2_dwbif.v
    input		xwb_ack_i;		// To xslif0 of aeMB2_xslif.v
    input [31:0]		xwb_dat_i;		// To xslif0 of aeMB2_xslif.v
    // End of automatics
@@ -91,7 +92,7 @@ module aeMB2_memif (/*AUTOARG*/
    xslif0
      (/*AUTOINST*/
       // Outputs
-      .xwb_adr_o			(xwb_adr_o[AEMB_XWB+1:2]),
+      .xwb_adr_o			(xwb_adr_o[AEMB_XWB-1:2]),
       .xwb_dat_o			(xwb_dat_o[31:0]),
       .xwb_sel_o			(xwb_sel_o[3:0]),
       .xwb_tag_o			(xwb_tag_o),
@@ -138,6 +139,7 @@ module aeMB2_memif (/*AUTOARG*/
       .opb_of				(opb_of[1:0]),
       .msr_ex				(msr_ex[7:0]),
       .mem_ex				(mem_ex[AEMB_DWB-1:2]),
+      .sfr_mx				(sfr_mx[7:5]),
       .gclk				(gclk),
       .grst				(grst),
       .dena				(dena),
@@ -146,4 +148,8 @@ module aeMB2_memif (/*AUTOARG*/
    
 endmodule // aeMB2_memif
 
-// $Log: not supported by cvs2svn $
+/*
+ $Log: not supported by cvs2svn $
+ Revision 1.1  2008/04/18 00:21:52  sybreon
+ Initial import.
+*/

@@ -1,4 +1,4 @@
-/* $Id: aeMB2_iche.v,v 1.2 2008-04-20 16:34:32 sybreon Exp $
+/* $Id: aeMB2_iche.v,v 1.3 2008-04-26 01:09:06 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -18,7 +18,6 @@
 ** You should have received a copy of the GNU Lesser General Public
 ** License along with AEMB. If not, see <http:**www.gnu.org/licenses/>.
 */
-
 /**
  * Instruction Cache Block
  * @file aeMB2_iche.v
@@ -98,7 +97,7 @@ module aeMB2_iche (/*AUTOARG*/
        4'hD: rDEC <= #1 16'h2000;
        4'hE: rDEC <= #1 16'h4000;
        4'hF: rDEC <= #1 16'h8000;      
-     endcase // case (ich_adr[5:2])
+     endcase // case (ich_adr[AEMB_IDX-1:2])
    
    wire [VAL:1] 	wDEC = rDEC[VAL:1]; // resize decoder   
 
@@ -190,7 +189,11 @@ module aeMB2_iche (/*AUTOARG*/
    
 endmodule // aeMB2_iche
 
-// $Log: not supported by cvs2svn $
-// Revision 1.1  2008/04/18 00:21:52  sybreon
-// Initial import.
-//
+/*
+ $Log: not supported by cvs2svn $
+ Revision 1.2  2008/04/20 16:34:32  sybreon
+ Basic version with some features left out.
+
+ Revision 1.1  2008/04/18 00:21:52  sybreon
+ Initial import.
+*/

@@ -1,4 +1,4 @@
-/* $Id: aeMB2_ctrl.v,v 1.2 2008-04-20 16:34:32 sybreon Exp $
+/* $Id: aeMB2_ctrl.v,v 1.3 2008-04-26 01:09:05 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -18,7 +18,6 @@
 ** You should have received a copy of the GNU Lesser General Public
 ** License along with AEMB. If not, see <http:**www.gnu.org/licenses/>.
 */
-
 /**
  * Instruction Decode & Control
  * @file aeMB2_ctrl.v
@@ -164,7 +163,7 @@ module aeMB2_ctrl (/*AUTOARG*/
 	//rb_of <= #1 wRB;
 	imm_of <= #1 wIMM;
 	
-     end
+     end // if (dena)
    
    
    // immediate implementation
@@ -193,8 +192,8 @@ module aeMB2_ctrl (/*AUTOARG*/
 	end else begin
 	   rFIM0 <= #1 fIMM & !hzd_bpc;
 	   rIMM0 <= #1 wIMM;	   
-	end	
-     end   
+	end
+     end
 
    
    // operand latch   
@@ -254,7 +253,7 @@ module aeMB2_ctrl (/*AUTOARG*/
 	  2'o1: opd_of <= #1 alu_ex; // FWD
 	  2'o0: opd_of <= #1 opd_if; // SXX
 	  2'o3: opd_of <= #1 alu_ex; // FWD	  	  
-	endcase // case (mux_opd)	
+	endcase // case (mux_opd)
 	
 	case (mux_opb)
 	  2'o0: opb_of <= #1 opb_if;
@@ -262,16 +261,16 @@ module aeMB2_ctrl (/*AUTOARG*/
 	  2'o2: opb_of <= #1 imm_if;
 	  2'o3: opb_of <= #1 imm_if;	  
 	  //default: 32'hX;
-	endcase // case (mux_opb)	
+	endcase // case (mux_opb)
 	
 	case (mux_opa)
 	  2'o0: opa_of <= #1 opa_if;
 	  2'o1: opa_of <= #1 alu_ex;
 	  2'o2: opa_of <= #1 {rpc_if, 2'o0};
 	  2'o3: opa_of <= #1 {rpc_if, 2'o0};	  
-	endcase // case (mux_opa)	
+	endcase // case (mux_opa)
 	 	
-     end
+     end // if (dena)
    
    // Hazard Detection
    wire 		wFMUL = (mux_ex == MUX_MUL);
@@ -285,7 +284,11 @@ module aeMB2_ctrl (/*AUTOARG*/
    
 endmodule // aeMB2_ctrl
 
-// $Log: not supported by cvs2svn $
-// Revision 1.1  2008/04/18 00:21:52  sybreon
-// Initial import.
-//
+/*
+ $Log: not supported by cvs2svn $
+ Revision 1.2  2008/04/20 16:34:32  sybreon
+ Basic version with some features left out.
+
+ Revision 1.1  2008/04/18 00:21:52  sybreon
+ Initial import.
+*/

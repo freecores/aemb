@@ -1,4 +1,4 @@
-/* $Id: aeMB2_edk62.v,v 1.3 2008-04-21 12:11:38 sybreon Exp $
+/* $Id: aeMB2_edk62.v,v 1.4 2008-04-26 01:09:05 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -18,7 +18,6 @@
 ** You should have received a copy of the GNU Lesser General Public
 ** License along with AEMB. If not, see <http:**www.gnu.org/licenses/>.
 */
-
 /**
  * Top Level Core
  * @file aeMB2_edk62.v
@@ -65,7 +64,7 @@ module aeMB2_edk62 (/*AUTOARG*/
    output [3:0]		iwb_sel_o;		// From iwbif0 of aeMB2_iwbif.v
    output		iwb_stb_o;		// From iwbif0 of aeMB2_iwbif.v
    output		iwb_wre_o;		// From iwbif0 of aeMB2_iwbif.v
-   output [AEMB_XWB+1:2] xwb_adr_o;		// From memif0 of aeMB2_memif.v
+   output [AEMB_XWB-1:2] xwb_adr_o;		// From memif0 of aeMB2_memif.v
    output		xwb_cyc_o;		// From memif0 of aeMB2_memif.v
    output [31:0]	xwb_dat_o;		// From memif0 of aeMB2_memif.v
    output [3:0]		xwb_sel_o;		// From memif0 of aeMB2_memif.v
@@ -306,7 +305,7 @@ module aeMB2_edk62 (/*AUTOARG*/
       .dwb_tag_o			(dwb_tag_o),
       .dwb_wre_o			(dwb_wre_o),
       .sel_mx				(sel_mx[3:0]),
-      .xwb_adr_o			(xwb_adr_o[AEMB_XWB+1:2]),
+      .xwb_adr_o			(xwb_adr_o[AEMB_XWB-1:2]),
       .xwb_cyc_o			(xwb_cyc_o),
       .xwb_dat_o			(xwb_dat_o[31:0]),
       .xwb_fb				(xwb_fb),
@@ -329,6 +328,7 @@ module aeMB2_edk62 (/*AUTOARG*/
       .opb_of				(opb_of[1:0]),
       .opc_of				(opc_of[5:0]),
       .opd_of				(opd_of[31:0]),
+      .sfr_mx				(sfr_mx[7:5]),
       .xwb_ack_i			(xwb_ack_i),
       .xwb_dat_i			(xwb_dat_i[31:0]));        
 
@@ -363,10 +363,14 @@ module aeMB2_edk62 (/*AUTOARG*/
    
 endmodule // aeMB2_edk62
 
-// $Log: not supported by cvs2svn $
-// Revision 1.2  2008/04/20 16:34:32  sybreon
-// Basic version with some features left out.
-//
-// Revision 1.1  2008/04/18 00:21:52  sybreon
-// Initial import.
-//
+/*
+ $Log: not supported by cvs2svn $
+ Revision 1.3  2008/04/21 12:11:38  sybreon
+ Passes arithmetic tests with single thread.
+
+ Revision 1.2  2008/04/20 16:34:32  sybreon
+ Basic version with some features left out.
+
+ Revision 1.1  2008/04/18 00:21:52  sybreon
+ Initial import.
+*/

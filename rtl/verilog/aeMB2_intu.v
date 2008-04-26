@@ -1,4 +1,4 @@
-/* $Id: aeMB2_intu.v,v 1.3 2008-04-23 14:18:30 sybreon Exp $
+/* $Id: aeMB2_intu.v,v 1.4 2008-04-26 01:09:06 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -18,7 +18,6 @@
 ** You should have received a copy of the GNU Lesser General Public
 ** License along with AEMB. If not, see <http:**www.gnu.org/licenses/>.
 */
-
 /**
  * One Cycle Integer Unit
  * @file aeMB2_intu.v
@@ -90,16 +89,16 @@ module aeMB2_intu (/*AUTOARG*/
    
    reg [31:0] 		add_ex;
    reg 			add_c;
+   
    wire [31:0] 		wADD;
    wire 		wADC;
 
    wire 		fCCC = !opc_of[5] & !opc_of[4] & opc_of[1];
    wire 		fSUB = !opc_of[5] & !opc_of[4] & opc_of[0];
    wire 		fCMP = !opc_of[3] & imm_of[1] & imm_of[0]; // unsigned
-   //wire 		wTOG = fCMP & (opa_of[31] ^ opb_of[31]); // toggle unsigned
    wire 		wCMP = (fCMP) ? (opa_of > opb_of) : wADD[31];   
    
-   wire [31:0] 		wOPA = (fSUB) ? ~opa_of : opa_of;   
+   wire [31:0] 		wOPA = (fSUB) ? ~opa_of : opa_of;
    wire 		wOPC = (fCCC) ? rMSR_CC : fSUB;
    
    assign 		{wADC, wADD} = (opb_of + wOPA) + wOPC;   
@@ -141,20 +140,6 @@ module aeMB2_intu (/*AUTOARG*/
    
    always @(/*AUTOSENSE*/imm_of or opa_of or rMSR_CC)
      slm_c <= #1 (&imm_of[6:5]) ? rMSR_CC : opa_of[0];
-
-   // BRANCH CALC
-   always @(posedge gclk)
-     if (grst) begin
-	/*AUTORESET*/
-	// Beginning of autoreset for uninitialized flops
-	bpc_ex <= 30'h0;
-	// End of automatics
-     end else if (dena) begin
-	bpc_ex <= #1 
-		  (!opc_of[0] & ra_of[3]) ? // check for BRA
-		  opb_of[AEMB_IWB-1:2] : // BRA only
-		  add_ex[AEMB_IWB-1:2]; // RTD/BCC/BR
-     end
    
    // ALU RESULT
    always @(posedge gclk)
@@ -163,14 +148,18 @@ module aeMB2_intu (/*AUTOARG*/
 	// Beginning of autoreset for uninitialized flops
 	alu_ex <= 32'h0;
 	alu_mx <= 32'h0;
+	bpc_ex <= 30'h0;
 	mem_ex <= 30'h0;
 	// End of automatics
      end else if (dena) begin
 	alu_mx <= #1 alu_ex;
 	alu_ex <= #1 (opc_of[5]) ? slm_ex : add_ex;	
 	mem_ex <= #1 add_ex[AEMB_DWB-1:2]; // LXX/SXX	
+	bpc_ex <= #1 
+		  (!opc_of[0] & ra_of[3]) ? // check for BRA
+		  opb_of[AEMB_IWB-1:2] : // BRA only
+		  add_ex[AEMB_IWB-1:2]; // RTD/BCC/BR
      end
-
 
    // MSR SECTION
 
@@ -294,16 +283,12 @@ module aeMB2_intu (/*AUTOARG*/
 
    // BARREL C
    wire fADDSUB = (opc_of[5:2] == 4'h0) | (opc_of[5:2] == 4'h2);
-   wire fSHIFT  = (opc_of[5:2] == 4'h9) & (imm_of[6:5] != 2'o3);
+   wire fSHIFT  = (opc_of == 6'o44) & (imm_of[6:5] != 2'o3);
 
    always @(posedge gclk)
      if (grst) begin
 	/*AUTORESET*/
-	// Beginning of autoreset for uninitialized flops
-	rMSR_CC <= 1'h0;
-	// End of automatics
      end else if (dena) begin
-	rMSR_CC <= #1 rMSR_C;
      end
    
    always @(posedge gclk)
@@ -311,8 +296,10 @@ module aeMB2_intu (/*AUTOARG*/
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	rMSR_C <= 1'h0;
+	rMSR_CC <= 1'h0;
 	// End of automatics
      end else if (dena) begin
+	rMSR_CC <= #1 rMSR_C;
 	rMSR_C <= #1
 		  (fMTS) ? opa_of[2] :
 		  (fMOP) ? wRES[2] :
@@ -323,10 +310,14 @@ module aeMB2_intu (/*AUTOARG*/
    
 endmodule // aeMB2_intu
 
-// $Log: not supported by cvs2svn $
-// Revision 1.2  2008/04/21 12:11:38  sybreon
-// Passes arithmetic tests with single thread.
-//
-// Revision 1.1  2008/04/18 00:21:52  sybreon
-// Initial import.
-//
+/*
+ $Log: not supported by cvs2svn $
+ Revision 1.3  2008/04/23 14:18:30  sybreon
+ Fixed CMP bug.
+
+ Revision 1.2  2008/04/21 12:11:38  sybreon
+ Passes arithmetic tests with single thread.
+
+ Revision 1.1  2008/04/18 00:21:52  sybreon
+ Initial import.
+*/

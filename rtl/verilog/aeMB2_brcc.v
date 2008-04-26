@@ -1,4 +1,4 @@
-/* $Id: aeMB2_brcc.v,v 1.2 2008-04-20 16:34:32 sybreon Exp $
+/* $Id: aeMB2_brcc.v,v 1.3 2008-04-26 01:09:05 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -18,7 +18,6 @@
 ** You should have received a copy of the GNU Lesser General Public
 ** License along with AEMB. If not, see <http:**www.gnu.org/licenses/>.
 */
-
 /**
  * Branch Condition Checker
  * @file aeMB2_brcc.v
@@ -97,7 +96,11 @@ module aeMB2_brcc (/*AUTOARG*/
       
 endmodule // aeMB2_brcc
 
-// $Log: not supported by cvs2svn $
-// Revision 1.1  2008/04/18 00:21:52  sybreon
-// Initial import.
-//
+/*
+ $Log: not supported by cvs2svn $
+ Revision 1.2  2008/04/20 16:34:32  sybreon
+ Basic version with some features left out.
+
+ Revision 1.1  2008/04/18 00:21:52  sybreon
+ Initial import.
+*/

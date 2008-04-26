@@ -1,4 +1,4 @@
-/* $Id: aeMB2_sparam.v,v 1.1 2008-04-20 16:33:39 sybreon Exp $
+/* $Id: aeMB2_sparam.v,v 1.2 2008-04-26 01:09:06 sybreon Exp $
 ** 
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -18,7 +18,6 @@
 ** You should have received a copy of the GNU Lesser General Public
 ** License along with AEMB. If not, see <http:**www.gnu.org/licenses/>.
 */
-
 /**
  * @file aeMB2_sparam.v
  * @brief On-chip single-port asynchronous SRAM.
@@ -64,10 +63,14 @@ module aeMB2_sparam (/*AUTOARG*/
    initial begin
       for (i=0; i<(1<<AW); i=i+1) begin
 	 rRAM[i] <= {(DW){1'b0}};	 
-      end
+end
    end
    // synopsys translate_on
    
-endmodule // fasm_sparam
+endmodule // aeMB2_sparam
 
-// $Log: not supported by cvs2svn $
+/*
+ $Log: not supported by cvs2svn $
+ Revision 1.1  2008/04/20 16:33:39  sybreon
+ Initial import.
+*/

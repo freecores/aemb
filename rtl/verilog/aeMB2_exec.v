@@ -1,4 +1,4 @@
-/* $Id: aeMB2_exec.v,v 1.1 2008-04-18 00:21:52 sybreon Exp $
+/* $Id: aeMB2_exec.v,v 1.2 2008-04-26 01:09:06 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -105,7 +105,8 @@ module aeMB2_exec (/*AUTOARG*/
      #(/*AUTOINSTPARAM*/
        // Parameters
        .AEMB_DWB			(AEMB_DWB),
-       .AEMB_IWB			(AEMB_IWB))
+       .AEMB_IWB			(AEMB_IWB),
+       .AEMB_HTX			(AEMB_HTX))
    intu0
      (/*AUTOINST*/
       // Outputs
@@ -130,4 +131,8 @@ module aeMB2_exec (/*AUTOARG*/
    
 endmodule // aeMB2_exec
 
-// $Log: not supported by cvs2svn $
+/*
+ $Log: not supported by cvs2svn $
+ Revision 1.1  2008/04/18 00:21:52  sybreon
+ Initial import.
+*/

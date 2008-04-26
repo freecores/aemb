@@ -1,4 +1,4 @@
-/* $Id: aeMB2_iwbif.v,v 1.3 2008-04-21 12:11:38 sybreon Exp $
+/* $Id: aeMB2_iwbif.v,v 1.4 2008-04-26 01:09:06 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -18,7 +18,6 @@
 ** You should have received a copy of the GNU Lesser General Public
 ** License along with AEMB. If not, see <http:**www.gnu.org/licenses/>.
 */
-
 /**
  * Instruction Wishbone Interface
  * @file aeMB2_iwbif.v
@@ -94,7 +93,7 @@ module aeMB2_iwbif (/*AUTOARG*/
 	rADR <= 30'h0;
 	rADR_ <= 30'h0;
 	// End of automatics
-     end else if (iena) begin // (iwb_ack_i ~^ iwb_stb_o)) begin // | iwb_ack_i) begin
+     end else if (iena) begin
 	
 	case ({hzd_fwd,bra_ex[1]})
 	  2'o0: {rADR} <= #1 {rADR_[AEMB_IWB-1:2]}; // normal increment
@@ -103,11 +102,11 @@ module aeMB2_iwbif (/*AUTOARG*/
 	  default: {rADR} <= #1 32'hX;	  
 	  //2'o3: rADR <= #1 rpc_if[AEMB_IWB-1:2]; // bubble/hazard
 	  //2'o3: rADR <= #1 bpc_ex[AEMB_IWB-1:2]; // brach/return/break
-	endcase // case ({fHZD, bra_ex[1]})
+	endcase // case ({hzd_fwd,bra_ex[1]})
 
 	rADR_ <= #1 wPCINC;	
 	
-     end // if ((iwb_stb_o ~^ iwb_ack_i))
+     end // if (iena)
 
    assign 		ich_adr = rADR;
    
@@ -131,7 +130,7 @@ module aeMB2_iwbif (/*AUTOARG*/
 	if (iena) begin
 	   rpc_if <= #1 rADR;	   
 	end
-     end
+     end // else: !if(grst)
    
    // WISHBONE SIGNALS
    always @(posedge gclk)
@@ -153,10 +152,14 @@ module aeMB2_iwbif (/*AUTOARG*/
    
 endmodule // aeMB2_iwbif
 
-// $Log: not supported by cvs2svn $
-// Revision 1.2  2008/04/20 16:34:32  sybreon
-// Basic version with some features left out.
-//
-// Revision 1.1  2008/04/18 00:21:52  sybreon
-// Initial import.
-//
+/*
+ $Log: not supported by cvs2svn $
+ Revision 1.3  2008/04/21 12:11:38  sybreon
+ Passes arithmetic tests with single thread.
+
+ Revision 1.2  2008/04/20 16:34:32  sybreon
+ Basic version with some features left out.
+
+ Revision 1.1  2008/04/18 00:21:52  sybreon
+ Initial import.
+*/

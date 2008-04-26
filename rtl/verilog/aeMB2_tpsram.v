@@ -1,4 +1,4 @@
-/* $Id: aeMB2_tpsram.v,v 1.1 2008-04-20 16:33:39 sybreon Exp $
+/* $Id: aeMB2_tpsram.v,v 1.2 2008-04-26 01:09:06 sybreon Exp $
 ** 
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -89,4 +89,8 @@ module aeMB2_tpsram (/*AUTOARG*/
    
 endmodule // aeMB2_tpsram
 
-// $Log: not supported by cvs2svn $
+/*
+ $Log: not supported by cvs2svn $
+ Revision 1.1  2008/04/20 16:33:39  sybreon
+ Initial import.
+*/
