@@ -1,4 +1,4 @@
-/* $Id: aeMB2_edk62.v,v 1.4 2008-04-26 01:09:05 sybreon Exp $
+/* $Id: aeMB2_edk62.v,v 1.5 2008-04-26 01:11:30 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -261,7 +261,8 @@ module aeMB2_edk62 (/*AUTOARG*/
        .AEMB_IWB			(AEMB_IWB),
        .AEMB_DWB			(AEMB_DWB),
        .AEMB_MUL			(AEMB_MUL),
-       .AEMB_BSF			(AEMB_BSF))
+       .AEMB_BSF			(AEMB_BSF),
+       .AEMB_HTX			(AEMB_HTX))
    exec0
      (/*AUTOINST*/
       // Outputs
@@ -365,6 +366,9 @@ endmodule // aeMB2_edk62
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.4  2008/04/26 01:09:05  sybreon
+ Passes basic tests. Minor documentation changes to make it compatible with iverilog pre-processor.
+
  Revision 1.3  2008/04/21 12:11:38  sybreon
  Passes arithmetic tests with single thread.
 

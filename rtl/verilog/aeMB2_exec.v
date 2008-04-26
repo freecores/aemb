@@ -1,4 +1,4 @@
-/* $Id: aeMB2_exec.v,v 1.2 2008-04-26 01:09:06 sybreon Exp $
+/* $Id: aeMB2_exec.v,v 1.3 2008-04-26 01:11:30 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -38,6 +38,7 @@ module aeMB2_exec (/*AUTOARG*/
    parameter AEMB_DWB = 32;
    parameter AEMB_MUL = 1;
    parameter AEMB_BSF = 1;   
+   parameter AEMB_HTX = 1;   
    
    /*AUTOOUTPUT*/
    // Beginning of automatic outputs (from unused autoinst outputs)
@@ -133,6 +134,9 @@ endmodule // aeMB2_exec
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.2  2008/04/26 01:09:06  sybreon
+ Passes basic tests. Minor documentation changes to make it compatible with iverilog pre-processor.
+
  Revision 1.1  2008/04/18 00:21:52  sybreon
  Initial import.
 */
