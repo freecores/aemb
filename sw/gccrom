@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: gccrom,v 1.15 2008-04-26 10:03:00 sybreon Exp $
+# $Id: gccrom,v 1.16 2008-04-26 18:08:33 sybreon Exp $
 
 # Compile using C pre-processor
 ELFFILE="rom"
@@ -24,10 +24,17 @@ echo "copy=$?" && \
 srec_cat $ELFFILE.srec -o ../sim/dump.vmem -vmem 32 && \
 echo "srec=$?" && \
 
+# echo the checksum
+MD5=$(sha1sum $ELFFILE | cut -c1-32) && \
+echo "sha1=$MD5" && \
+
 # Cleanup code
 rm $ELFFILE.srec && rm $ELFFILE
 
 # $Log: not supported by cvs2svn $
+# Revision 1.15  2008/04/26 10:03:00  sybreon
+# Cleaned up script.
+#
 # Revision 1.14  2008/01/31 19:07:14  sybreon
 # Made code work with newlib's malloc();
 #

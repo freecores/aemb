@@ -1,4 +1,4 @@
-/* $Id: msr.hh,v 1.5 2008-04-20 16:35:53 sybreon Exp $
+/* $Id: msr.hh,v 1.6 2008-04-26 18:05:22 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -30,9 +30,7 @@
 #ifndef AEMB_MSR_HH
 #define AEMB_MSR_HH
 
-#ifdef __cplusplus
 namespace aemb {
-#endif
 
   const int MSR_BE  = 0x00000001; ///< Buslock Enable
   const int MSR_IE  = 0x00000002; ///< Interrupt Enable
@@ -132,14 +130,15 @@ namespace aemb {
     putMSR(getMSR() & ~MSR_ICE); 
   }
 
-#ifdef __cplusplus
 }
-#endif
 
 #endif
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.5  2008/04/20 16:35:53  sybreon
+  Added C/C++ compatible #ifdef statements
+
   Revision 1.4  2008/04/11 15:53:03  sybreon
   changed MSR bits
 

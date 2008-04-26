@@ -1,4 +1,4 @@
-/* $Id: simboard.hh,v 1.2 2008-04-21 12:13:12 sybreon Exp $
+/* $Id: simboard.hh,v 1.3 2008-04-26 18:07:19 sybreon Exp $
 ** 
 ** AEMB Function Verification C++ Testbench
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -20,7 +20,8 @@
 */
 
 #include "aemb/msr.hh"
-#include <cstdlib>
+#include <stdlib.h>
+#include <stdio.h>
 
 #ifndef SIMBOARD_HH
 #define SIMBOARD_HH
@@ -92,6 +93,11 @@ void outbyte(char c)
   *COUT = c;
 }
 
+char inbyte() 
+{
+  return 0;
+}
+
 void outfloat(float f) 
 {
   volatile float *FOUT = (float *) 0xFFFFFFD0;
@@ -112,20 +118,13 @@ void trap(long e)
   exit(e);  
 }
 
-void pass()
-{
-  outword(CODE_PASS);
-}
-
-char inbyte() 
-{
-  return 0;
-}
-
 #endif
 
 /*
 $Log: not supported by cvs2svn $
+Revision 1.2  2008/04/21 12:13:12  sybreon
+Passes arithmetic tests with single thread.
+
 Revision 1.1  2008/04/11 15:32:28  sybreon
 initial checkin
 

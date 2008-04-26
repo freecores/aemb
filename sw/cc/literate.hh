@@ -1,4 +1,4 @@
-/* $Id: literate.hh,v 1.3 2008-04-21 12:01:18 sybreon Exp $
+/* $Id: literate.hh,v 1.4 2008-04-26 18:07:19 sybreon Exp $
 ** 
 ** AEMB Function Verification C++ Testbench
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -26,7 +26,7 @@
   modified for AEMB testing.
 */
 
-#include <cstdlib>
+#include <stdlib.h>
 #include "simboard.hh"
 
 #ifndef LITERATE_HH
@@ -93,6 +93,7 @@ int fibonacciTest(int max) {
 	  (fast != fib_lut8[n])) {
 	return EXIT_FAILURE;      
       }
+
     }      
   return EXIT_SUCCESS;  
 }

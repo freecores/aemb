@@ -1,4 +1,4 @@
-/* $Id: thread.hh,v 1.6 2008-04-23 14:19:39 sybreon Exp $
+/* $Id: thread.hh,v 1.7 2008-04-26 18:05:22 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -32,9 +32,7 @@
 #ifndef AEMB_THREAD_HH
 #define AEMB_THREAD_HH
 
-#ifdef __cplusplus
 namespace aemb {
-#endif
 
   /**
      Checks to see if currently executing Thread 1
@@ -138,14 +136,16 @@ namespace aemb {
       }
   }
 
-#ifdef __cplusplus  
 }
-#endif
 
 #endif
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.6  2008/04/23 14:19:39  sybreon
+  Fixed minor bugs.
+  Initial use of hardware mutex.
+
   Revision 1.5  2008/04/20 16:35:53  sybreon
   Added C/C++ compatible #ifdef statements
 
