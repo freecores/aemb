@@ -1,26 +1,36 @@
 #!/bin/sh
-# $Id: gccrom,v 1.14 2008-01-31 19:07:14 sybreon Exp $
+# $Id: gccrom,v 1.15 2008-04-26 10:03:00 sybreon Exp $
 
-# Compile using C++ pre-processor
-mb-gcc -g -Wl,-defsym -Wl,_STACK_SIZE=0x800 -Wl,-defsym -Wl,_HEAP_SIZE=0x400 -mxl-soft-div -msoft-float -mxl-barrel-shift -mno-xl-soft-mul $@ -o rom.elf -lc_m_bs -lm_m_bs && \
-#mb-gcc -g -mxl-soft-div -msoft-float -mxl-barrel-shift -mno-xl-soft-mul $@ -o rom.elf -lc_m_bs -lm_m_bs && \
+# Compile using C pre-processor
+ELFFILE="rom"
+XILFLAGS="-mxl-soft-div -msoft-float -mxl-barrel-shift -mno-xl-soft-mul"
+CXXFLAGS="-O0"
+LNKFLAGS="-Wl,-defsym -Wl,_STACK_SIZE=0x400 -Wl,-defsym -Wl,_HEAP_SIZE=0x400"
+LIBFLAGS="-lc_m_bs -lm_m_bs"
+INCFLAGS="-Icc/"
+
+mb-gcc $XILFLAGS $CXXFLAGS $LNKFLAGS $LIBFLAGS $INCFLAGS  $@ -o $ELFFILE && \
+echo "xgcc=$?" && \
 
 # Create a text listing of the compiled code
-mb-objdump -DSCz rom.elf > rom.dump && \
+mb-objdump -DSCz $ELFFILE > $ELFFILE.dump && \
+echo "dump=$?" && \
 
 # Convert the ELF file to an SREC file
-mb-objcopy -O srec rom.elf rom.srec && \
+mb-objcopy -O srec $ELFFILE $ELFFILE.srec && \
+echo "copy=$?" && \
 
 # Generate a Verilog VMEM file from the SREC file
-srec_cat rom.srec -o ../sim/dump.vmem -vmem 32 && \
+srec_cat $ELFFILE.srec -o ../sim/dump.vmem -vmem 32 && \
+echo "srec=$?" && \
 
 # Cleanup code
-rm rom.srec && \
-
-# Say Cheeze!
-echo "ROM generated"
+rm $ELFFILE.srec && rm $ELFFILE
 
 # $Log: not supported by cvs2svn $
+# Revision 1.14  2008/01/31 19:07:14  sybreon
+# Made code work with newlib's malloc();
+#
 # Revision 1.13  2008/01/19 16:42:54  sybreon
 # Uses multiplier + barrel shifter as default.
 #
