@@ -1,4 +1,4 @@
-/* $Id: testbench.cc,v 1.3 2008-04-26 00:25:19 sybreon Exp $
+/* $Id: testbench.cc,v 1.4 2008-04-26 18:08:12 sybreon Exp $
 ** 
 ** AEMB Function Verification C++ Testbench
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -24,66 +24,37 @@
 #include "aemb/core.hh"
 #include "literate.hh"
 #include "simboard.hh"
-#include <vector>
 
-using namespace aemb;
-
-#define MAX_TEST 5
-
-int thread1() // runs math tests
-{
-  // *** 1. FIBONACCI *** //
-  printf("Fibonacci Test\n");
-  if (fibonacciTest(MAX_TEST) != EXIT_SUCCESS) trap(-1);
-
-  // *** 2. EUCLIDEAN *** //
-  printf("Euclidean Test\n");
-  if (euclideanTest(MAX_TEST) != EXIT_SUCCESS) trap(-2);
-
-  // *** 3. NEWTON-RHAPSON *** //
-  printf("Newton-Rhapson Test\n");
-  if (newtonTest(MAX_TEST) != EXIT_SUCCESS) trap(-3);
-
-  printf("Test 1 Done\n");
-  //rendezvous(); // Wait for other thread
-  return 0;
-}
-
-
-int thread0() // runs core tests
-{
-  // *** 1. MALLOC TEST ***/
-  //if (memoryTest(100) != EXIT_SUCCESS) trap(1);
-
-  // *** 2. INTERRUPT TEST *** //
-  //if (interruptTest(10000) != EXIT_SUCCESS) trap(2);
-
-  // *** 3. XSL *** //
-  //if (xslTest(0xBADCAB1E) != EXIT_SUCCESS) trap(3);
-
-  rendezvous(); // Wait for other thread
-  return 0;
-}
-
-int threads()
-{
-  if (isThread1())  
-    return thread1(); 
-  else
-    return thread0();
-}
+#define MAX_TEST 3
 
 // run tests
 int main() 
 {
-  printf("AEMB2 32-bit MICROPROCESSOR CORE\n");
-  threads();  
+  iprintf("AEMB2 32-bit Microprocessor Core\n");
+
+  // *** 1. FIBONACCI ***
+  iprintf("Fibonacci Test\n");
+  if (fibonacciTest(MAX_TEST) != EXIT_SUCCESS) trap(-1);
+
+  // *** 2. EUCLIDEAN ***
+  iprintf("Euclidean Test\n");
+  if (euclideanTest(MAX_TEST) != EXIT_SUCCESS) trap(-2);
+
+  // *** 3. NEWTON-RHAPSON ***
+  iprintf("Newton-Rhapson Test\n");
+  if (newtonTest(MAX_TEST) != EXIT_SUCCESS) trap(-3);
+
+  // *** 9. PASSED ***
+  iprintf("*** PASSED ***\n");
   return EXIT_SUCCESS;
 }
 
 /*
-$Log: not supported by cvs2svn $
-Revision 1.2  2008/04/21 12:13:12  sybreon
-Passes arithmetic tests with single thread.
-
+  $Log: not supported by cvs2svn $
+  Revision 1.3  2008/04/26 00:25:19  sybreon
+  switched printf's to iprintf's because iprintf's don't work by
+  -O3 for some reason.
+  
+  Revision 1.2  2008/04/21 12:13:12  sybreon
+  Passes arithmetic tests with single thread.  
 */
