@@ -1,4 +1,4 @@
-/* $Id: simboard.hh,v 1.3 2008-04-26 18:07:19 sybreon Exp $
+/* $Id: simboard.hh,v 1.4 2008-04-26 19:32:00 sybreon Exp $
 ** 
 ** AEMB Function Verification C++ Testbench
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -34,18 +34,23 @@
 INTERRUPT TESTS
 */
 
+#ifdef __cplusplus
+using namespace aemb;
+#endif
+
 volatile int intr = -1;
 
 void __attribute__ ((interrupt_handler)) interruptHandler() 
 {
-  intr = 0; // flag the interrupt
+  intr = 0; // flag the interrupt service routine
 }
 
 int interruptTest(int timeout)
 {
-  aemb::enableInterrupts();
-  for (int timer=0; (timer < timeout) && (intr == -1); ++timer); // delay loop
-  aemb::disableInterrupts();
+  enableInterrupts();
+  int timer;
+  for (timer=0; (timer < timeout) && (intr == -1); ++timer); // delay loop
+  disableInterrupts();
   return (intr == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
@@ -122,6 +127,9 @@ void trap(long e)
 
 /*
 $Log: not supported by cvs2svn $
+Revision 1.3  2008/04/26 18:07:19  sybreon
+Minor cosmetic changes.
+
 Revision 1.2  2008/04/21 12:13:12  sybreon
 Passes arithmetic tests with single thread.
 

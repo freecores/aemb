@@ -1,4 +1,4 @@
-/* $Id: thread.hh,v 1.7 2008-04-26 18:05:22 sybreon Exp $
+/* $Id: thread.hh,v 1.8 2008-04-26 19:31:35 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -32,14 +32,16 @@
 #ifndef AEMB_THREAD_HH
 #define AEMB_THREAD_HH
 
+#ifdef __cplusplus
 namespace aemb {
+#endif
 
   /**
      Checks to see if currently executing Thread 1
      @return true if is Thread 1
   */
   
-  inline bool isThread1() 
+  inline int isThread1() 
   {
     int rmsr = getMSR();
     return ((rmsr & MSR_HTX) && (rmsr & MSR_PHA));
@@ -50,7 +52,7 @@ namespace aemb {
      @return true if is Thread 0
   */
   
-  inline bool isThread0()
+  inline int isThread0()
   {
     int rmsr = getMSR();
     return ((rmsr & MSR_HTX) && (!(rmsr & MSR_PHA)));
@@ -60,7 +62,7 @@ namespace aemb {
      Checks to see if it is multi-threaded or not.
      @return true if thread capable
   */
-  inline bool isThreaded()
+  inline int isThreaded()
   {
     int rmsr = getMSR();
     return (rmsr & MSR_HTX);
@@ -136,12 +138,17 @@ namespace aemb {
       }
   }
 
+#ifdef __cplusplus
 }
+#endif
 
 #endif
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.7  2008/04/26 18:05:22  sybreon
+  Minor cosmetic changes.
+
   Revision 1.6  2008/04/23 14:19:39  sybreon
   Fixed minor bugs.
   Initial use of hardware mutex.

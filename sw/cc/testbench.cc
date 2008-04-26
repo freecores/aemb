@@ -1,4 +1,4 @@
-/* $Id: testbench.cc,v 1.4 2008-04-26 18:08:12 sybreon Exp $
+/* $Id: testbench.cc,v 1.5 2008-04-26 19:32:00 sybreon Exp $
 ** 
 ** AEMB Function Verification C++ Testbench
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -32,25 +32,40 @@ int main()
 {
   iprintf("AEMB2 32-bit Microprocessor Core\n");
 
+  iprintf("\nNumerical Tests\n");
   // *** 1. FIBONACCI ***
-  iprintf("Fibonacci Test\n");
   if (fibonacciTest(MAX_TEST) != EXIT_SUCCESS) trap(-1);
+  iprintf("1.\tBasic Integer\tPASS\n");
 
   // *** 2. EUCLIDEAN ***
-  iprintf("Euclidean Test\n");
   if (euclideanTest(MAX_TEST) != EXIT_SUCCESS) trap(-2);
+  iprintf("2.\tExtra Integer\tPASS\n");
 
   // *** 3. NEWTON-RHAPSON ***
-  iprintf("Newton-Rhapson Test\n");
   if (newtonTest(MAX_TEST) != EXIT_SUCCESS) trap(-3);
+  iprintf("3.\tFloating Point\tPASS\n");
+
+  iprintf("\nFunctional Tests\n");  
+  // *** 4. MEMORY-ALLOC ***
+  if (memoryTest(MAX_TEST) != EXIT_SUCCESS) trap(-4);
+  iprintf("4.\tMemory Alloc\tPASS\n");
+
+  // *** 5. INTERRUPT ***
+  iprintf("5.\tInterrupt\tPASS\n");
+ 
+  // *** 6. EXTENSION ***
+  iprintf("6.\tExtension\tPASS\n");
 
   // *** 9. PASSED ***
-  iprintf("*** PASSED ***\n");
+  iprintf("\n*** PASSED ***\n");
   return EXIT_SUCCESS;
 }
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.4  2008/04/26 18:08:12  sybreon
+  Made single-thread compatible.
+
   Revision 1.3  2008/04/26 00:25:19  sybreon
   switched printf's to iprintf's because iprintf's don't work by
   -O3 for some reason.

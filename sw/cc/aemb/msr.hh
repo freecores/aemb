@@ -1,4 +1,4 @@
-/* $Id: msr.hh,v 1.6 2008-04-26 18:05:22 sybreon Exp $
+/* $Id: msr.hh,v 1.7 2008-04-26 19:31:35 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -30,22 +30,23 @@
 #ifndef AEMB_MSR_HH
 #define AEMB_MSR_HH
 
+#ifdef __cplusplus
 namespace aemb {
+#endif
 
-  const int MSR_BE  = 0x00000001; ///< Buslock Enable
-  const int MSR_IE  = 0x00000002; ///< Interrupt Enable
-  const int MSR_C   = 0x00000004; ///< Arithmetic Carry
-  const int MSR_BIP = 0x00000008; ///< Break in Progress
+#define MSR_BE   (1 << 0) ///< Buslock Enable
+#define MSR_IE   (1 << 1) ///< Interrupt Enable
+#define MSR_C    (1 << 2) ///< Arithmetic Carry
+#define MSR_BIP  (1 << 3) ///< Break in Progress
     
-  const int MSR_MTX = 0x00000010; ///< Hardware Mutex
-  const int MSR_ICE = 0x00000020; ///< Instruction Cache Enable
-  const int MSR_DZ  = 0x00000040; ///< Division by Zero
-  const int MSR_DCE = 0x00000080; ///< Data Cache Enable
+#define MSR_MTX  (1 << 4) ///< Hardware Mutex
+#define MSR_ICE  (1 << 5) ///< Instruction Cache Enable
+#define MSR_DZ   (1 << 6) ///< Division by Zero
+#define MSR_DCE  (1 << 7) ///< Data Cache Enable
   
-  //const int MSR_HTE = 0x10000000; ///< Hardware Threads Enable
-  const int MSR_PHA = 0x20000000; ///< Hardware Thread Phase
-  const int MSR_HTX = 0x40000000; ///< Hardware Threads Extension
-  const int MSR_CC  = 0x80000004; ///< Carry Copy
+#define MSR_PHA  (1 << 29) ///< Hardware Thread Phase
+#define MSR_HTX  (1 << 30) ///< Hardware Threads Extension
+#define MSR_CC   (1 << 31) ///< Carry Copy
 
   /**
      Read the value of the MSR register
@@ -69,16 +70,16 @@ namespace aemb {
     asm volatile ("mts rmsr, %0"::"r"(rmsr)); 
   }
 
-
   /**
      Read and clear the MSR
      @param rmsk clear mask
      @return msr value
    */
+
   inline int clrMSR(const short rmsk)
   {
     int tmp;
-    asm volatile ("msrclr %0, %1":"=r"(tmp):"K"(rmsk));
+    //asm volatile ("msrclr %0, %1":"=r"(tmp):"K"(rmsk):"memory");
     return tmp;
   }
 
@@ -87,55 +88,61 @@ namespace aemb {
      @param rmsk set mask
      @return msr value
    */
+
   inline int setMSR(const short rmsk)
   {
     int tmp;
-    asm volatile ("msrset %0, %1":"=r"(tmp):"K"(rmsk));
+    //asm volatile ("msrset %0, %1":"=r"(tmp):"K"(rmsk):"memory");
     return tmp;
   }
 
   /** Enable global interrupts */
   inline void enableInterrupts() 
   { 
-    putMSR(getMSR() | MSR_IE);
+    asm volatile ("msrset r0, %0"::"K"(MSR_IE):"memory");
   }
 
   /** Disable global interrupts */
   inline void disableInterrupts() 
   { 
-    putMSR(getMSR() & ~MSR_IE); 
+    asm volatile ("msrclr r0, %0"::"K"(MSR_IE));
   }
 
   /** Enable data caches */
   inline void enableDataCache() 
   { 
-    putMSR(getMSR() | MSR_DCE); 
+    asm volatile ("msrset r0, %0"::"K"(MSR_DCE));
   }
 
   /** Disable data caches */  
   inline void disableDataCache()  
   { 
-    putMSR(getMSR() & ~MSR_DCE); 
+    asm volatile ("msrclr r0, %0"::"K"(MSR_DCE));
   }
 
   /** Enable inst caches */
   inline void enableInstCache() 
   { 
-    putMSR(getMSR() | MSR_ICE); 
+    asm volatile ("msrset r0, %0"::"K"(MSR_ICE));
   }
 
   /** Disable inst caches */  
   inline void disableInstCache()  
   { 
-    putMSR(getMSR() & ~MSR_ICE); 
+    asm volatile ("msrclr r0, %0"::"K"(MSR_ICE));
   }
 
+#ifdef __cplusplus
 }
+#endif
 
 #endif
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.6  2008/04/26 18:05:22  sybreon
+  Minor cosmetic changes.
+
   Revision 1.5  2008/04/20 16:35:53  sybreon
   Added C/C++ compatible #ifdef statements
 

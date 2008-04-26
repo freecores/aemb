@@ -1,4 +1,4 @@
-/* $Id: stack.hh,v 1.4 2008-04-26 18:04:31 sybreon Exp $
+/* $Id: stack.hh,v 1.5 2008-04-26 19:31:35 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -27,7 +27,9 @@
 #ifndef AEMB_STACK_HH
 #define AEMB_STACK_HH
 
+#ifdef __cplusplus
 namespace aemb {
+#endif
 
   /**
   Reads the size of the memory space allocated for the stack in bytes.
@@ -111,12 +113,17 @@ namespace aemb {
       }
   }
 
+#ifdef __cplusplus
 }
+#endif
 
 #endif
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.4  2008/04/26 18:04:31  sybreon
+  Updated software to freeze T0 and run T1.
+
   Revision 1.3  2008/04/23 14:19:39  sybreon
   Fixed minor bugs.
   Initial use of hardware mutex.

@@ -1,4 +1,4 @@
-/* $Id: hook.hh,v 1.6 2008-04-26 18:04:31 sybreon Exp $
+/* $Id: hook.hh,v 1.7 2008-04-26 19:31:35 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -34,9 +34,11 @@
 #ifndef AEMB_HOOK_HH
 #define AEMB_HOOK_HH
 
+#ifdef __cplusplus
 namespace aemb {
   extern "C" {
-    
+#endif
+
     void _program_init();
     void _program_clean();
     
@@ -46,7 +48,9 @@ namespace aemb {
     //void __env_lock(struct _reent *reent);
     //void __env_unlock(struct _reent *reent);
     
+#ifdef __cplusplus
   }
+#endif
   
   /**
      Finalisation hook
@@ -90,7 +94,7 @@ namespace aemb {
 		  (int *)getStack(), 
 		  (int *)getStackTop);	
 	signalMutex(); // exit critical section
-	while (true) asm volatile ("nop"); // lock thread
+	while (1) asm volatile ("nop"); // lock thread
       }
 
     signalMutex(); // exit critical section
@@ -122,7 +126,9 @@ namespace aemb {
     signalMutex();
   }
 
+#ifdef __cplusplus
 }
+#endif
 
 #endif
 
@@ -135,6 +141,9 @@ OPTIMISATION_REQUIRED XXX
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.6  2008/04/26 18:04:31  sybreon
+  Updated software to freeze T0 and run T1.
+
   Revision 1.5  2008/04/23 14:19:39  sybreon
   Fixed minor bugs.
   Initial use of hardware mutex.

@@ -1,4 +1,4 @@
-/* $Id: core.hh,v 1.1 2008-04-09 19:48:37 sybreon Exp $
+/* $Id: core.hh,v 1.2 2008-04-26 19:31:35 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -37,12 +37,16 @@
 /**
 Unique namespace for all aemb library functions
 */
+#ifdef __cplusplus
 namespace aemb {
-
 }
+#endif
 
 #endif
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.1  2008/04/09 19:48:37  sybreon
+  Added new C++ files
+
  */

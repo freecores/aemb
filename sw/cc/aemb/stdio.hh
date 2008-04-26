@@ -1,4 +1,4 @@
-/* $Id: stdio.hh,v 1.2 2008-04-26 18:05:22 sybreon Exp $
+/* $Id: stdio.hh,v 1.3 2008-04-26 19:31:35 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -32,7 +32,9 @@
 #ifndef AEMB_STDIO_HH
 #define AEMB_STDIO_HH
 
+#ifdef __cplusplus
 extern "C" {
+#endif
   
   /**
      Default stdout prototype.
@@ -50,12 +52,17 @@ extern "C" {
    */
   char inbyte();
 
+#ifdef __cplusplus
 }
+#endif
 
 #endif
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.2  2008/04/26 18:05:22  sybreon
+  Minor cosmetic changes.
+
   Revision 1.1  2008/04/09 19:48:37  sybreon
   Added new C++ files
 
