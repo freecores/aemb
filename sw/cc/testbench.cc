@@ -1,4 +1,4 @@
-/* $Id: testbench.cc,v 1.2 2008-04-21 12:13:12 sybreon Exp $
+/* $Id: testbench.cc,v 1.3 2008-04-26 00:25:19 sybreon Exp $
 ** 
 ** AEMB Function Verification C++ Testbench
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -19,31 +19,33 @@
 ** along with AEMB.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <cstdio>
-#include <cstdlib>
+#include <stdio.h>
+#include <stdlib.h>
 #include "aemb/core.hh"
 #include "literate.hh"
 #include "simboard.hh"
 #include <vector>
+
+using namespace aemb;
 
 #define MAX_TEST 5
 
 int thread1() // runs math tests
 {
   // *** 1. FIBONACCI *** //
-  outword (0xF1B07357);
+  printf("Fibonacci Test\n");
   if (fibonacciTest(MAX_TEST) != EXIT_SUCCESS) trap(-1);
 
   // *** 2. EUCLIDEAN *** //
-  outword (0xEC1D7357);
+  printf("Euclidean Test\n");
   if (euclideanTest(MAX_TEST) != EXIT_SUCCESS) trap(-2);
 
   // *** 3. NEWTON-RHAPSON *** //
-  outword (0xF10A7357);
+  printf("Newton-Rhapson Test\n");
   if (newtonTest(MAX_TEST) != EXIT_SUCCESS) trap(-3);
 
-  outword (0xAAAAAAAA);
-  aemb::rendezvous(); // Wait for other thread
+  printf("Test 1 Done\n");
+  //rendezvous(); // Wait for other thread
   return 0;
 }
 
@@ -59,14 +61,13 @@ int thread0() // runs core tests
   // *** 3. XSL *** //
   //if (xslTest(0xBADCAB1E) != EXIT_SUCCESS) trap(3);
 
-  outword (0xBBBBBBBB);
-  aemb::rendezvous(); // Wait for other thread
+  rendezvous(); // Wait for other thread
   return 0;
 }
 
 int threads()
 {
-  if (aemb::isThread1())  
+  if (isThread1())  
     return thread1(); 
   else
     return thread0();
@@ -75,10 +76,14 @@ int threads()
 // run tests
 int main() 
 {
+  printf("AEMB2 32-bit MICROPROCESSOR CORE\n");
   threads();  
   return EXIT_SUCCESS;
 }
 
 /*
 $Log: not supported by cvs2svn $
+Revision 1.2  2008/04/21 12:13:12  sybreon
+Passes arithmetic tests with single thread.
+
 */
