@@ -1,4 +1,4 @@
-/* $Id: hook.hh,v 1.5 2008-04-23 14:19:39 sybreon Exp $
+/* $Id: hook.hh,v 1.6 2008-04-26 18:04:31 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -34,26 +34,20 @@
 #ifndef AEMB_HOOK_HH
 #define AEMB_HOOK_HH
 
-#ifdef __cplusplus
 namespace aemb {
   extern "C" {
+    
     void _program_init();
     void _program_clean();
-    void __malloc_lock();
-    void __malloc_unlock();
-    void __env_lock();
-    void __env_unlock();
-
-  }  
-#else
-  void _program_init();
-  void _program_clean();
-  void __malloc_lock();
-  void __malloc_unlock();
-  void __env_lock();
-  void __env_unlock();  
-#endif  
-
+    
+    // newlib locks
+    void __malloc_lock(struct _reent *reent);
+    void __malloc_unlock(struct _reent *reent);
+    //void __env_lock(struct _reent *reent);
+    //void __env_unlock(struct _reent *reent);
+    
+  }
+  
   /**
      Finalisation hook
      
@@ -61,13 +55,15 @@ namespace aemb {
      finalisation routine is called. It will merge the changes made
      during initialisation.
   */  
+
   void _program_clean()
   {     
     waitMutex(); // enter critical section
 
     // unify the stack backwards for thread 1
-    if (isThread1())       
+    if (isThread0())       
       {	
+	// TODO: Unify the stack
 	setStack(getStack() + (getStackSize() >> 1));        
       }   
     
@@ -79,16 +75,22 @@ namespace aemb {
   
      This function executes during the startup phase before the
      initialisation routine is called. It splits the stack between the
-     threads.
+     threads. For now, it will lock up T0 for compatibility purposes.
   */  
+
   void _program_init()
   {
     waitMutex(); // enter critical section
 
     // split and shift the stack for thread 1
-    if (isThread1()) 
+    if (isThread0()) // main thread
       {
-	setStack(getStack() - (getStackSize() >> 1));        
+	// NOTE: Dupe the stack otherwise it will FAIL!	
+	dupStack((int *)setStack(getStack() - (getStackSize() >> 1)), 
+		  (int *)getStack(), 
+		  (int *)getStackTop);	
+	signalMutex(); // exit critical section
+	while (true) asm volatile ("nop"); // lock thread
       }
 
     signalMutex(); // exit critical section
@@ -102,7 +104,8 @@ namespace aemb {
      This function is called during malloc() to lock out the shared
      heap to avoid data corruption.
    */
-  void __malloc_lock()
+
+  void __malloc_lock(struct _reent *reent)
   {
     waitMutex();   
   }
@@ -113,25 +116,29 @@ namespace aemb {
      This function is called during malloc() to indicate that the
      shared heap is now available for another thread.
   */
-  void __malloc_unlock()
+
+  void __malloc_unlock(struct _reent *reent)
   {
     signalMutex();
   }
 
-#ifdef __cplusplus  
 }
-#endif
 
 #endif
 
 #ifndef __OPTIMIZE__
 // The main programme needs to be compiled with optimisations turned
-// on (at least -O1).
+// on (at least -O1). If not, the MUTEX value will be written to the
+// same RAM location, giving both threads the same value.
 OPTIMISATION_REQUIRED XXX
 #endif
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.5  2008/04/23 14:19:39  sybreon
+  Fixed minor bugs.
+  Initial use of hardware mutex.
+
   Revision 1.4  2008/04/20 16:35:53  sybreon
   Added C/C++ compatible #ifdef statements
 

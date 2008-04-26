@@ -1,4 +1,4 @@
-/* $Id: stack.hh,v 1.3 2008-04-23 14:19:39 sybreon Exp $
+/* $Id: stack.hh,v 1.4 2008-04-26 18:04:31 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -27,9 +27,7 @@
 #ifndef AEMB_STACK_HH
 #define AEMB_STACK_HH
 
-#ifdef __cplusplus
 namespace aemb {
-#endif
 
   /**
   Reads the size of the memory space allocated for the stack in bytes.
@@ -44,7 +42,8 @@ namespace aemb {
   }
   
   /**
-  Reads the end of the memory space allocated for the stack.
+  Reads the end of the memory space allocated for the stack. This is
+  where the stack ends.
   @return end of stack
   */
   
@@ -56,7 +55,8 @@ namespace aemb {
   }
   
   /**
-  Reads the top of the memory space allocated for the stack.
+  Reads the top of the memory space allocated for the stack. This is
+  where the stack starts.
   @return top of stack
   */
   
@@ -82,21 +82,45 @@ namespace aemb {
   /**
   Sets register R1 to the new stack pointer.
   @param stk new stack pointer
+  @return new stack pointer
   */
   
-  inline void setStack(int stk)
+  inline int setStack(int stk)
   {
     asm ("addk r1, r0, %0"::"r"(stk));
+    return stk;
   }
 
-#ifdef __cplusplus
+  /**
+     Duplicates the stack
+     @param newp new stack pointer
+     @param oldp old stack pointer
+     @param endp end of the stack
+  */
+
+  inline void dupStack(int *newp, int *oldp, int *endp)
+  {
+    while (oldp < endp)
+      {
+	// copy the stack content
+	*newp = *oldp;
+
+	// this increments 1 word (not 1 byte)
+	newp++; 
+	oldp++;
+      }
+  }
+
 }
-#endif
 
 #endif
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.3  2008/04/23 14:19:39  sybreon
+  Fixed minor bugs.
+  Initial use of hardware mutex.
+
   Revision 1.2  2008/04/20 16:35:53  sybreon
   Added C/C++ compatible #ifdef statements
 
