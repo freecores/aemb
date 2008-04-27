@@ -1,4 +1,4 @@
-/* $Id: stack.hh,v 1.5 2008-04-26 19:31:35 sybreon Exp $
+/* $Id: stack.hh,v 1.6 2008-04-27 16:04:42 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -100,7 +100,7 @@ namespace aemb {
      @param endp end of the stack
   */
 
-  inline void dupStack(int *newp, int *oldp, int *endp)
+  inline void dupStack(unsigned int *newp, unsigned int *oldp, unsigned int *endp)
   {
     while (oldp < endp)
       {
@@ -121,6 +121,9 @@ namespace aemb {
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.5  2008/04/26 19:31:35  sybreon
+  Made headers C compatible.
+
   Revision 1.4  2008/04/26 18:04:31  sybreon
   Updated software to freeze T0 and run T1.
 

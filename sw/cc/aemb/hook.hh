@@ -1,4 +1,4 @@
-/* $Id: hook.hh,v 1.7 2008-04-26 19:31:35 sybreon Exp $
+/* $Id: hook.hh,v 1.8 2008-04-27 16:04:42 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -90,9 +90,11 @@ namespace aemb {
     if (isThread0()) // main thread
       {
 	// NOTE: Dupe the stack otherwise it will FAIL!	
-	dupStack((int *)setStack(getStack() - (getStackSize() >> 1)), 
-		  (int *)getStack(), 
-		  (int *)getStackTop);	
+	int oldstk = getStack();
+	int newstk = setStack(getStack() - (getStackSize() >> 1));
+	dupStack((unsigned int *)newstk,
+		 (unsigned int *)oldstk,
+		 (unsigned int *)getStackTop());	
 	signalMutex(); // exit critical section
 	while (1) asm volatile ("nop"); // lock thread
       }
@@ -136,11 +138,14 @@ namespace aemb {
 // The main programme needs to be compiled with optimisations turned
 // on (at least -O1). If not, the MUTEX value will be written to the
 // same RAM location, giving both threads the same value.
-OPTIMISATION_REQUIRED XXX
+OPTIMISATION_REQUIRED OPTIMISATION_REQUIRED
 #endif
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.7  2008/04/26 19:31:35  sybreon
+  Made headers C compatible.
+
   Revision 1.6  2008/04/26 18:04:31  sybreon
   Updated software to freeze T0 and run T1.
 

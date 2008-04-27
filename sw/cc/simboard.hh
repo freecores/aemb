@@ -1,4 +1,4 @@
-/* $Id: simboard.hh,v 1.4 2008-04-26 19:32:00 sybreon Exp $
+/* $Id: simboard.hh,v 1.5 2008-04-27 16:04:42 sybreon Exp $
 ** 
 ** AEMB Function Verification C++ Testbench
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -38,57 +38,6 @@ INTERRUPT TESTS
 using namespace aemb;
 #endif
 
-volatile int intr = -1;
-
-void __attribute__ ((interrupt_handler)) interruptHandler() 
-{
-  intr = 0; // flag the interrupt service routine
-}
-
-int interruptTest(int timeout)
-{
-  enableInterrupts();
-  int timer;
-  for (timer=0; (timer < timeout) && (intr == -1); ++timer); // delay loop
-  disableInterrupts();
-  return (intr == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
-}
-
-
-/**
-   FSL TEST ROUTINE
-*/
-
-int xslTest (int code)
-{
-  // TEST FSL1 ONLY
-  int FSL = code;
-
-  asm ("PUT %0, RFSL1" :: "r"(FSL));
-  asm ("GET %0, RFSL1" : "=r"(FSL));
-  
-  if (FSL != code) return EXIT_FAILURE;
-  
-  asm ("PUT %0, RFSL31" :: "r"(FSL));
-  asm ("GET %0, RFSL31" : "=r"(FSL));
-  
-  if (FSL != code) return EXIT_FAILURE;
-  
-  return EXIT_SUCCESS;  
-}
-
-/**
-   MALLOC TEST
-   Works well with newlib malloc routine. Do some patterned tests.
-*/
-
-int memoryTest(int size)
-{
-  void *alloc;
-  alloc = malloc(size * sizeof(int)); // allocate 32 byte
-  return (alloc == NULL) ? EXIT_FAILURE : EXIT_SUCCESS;
-}
-
 /*
 I/O FUNCTIONS
 */
@@ -127,6 +76,9 @@ void trap(long e)
 
 /*
 $Log: not supported by cvs2svn $
+Revision 1.4  2008/04/26 19:32:00  sybreon
+Made headers C compatible.
+
 Revision 1.3  2008/04/26 18:07:19  sybreon
 Minor cosmetic changes.
 

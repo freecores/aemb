@@ -1,4 +1,4 @@
-/* $Id: literate.hh,v 1.4 2008-04-26 18:07:19 sybreon Exp $
+/* $Id: literate.hh,v 1.5 2008-04-27 16:04:42 sybreon Exp $
 ** 
 ** AEMB Function Verification C++ Testbench
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -225,5 +225,5 @@ int newtonTest (int max) {
 #endif
 
 /*
-$log$
+$Log: not supported by cvs2svn $
 */

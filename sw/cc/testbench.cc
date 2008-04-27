@@ -1,4 +1,4 @@
-/* $Id: testbench.cc,v 1.5 2008-04-26 19:32:00 sybreon Exp $
+/* $Id: testbench.cc,v 1.6 2008-04-27 16:04:42 sybreon Exp $
 ** 
 ** AEMB Function Verification C++ Testbench
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -18,51 +18,84 @@
 ** You should have received a copy of the GNU General Public License
 ** along with AEMB.  If not, see <http://www.gnu.org/licenses/>.
 */
+/**
+AEMB Software Verification
+@file testbench.cc
+
+This programme performs numerical and functional verification of the
+AEMB. It can be compiled by the GCC compiler.
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
 #include "aemb/core.hh"
 #include "literate.hh"
 #include "simboard.hh"
+#include "corefunc.hh"
 
 #define MAX_TEST 3
+
+void checkcode(int code)
+{
+  if (code == EXIT_SUCCESS)
+    iprintf("\t\t-PASS-\n");
+  else
+    iprintf("\t\t*FAIL*\n");
+}
+
+void printtest(char *msg)
+{
+  static int count = 1;
+  iprintf("\t%d. %s\n",count++, msg);
+}
+
+void numtests()
+{
+  // *** 1. FIBONACCI ***
+  printtest("Integer Arithmetic");
+  checkcode(fibonacciTest(MAX_TEST));
+
+  // *** 2. EUCLIDEAN ***
+  printtest("Integer Factorisation");
+  checkcode(euclideanTest(MAX_TEST));
+
+  // *** 3. NEWTON-RHAPSON ***
+  printtest("Floating Point Arithmetic");
+  checkcode(newtonTest(MAX_TEST));
+
+}
+
+void coretests()
+{
+  // *** 4. MEMORY-ALLOC ***
+  printtest("Memory Allocation");
+  checkcode(memoryTest(MAX_TEST));
+
+  // *** 5. INTERRUPT ***
+  printtest("Hardware Interrupts");
+  checkcode(interruptTest(MAX_TEST));
+
+  // *** 6. EXTENSION ***
+  printtest("Accellerator Link");
+  checkcode(xslTest(MAX_TEST));
+}
 
 // run tests
 int main() 
 {
-  iprintf("AEMB2 32-bit Microprocessor Core\n");
+  iprintf("AEMB2 32-bit Microprocessor Core Tests\n");
+  
+  numtests();
+  coretests();
 
-  iprintf("\nNumerical Tests\n");
-  // *** 1. FIBONACCI ***
-  if (fibonacciTest(MAX_TEST) != EXIT_SUCCESS) trap(-1);
-  iprintf("1.\tBasic Integer\tPASS\n");
-
-  // *** 2. EUCLIDEAN ***
-  if (euclideanTest(MAX_TEST) != EXIT_SUCCESS) trap(-2);
-  iprintf("2.\tExtra Integer\tPASS\n");
-
-  // *** 3. NEWTON-RHAPSON ***
-  if (newtonTest(MAX_TEST) != EXIT_SUCCESS) trap(-3);
-  iprintf("3.\tFloating Point\tPASS\n");
-
-  iprintf("\nFunctional Tests\n");  
-  // *** 4. MEMORY-ALLOC ***
-  if (memoryTest(MAX_TEST) != EXIT_SUCCESS) trap(-4);
-  iprintf("4.\tMemory Alloc\tPASS\n");
-
-  // *** 5. INTERRUPT ***
-  iprintf("5.\tInterrupt\tPASS\n");
- 
-  // *** 6. EXTENSION ***
-  iprintf("6.\tExtension\tPASS\n");
-
-  // *** 9. PASSED ***
-  iprintf("\n*** PASSED ***\n");
   return EXIT_SUCCESS;
 }
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.5  2008/04/26 19:32:00  sybreon
+  Made headers C compatible.
+
   Revision 1.4  2008/04/26 18:08:12  sybreon
   Made single-thread compatible.
 
