@@ -1,4 +1,4 @@
-/* $Id: aeMB2_dwbif.v,v 1.6 2008-04-26 17:57:43 sybreon Exp $
+/* $Id: aeMB2_dwbif.v,v 1.7 2008-04-27 16:41:55 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -129,7 +129,10 @@ module aeMB2_dwbif (/*AUTOARG*/
 	
 	dwb_wre_o <= #1 opc_of[2]; // SXX
 	
-	dwb_mx <= #1 (dwb_ack_i) ? dwb_dat_i : dwb_lat;	// Latch input
+	dwb_mx <= #1 
+		  (dwb_ack_i) ? 
+		  dwb_dat_i : // stalled from RAM
+		  dwb_lat; // latch earlier data
 
 	case (wSEL) // Latch output
 	  // 32'bit
@@ -171,7 +174,7 @@ module aeMB2_dwbif (/*AUTOARG*/
 	dwb_stb_o <= 1'h0;
 	// End of automatics
      //end else if (dwb_fb) begin
-     end else if (dena) begin
+     end else if (dwb_fb) begin
 	dwb_stb_o <= #1
 		     (dena) ? &opc_of[5:4] : // LXX/SSS
 		     (dwb_stb_o & !dwb_ack_i); // LXX/SSS
@@ -186,6 +189,9 @@ endmodule // aeMB2_dwbif
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.6  2008/04/26 17:57:43  sybreon
+ Minor performance improvements.
+
  Revision 1.5  2008/04/26 01:09:05  sybreon
  Passes basic tests. Minor documentation changes to make it compatible with iverilog pre-processor.
 

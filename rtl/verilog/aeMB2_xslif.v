@@ -1,4 +1,4 @@
-/* $Id: aeMB2_xslif.v,v 1.6 2008-04-27 16:04:12 sybreon Exp $
+/* $Id: aeMB2_xslif.v,v 1.7 2008-04-27 16:41:46 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -97,7 +97,9 @@ module aeMB2_xslif (/*AUTOARG*/
 
 	xwb_dat_o <= #1 opa_of; // Latch output
 
-	xwb_mx <= #1 (xwb_ack_i) ? xwb_dat_i : xwb_lat;	// Latch input
+	xwb_mx <= #1 (xwb_ack_i) ? 
+		  xwb_dat_i : // stalled from XWB
+		  xwb_lat; // Latch earlier
 	
      end // if (dena)
 
@@ -112,7 +114,7 @@ module aeMB2_xslif (/*AUTOARG*/
 	// Beginning of autoreset for uninitialized flops
 	xwb_lat <= 32'h0;
 	// End of automatics
-     end else if (xwb_stb_o) begin
+     end else if (xwb_ack_i) begin
 	xwb_lat <= #1 xwb_dat_i;	
      end
    
@@ -123,7 +125,7 @@ module aeMB2_xslif (/*AUTOARG*/
 	xBLK <= 1'h0;
 	xwb_stb_o <= 1'h0;
 	// End of automatics
-     end else if (dena) begin
+     end else if (xwb_fb) begin
 	xBLK <= #1 imm_of[14]; // nGET/nPUT	
 	xwb_stb_o <= #1 (dena) ? !opc_of[5] & opc_of[4] & opc_of[3] & opc_of[1] : // GET/PUT
 		     (xwb_stb_o & !xwb_ack_i);	
@@ -136,6 +138,9 @@ endmodule // aeMB2_xslif
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.6  2008/04/27 16:04:12  sybreon
+ Fixed minor typos.
+
  Revision 1.5  2008/04/26 17:57:43  sybreon
  Minor performance improvements.
 
