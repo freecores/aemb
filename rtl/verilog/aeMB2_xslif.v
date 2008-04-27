@@ -1,4 +1,4 @@
-/* $Id: aeMB2_xslif.v,v 1.5 2008-04-26 17:57:43 sybreon Exp $
+/* $Id: aeMB2_xslif.v,v 1.6 2008-04-27 16:04:12 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -123,9 +123,9 @@ module aeMB2_xslif (/*AUTOARG*/
 	xBLK <= 1'h0;
 	xwb_stb_o <= 1'h0;
 	// End of automatics
-     end else if (xwb_fb) begin
+     end else if (dena) begin
 	xBLK <= #1 imm_of[14]; // nGET/nPUT	
-	xwb_stb_o <= #1 (dena) ? &{!opc_of[5],opc_of[4:3]} : // GET/PUT
+	xwb_stb_o <= #1 (dena) ? !opc_of[5] & opc_of[4] & opc_of[3] & opc_of[1] : // GET/PUT
 		     (xwb_stb_o & !xwb_ack_i);	
      end
 
@@ -136,6 +136,9 @@ endmodule // aeMB2_xslif
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.5  2008/04/26 17:57:43  sybreon
+ Minor performance improvements.
+
  Revision 1.4  2008/04/26 01:09:06  sybreon
  Passes basic tests. Minor documentation changes to make it compatible with iverilog pre-processor.
 
