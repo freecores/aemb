@@ -1,4 +1,4 @@
-/* $Id: aeMB2_iwbif.v,v 1.4 2008-04-26 01:09:06 sybreon Exp $
+/* $Id: aeMB2_iwbif.v,v 1.5 2008-04-27 19:52:31 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -30,11 +30,11 @@
 
 module aeMB2_iwbif (/*AUTOARG*/
    // Outputs
-   iwb_adr_o, iwb_stb_o, iwb_sel_o, iwb_wre_o, iwb_cyc_o, ich_adr,
-   fet_fb, rpc_if, rpc_mx,
+   iwb_adr_o, iwb_stb_o, iwb_sel_o, iwb_wre_o, iwb_cyc_o, iwb_tag_o,
+   ich_adr, fet_fb, rpc_if, rpc_mx,
    // Inputs
-   iwb_ack_i, iwb_dat_i, ich_hit, hzd_bpc, hzd_fwd, bra_ex, bpc_ex,
-   gclk, grst, dena, iena, gpha
+   iwb_ack_i, iwb_dat_i, ich_hit, msr_ex, hzd_bpc, hzd_fwd, bra_ex,
+   bpc_ex, gclk, grst, dena, iena, gpha
    );
    parameter AEMB_IWB = 32;
    parameter AEMB_HTX = 1;
@@ -44,7 +44,8 @@ module aeMB2_iwbif (/*AUTOARG*/
    output 		 iwb_stb_o;
    output [3:0] 	 iwb_sel_o;
    output 		 iwb_wre_o;
-   output 		 iwb_cyc_o;   
+   output 		 iwb_cyc_o;
+   output 		 iwb_tag_o;   
    input 		 iwb_ack_i;
    input [31:0] 	 iwb_dat_i;
    
@@ -58,6 +59,7 @@ module aeMB2_iwbif (/*AUTOARG*/
    output [31:2] 	 rpc_if,
 			 rpc_mx;
 
+   input [7:5] 		 msr_ex;   
    input 		 hzd_bpc,
 			 hzd_fwd;
    
@@ -147,13 +149,17 @@ module aeMB2_iwbif (/*AUTOARG*/
    assign 		iwb_wre_o = 1'b0;
    assign 		iwb_sel_o = 4'hF;   
    assign 		iwb_cyc_o = iwb_stb_o;
-
+   assign 		iwb_tag_o = msr_ex[5];   
+   
    assign 		fet_fb = iwb_stb_o ~^ iwb_ack_i; // no WB cycle      
    
 endmodule // aeMB2_iwbif
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.4  2008/04/26 01:09:06  sybreon
+ Passes basic tests. Minor documentation changes to make it compatible with iverilog pre-processor.
+
  Revision 1.3  2008/04/21 12:11:38  sybreon
  Passes arithmetic tests with single thread.
 

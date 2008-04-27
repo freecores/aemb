@@ -1,4 +1,4 @@
-/* $Id: aeMB2_edk62.v,v 1.6 2008-04-26 17:57:43 sybreon Exp $
+/* $Id: aeMB2_edk62.v,v 1.7 2008-04-27 19:52:46 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -32,9 +32,9 @@
 module aeMB2_edk62 (/*AUTOARG*/
    // Outputs
    xwb_wre_o, xwb_tag_o, xwb_stb_o, xwb_sel_o, xwb_dat_o, xwb_cyc_o,
-   xwb_adr_o, iwb_wre_o, iwb_stb_o, iwb_sel_o, iwb_cyc_o, iwb_adr_o,
-   dwb_wre_o, dwb_tag_o, dwb_stb_o, dwb_sel_o, dwb_dat_o, dwb_cyc_o,
-   dwb_adr_o,
+   xwb_adr_o, iwb_wre_o, iwb_tag_o, iwb_stb_o, iwb_sel_o, iwb_cyc_o,
+   iwb_adr_o, dwb_wre_o, dwb_tag_o, dwb_stb_o, dwb_sel_o, dwb_dat_o,
+   dwb_cyc_o, dwb_adr_o,
    // Inputs
    xwb_dat_i, xwb_ack_i, sys_rst_i, sys_ena_i, sys_clk_i, iwb_dat_i,
    iwb_ack_i, dwb_dat_i, dwb_ack_i
@@ -64,6 +64,7 @@ module aeMB2_edk62 (/*AUTOARG*/
    output		iwb_cyc_o;		// From iwbif0 of aeMB2_iwbif.v
    output [3:0]		iwb_sel_o;		// From iwbif0 of aeMB2_iwbif.v
    output		iwb_stb_o;		// From iwbif0 of aeMB2_iwbif.v
+   output		iwb_tag_o;		// From iwbif0 of aeMB2_iwbif.v
    output		iwb_wre_o;		// From iwbif0 of aeMB2_iwbif.v
    output [AEMB_XWB-1:2] xwb_adr_o;		// From memif0 of aeMB2_memif.v
    output		xwb_cyc_o;		// From memif0 of aeMB2_memif.v
@@ -186,6 +187,7 @@ module aeMB2_edk62 (/*AUTOARG*/
       .iwb_sel_o			(iwb_sel_o[3:0]),
       .iwb_wre_o			(iwb_wre_o),
       .iwb_cyc_o			(iwb_cyc_o),
+      .iwb_tag_o			(iwb_tag_o),
       .ich_adr				(ich_adr[AEMB_IWB-1:2]),
       .fet_fb				(fet_fb),
       .rpc_if				(rpc_if[31:2]),
@@ -194,6 +196,7 @@ module aeMB2_edk62 (/*AUTOARG*/
       .iwb_ack_i			(iwb_ack_i),
       .iwb_dat_i			(iwb_dat_i[31:0]),
       .ich_hit				(ich_hit),
+      .msr_ex				(msr_ex[7:5]),
       .hzd_bpc				(hzd_bpc),
       .hzd_fwd				(hzd_fwd),
       .bra_ex				(bra_ex[1:0]),
@@ -367,6 +370,9 @@ endmodule // aeMB2_edk62
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.6  2008/04/26 17:57:43  sybreon
+ Minor performance improvements.
+
  Revision 1.5  2008/04/26 01:11:30  sybreon
  Fixed minor typos.
 
