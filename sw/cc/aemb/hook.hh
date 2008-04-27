@@ -1,4 +1,4 @@
-/* $Id: hook.hh,v 1.8 2008-04-27 16:04:42 sybreon Exp $
+/* $Id: hook.hh,v 1.9 2008-04-27 16:33:42 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -6,17 +6,17 @@
 ** This file is part of AEMB.
 **
 ** AEMB is free software: you can redistribute it and/or modify it
-** under the terms of the GNU Lesser General Public License as
-** published by the Free Software Foundation, either version 3 of the
-** License, or (at your option) any later version.
+** under the terms of the GNU General Public License as published by
+** the Free Software Foundation, either version 3 of the License, or
+** (at your option) any later version.
 **
 ** AEMB is distributed in the hope that it will be useful, but WITHOUT
 ** ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-** or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General
-** Public License for more details.
+** or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+** License for more details.
 **
-** You should have received a copy of the GNU Lesser General Public
-** License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
+** You should have received a copy of the GNU General Public License
+** along with AEMB.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 /**
@@ -62,7 +62,7 @@ namespace aemb {
 
   void _program_clean()
   {     
-    waitMutex(); // enter critical section
+    _mtx_lock(); // enter critical section
 
     // unify the stack backwards for thread 1
     if (isThread0())       
@@ -71,7 +71,7 @@ namespace aemb {
 	setStack(getStack() + (getStackSize() >> 1));        
       }   
     
-    signalMutex(); // exit critical section
+    _mtx_free(); // exit critical section
   }
   
   /**
@@ -84,7 +84,7 @@ namespace aemb {
 
   void _program_init()
   {
-    waitMutex(); // enter critical section
+    _mtx_lock(); // enter critical section
 
     // split and shift the stack for thread 1
     if (isThread0()) // main thread
@@ -95,11 +95,11 @@ namespace aemb {
 	dupStack((unsigned int *)newstk,
 		 (unsigned int *)oldstk,
 		 (unsigned int *)getStackTop());	
-	signalMutex(); // exit critical section
+	_mtx_free(); // exit critical section
 	while (1) asm volatile ("nop"); // lock thread
       }
 
-    signalMutex(); // exit critical section
+    _mtx_free(); // exit critical section
   }
 
   semaphore __malloc_mutex = 1;  
@@ -113,7 +113,7 @@ namespace aemb {
 
   void __malloc_lock(struct _reent *reent)
   {
-    waitMutex();   
+    _mtx_lock();   
   }
 
   /**
@@ -125,7 +125,7 @@ namespace aemb {
 
   void __malloc_unlock(struct _reent *reent)
   {
-    signalMutex();
+    _mtx_free();
   }
 
 #ifdef __cplusplus
@@ -143,6 +143,9 @@ OPTIMISATION_REQUIRED OPTIMISATION_REQUIRED
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.8  2008/04/27 16:04:42  sybreon
+  Minor cosmetic changes.
+
   Revision 1.7  2008/04/26 19:31:35  sybreon
   Made headers C compatible.
 

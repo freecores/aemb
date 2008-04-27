@@ -1,4 +1,4 @@
-/* $Id: thread.hh,v 1.8 2008-04-26 19:31:35 sybreon Exp $
+/* $Id: thread.hh,v 1.9 2008-04-27 16:33:42 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -6,17 +6,17 @@
 ** This file is part of AEMB.
 **
 ** AEMB is free software: you can redistribute it and/or modify it
-** under the terms of the GNU Lesser General Public License as
-** published by the Free Software Foundation, either version 3 of the
-** License, or (at your option) any later version.
+** under the terms of the GNU General Public License as published by
+** the Free Software Foundation, either version 3 of the License, or
+** (at your option) any later version.
 **
 ** AEMB is distributed in the hope that it will be useful, but WITHOUT
 ** ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-** or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General
-** Public License for more details.
+** or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+** License for more details.
 **
-** You should have received a copy of the GNU Lesser General Public
-** License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
+** You should have received a copy of the GNU General Public License
+** along with AEMB.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 /**
@@ -72,10 +72,10 @@ namespace aemb {
      Hardware Mutex Signal.  
      Unlock the hardware mutex, which is unlocked on reset.
    */
-  inline void signalMutex()
+  inline void _mtx_free()
   {
     int tmp;
-    asm volatile ("msrclr %0, 0x0010":"=r"(tmp));
+    asm volatile ("msrclr %0, %1":"=r"(tmp):"K"(MSR_MTX));
   }
 
   /**
@@ -84,12 +84,12 @@ namespace aemb {
      Waits until the hardware mutex is unlocked. This should be used
      as part of a larger software mutex mechanism.
    */
-  inline void waitMutex()
+  inline void _mtx_lock()
   {
     int rmsr;
     do 
       {
-	asm volatile ("msrset %0, 0x0010":"=r"(rmsr));	
+	asm volatile ("msrset %0, %1":"=r"(rmsr):"K"(MSR_MTX));	
       }
     while (rmsr & MSR_MTX);    
   }
@@ -103,19 +103,33 @@ namespace aemb {
      required as the threads are hardware.
   */
   
-  typedef volatile int semaphore;
+  typedef int semaphore;
 
   /**
-     Increment the semaphore
+     Software Semaphore Signal.
+
+     Increment the semaphore and run. This is a software mechanism.
   */
-  inline void signal(semaphore _sem) { _sem++; }
+  inline void signal(volatile semaphore _sem) 
+  { 
+    _mtx_lock();
+    _sem++; 
+    _mtx_free();
+  }
     
   /**
-     Decrement the semaphore and block if < 0
+     Software Semaphore Wait.
+
+     Decrement the semaphore and block if < 0. This is a software
+     mechanism.
   */
-  inline void wait(semaphore _sem) { _sem--; while (_sem < 0); } // block while
-						     // semaphore is
-						     // negative
+  inline void wait(volatile semaphore _sem) 
+  {
+    _mtx_lock();
+    _sem--; 
+    _mtx_free();
+    while (_sem < 0); 
+  }
 
   semaphore __mutex_rendezvous0 = 0; ///< internal rendezvous mutex
   semaphore __mutex_rendezvous1 = 1; ///< internal rendezvous mutex
@@ -124,7 +138,7 @@ namespace aemb {
      Implements a simple rendezvous mechanism
    */
 
-  void rendezvous()
+  inline void rendezvous()
   {
     if (isThread1())
       {
@@ -146,6 +160,9 @@ namespace aemb {
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.8  2008/04/26 19:31:35  sybreon
+  Made headers C compatible.
+
   Revision 1.7  2008/04/26 18:05:22  sybreon
   Minor cosmetic changes.
 
