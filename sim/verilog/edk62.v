@@ -1,4 +1,4 @@
-/* $Id: edk62.v,v 1.1 2008-04-26 18:09:16 sybreon Exp $
+/* $Id: edk62.v,v 1.2 2008-04-27 16:28:19 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -26,9 +26,9 @@
 */
 
 module edk62();
-   localparam AEMB_DWB = 20;
+   localparam AEMB_DWB = 18;
    localparam AEMB_XWB = 5;   
-   localparam AEMB_IWB = 20;
+   localparam AEMB_IWB = 18;
    localparam AEMB_ICH = 11;
    localparam AEMB_IDX = 6;   
    localparam AEMB_HTX = 1; 
@@ -44,7 +44,6 @@ module edk62();
    reg			sys_ena_i;		// To uut of aeMB2_edk62.v
    reg			sys_rst_i;		// To uut of aeMB2_edk62.v
    reg			xwb_ack_i;		// To uut of aeMB2_edk62.v
-   reg [31:0]		xwb_dat_i;		// To uut of aeMB2_edk62.v
    // End of automatics
 
    always #5 sys_clk_i <= !sys_clk_i;
@@ -52,7 +51,7 @@ module edk62();
    initial begin
       `ifdef VCD_DUMP
       $dumpfile ("dump.vcd");
-      $dumpvars (3,uut);           
+      $dumpvars (1,uut);           
       `endif
       
       sys_clk_i = 0;
@@ -61,7 +60,7 @@ module edk62();
       xwb_ack_i = 0;      
       
       #50 sys_rst_i = 0;      
-      #4000000 $display("\n*** TIMEOUT ***"); $finish;
+      #4000000 $displayh("\n*** TIMEOUT ", $stime, " ***"); $finish;
       
    end // initial begin
    
@@ -93,12 +92,14 @@ module edk62();
    reg [31:0]  rom[0:65535];
    reg [31:0]  ram[0:65535];
    reg [31:0]  dwblat;
-   reg [15:2]  dadr, iadr;
+   reg [31:0]  xwblat;   
+   reg [31:2] dadr, iadr;
 
    wire [31:0] dwb_dat_t = ram[dwb_adr_o];   
    wire [31:0] iwb_dat_i = rom[iadr]; 
    wire [31:0] dwb_dat_i = ram[dadr];     
-
+   wire [31:0] xwb_dat_i = xwblat;   
+   
    always @(posedge sys_clk_i) 
      if (sys_rst_i) begin
 	/*AUTORESET*/
@@ -117,6 +118,10 @@ module edk62();
       iadr <= #1 iwb_adr_o;      
       dadr <= #1 dwb_adr_o;
 
+      if (xwb_wre_o & xwb_stb_o & xwb_ack_i) begin
+	 xwblat <= #1 xwb_dat_o;	 
+      end
+      
       // SPECIAL PORTS
       if (dwb_wre_o & dwb_stb_o & dwb_ack_i) begin
 	 case ({dwb_adr_o,2'o0})
@@ -133,7 +138,7 @@ module edk62();
 	   4'hC: ram[dwb_adr_o] <= {dwb_dat_o[31:16], dwb_dat_t[15:0]};
 	   4'hF: ram[dwb_adr_o] <= {dwb_dat_o};
 	   default: begin
-	      $displayh("\n*** INVALID WRITE *** ",{dwb_adr_o,2'o0});
+	      $displayh("\n*** INVALID WRITE ",{dwb_adr_o,2'o0}, " ***");
 	      $finish;	      
 	   end	   
 	 endcase // case (dwb_sel_o)
@@ -144,7 +149,7 @@ module edk62();
 	   4'h1,4'h2,4'h4,4'h8,4'h3,4'hC,4'hF: begin
 	   end
 	   default: begin
-	      $displayh("\n*** INVALID READ *** ",{dwb_adr_o,2'd0});	      
+	      $displayh("\n*** INVALID READ ",{dwb_adr_o,2'd0}, " ***");	      
 	      $finish;	      
 	   end	   
 	 endcase // case (dwb_sel_o)	 
@@ -182,7 +187,7 @@ module edk62();
 		  //",WRE=",dwb_wre_o,
 		  ",SEL=",dwb_sel_o,
 		  //",DWB=",dwb_dat_o,
-		  ",REG=",uut.regs0.gprf0.wRW,
+		  ",REG=",uut.regs0.gprf0.wRW0,
 		  //",DAT=",uut.regs0.gprf0.regd,
 		  ",MUL=",uut.mul_mx,	     
 		  ",BSF=",uut.bsf_mx,
@@ -193,7 +198,7 @@ module edk62();
 		  );	
 `endif
 	if (uut.ich_dat == 32'hB8000000) begin 
-	   $display("\n*** EXIT ***");
+	   $displayh("\n*** EXIT ", $stime, " ***");
 	   $finish;
 	end
      end // if (uut.dena)
@@ -204,12 +209,12 @@ module edk62();
        .AEMB_IWB			(AEMB_IWB),
        .AEMB_DWB			(AEMB_DWB),
        .AEMB_XWB			(AEMB_XWB),
-       .AEMB_HTX			(AEMB_HTX),
        .AEMB_ICH			(AEMB_ICH),
        .AEMB_IDX			(AEMB_IDX),
        .AEMB_BSF			(AEMB_BSF),
        .AEMB_MUL			(AEMB_MUL),
-       .AEMB_XSL			(AEMB_XSL))
+       .AEMB_XSL			(AEMB_XSL),
+       .AEMB_HTX			(AEMB_HTX))
    uut
      (/*AUTOINST*/
       // Outputs
@@ -246,6 +251,9 @@ module edk62();
 endmodule // edk62
 
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/04/26 18:09:16  sybreon
+// initial import
+//
 
 // Local Variables:
 // verilog-library-directories:("." "../../rtl/verilog/")
