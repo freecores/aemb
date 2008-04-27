@@ -1,4 +1,4 @@
-/* $Id: simboard.hh,v 1.5 2008-04-27 16:04:42 sybreon Exp $
+/* $Id: simboard.hh,v 1.6 2008-04-27 16:35:16 sybreon Exp $
 ** 
 ** AEMB Function Verification C++ Testbench
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -29,11 +29,6 @@
 #define CODE_FAIL 0xDEADBEEF
 #define CODE_PASS 0xCAFEF00D
 
-
-/*
-INTERRUPT TESTS
-*/
-
 #ifdef __cplusplus
 using namespace aemb;
 #endif
@@ -52,30 +47,13 @@ char inbyte()
   return 0;
 }
 
-void outfloat(float f) 
-{
-  volatile float *FOUT = (float *) 0xFFFFFFD0;
-  *FOUT = f;
-}
-
-void outword(long l) 
-{
-  volatile long *DOUT = (long *) 0xFFFFFFD0;
-  *DOUT = l;
-}
-
-void trap(long e)
-{  
-  outword(e);
-  outword(CODE_FAIL);
-  // hang the machine
-  exit(e);  
-}
-
 #endif
 
 /*
 $Log: not supported by cvs2svn $
+Revision 1.5  2008/04/27 16:04:42  sybreon
+Minor cosmetic changes.
+
 Revision 1.4  2008/04/26 19:32:00  sybreon
 Made headers C compatible.
 
