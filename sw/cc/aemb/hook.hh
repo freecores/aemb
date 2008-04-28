@@ -1,4 +1,4 @@
-/* $Id: hook.hh,v 1.10 2008-04-28 20:29:15 sybreon Exp $
+/* $Id: hook.hh,v 1.11 2008-04-28 20:31:40 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -96,8 +96,6 @@ extern "C" {
     _aembFreeMTX(); // exit critical section
   }
 
-  semaphore __malloc_mutex = 1;  
-
   /**
      Heap Lock
 
@@ -137,6 +135,9 @@ OPTIMISATION_REQUIRED OPTIMISATION_REQUIRED
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.10  2008/04/28 20:29:15  sybreon
+  Made files C compatible under C++.
+
   Revision 1.9  2008/04/27 16:33:42  sybreon
   License change to GPL3.
 
