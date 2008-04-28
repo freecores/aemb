@@ -1,4 +1,4 @@
-/* $Id: stack.hh,v 1.7 2008-04-27 16:33:42 sybreon Exp $
+/* $Id: stack.hh,v 1.8 2008-04-28 20:29:15 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -24,11 +24,11 @@
    @file stack.hh  
  */
 
-#ifndef AEMB_STACK_HH
-#define AEMB_STACK_HH
+#ifndef _AEMB_STACK_HH
+#define _AEMB_STACK_HH
 
 #ifdef __cplusplus
-namespace aemb {
+extern "C" {
 #endif
 
   /**
@@ -36,7 +36,7 @@ namespace aemb {
   @return size of stack
   */
   
-  inline int getStackSize()
+  inline int aembGetStackSize()
   {
     int tmp;
     asm ("la %0, r0, _STACK_SIZE":"=r"(tmp));
@@ -49,7 +49,7 @@ namespace aemb {
   @return end of stack
   */
   
-  inline int getStackEnd()
+  inline int aembGetStackEnd()
   {
     int tmp;
     asm ("la %0, r0, _stack_end":"=r"(tmp));
@@ -62,7 +62,7 @@ namespace aemb {
   @return top of stack
   */
   
-  inline int getStackTop()
+  inline int aembGetStackTop()
   {
     int tmp;
     asm ("la %0, r0, _stack":"=r"(tmp));
@@ -74,7 +74,7 @@ namespace aemb {
   @return stack pointer
   */
   
-  inline int getStack()
+  inline int aembGetStack()
   {
     int tmp;
     asm ("addk %0, r0, r1":"=r"(tmp));
@@ -87,7 +87,7 @@ namespace aemb {
   @return new stack pointer
   */
   
-  inline int setStack(int stk)
+  inline int aembSetStack(int stk)
   {
     asm ("addk r1, r0, %0"::"r"(stk));
     return stk;
@@ -100,13 +100,12 @@ namespace aemb {
      @param endp end of the stack
   */
 
-  inline void dupStack(unsigned int *newp, unsigned int *oldp, unsigned int *endp)
+  inline void aembDupStack(unsigned int *newp, unsigned int *oldp, unsigned int *endp)
   {
     while (oldp < endp)
       {
 	// copy the stack content
 	*newp = *oldp;
-
 	// this increments 1 word (not 1 byte)
 	newp++; 
 	oldp++;
@@ -121,6 +120,9 @@ namespace aemb {
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.7  2008/04/27 16:33:42  sybreon
+  License change to GPL3.
+
   Revision 1.6  2008/04/27 16:04:42  sybreon
   Minor cosmetic changes.
 

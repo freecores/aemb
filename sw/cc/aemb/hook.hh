@@ -1,4 +1,4 @@
-/* $Id: hook.hh,v 1.9 2008-04-27 16:33:42 sybreon Exp $
+/* $Id: hook.hh,v 1.10 2008-04-28 20:29:15 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -31,12 +31,11 @@
 #include "aemb/heap.hh"
 #include "aemb/thread.hh"
 
-#ifndef AEMB_HOOK_HH
-#define AEMB_HOOK_HH
+#ifndef _AEMB_HOOK_HH
+#define _AEMB_HOOK_HH
 
 #ifdef __cplusplus
-namespace aemb {
-  extern "C" {
+extern "C" {
 #endif
 
     void _program_init();
@@ -48,10 +47,6 @@ namespace aemb {
     //void __env_lock(struct _reent *reent);
     //void __env_unlock(struct _reent *reent);
     
-#ifdef __cplusplus
-  }
-#endif
-  
   /**
      Finalisation hook
      
@@ -62,16 +57,15 @@ namespace aemb {
 
   void _program_clean()
   {     
-    _mtx_lock(); // enter critical section
+    _aembLockMTX(); // enter critical section
 
-    // unify the stack backwards for thread 1
-    if (isThread0())       
+    // unify the stack backwards
+    if (aembIsThread0())       
       {	
-	// TODO: Unify the stack
-	setStack(getStack() + (getStackSize() >> 1));        
+	aembSetStack(aembGetStack() + (aembGetStackSize() >> 1));        
       }   
     
-    _mtx_free(); // exit critical section
+    _aembFreeMTX(); // exit critical section
   }
   
   /**
@@ -84,22 +78,22 @@ namespace aemb {
 
   void _program_init()
   {
-    _mtx_lock(); // enter critical section
+    _aembLockMTX(); // enter critical section
 
     // split and shift the stack for thread 1
-    if (isThread0()) // main thread
+    if (aembIsThread0()) // main thread
       {
 	// NOTE: Dupe the stack otherwise it will FAIL!	
-	int oldstk = getStack();
-	int newstk = setStack(getStack() - (getStackSize() >> 1));
-	dupStack((unsigned int *)newstk,
-		 (unsigned int *)oldstk,
-		 (unsigned int *)getStackTop());	
-	_mtx_free(); // exit critical section
+	int oldstk = aembGetStack();
+	int newstk = aembSetStack(aembGetStack() - (aembGetStackSize() >> 1));
+	aembDupStack((unsigned int *)newstk,
+		     (unsigned int *)oldstk,
+		     (unsigned int *)aembGetStackTop());	
+	_aembFreeMTX(); // exit critical section
 	while (1) asm volatile ("nop"); // lock thread
       }
 
-    _mtx_free(); // exit critical section
+    _aembFreeMTX(); // exit critical section
   }
 
   semaphore __malloc_mutex = 1;  
@@ -113,7 +107,7 @@ namespace aemb {
 
   void __malloc_lock(struct _reent *reent)
   {
-    _mtx_lock();   
+    _aembLockMTX();   
   }
 
   /**
@@ -125,7 +119,7 @@ namespace aemb {
 
   void __malloc_unlock(struct _reent *reent)
   {
-    _mtx_free();
+    _aembFreeMTX();
   }
 
 #ifdef __cplusplus
@@ -143,6 +137,9 @@ OPTIMISATION_REQUIRED OPTIMISATION_REQUIRED
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.9  2008/04/27 16:33:42  sybreon
+  License change to GPL3.
+
   Revision 1.8  2008/04/27 16:04:42  sybreon
   Minor cosmetic changes.
 

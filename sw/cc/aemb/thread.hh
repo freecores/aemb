@@ -1,4 +1,4 @@
-/* $Id: thread.hh,v 1.9 2008-04-27 16:33:42 sybreon Exp $
+/* $Id: thread.hh,v 1.10 2008-04-28 20:29:15 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -29,11 +29,11 @@
 
 #include "aemb/msr.hh"
 
-#ifndef AEMB_THREAD_HH
-#define AEMB_THREAD_HH
+#ifndef _AEMB_THREAD_HH
+#define _AEMB_THREAD_HH
 
 #ifdef __cplusplus
-namespace aemb {
+extern "C" {
 #endif
 
   /**
@@ -41,10 +41,10 @@ namespace aemb {
      @return true if is Thread 1
   */
   
-  inline int isThread1() 
+  inline int aembIsThread1() 
   {
-    int rmsr = getMSR();
-    return ((rmsr & MSR_HTX) && (rmsr & MSR_PHA));
+    int rmsr = aembGetMSR();
+    return ((rmsr & AEMB_MSR_HTX) && (rmsr & AEMB_MSR_PHA));
   }
   
   /**
@@ -52,30 +52,30 @@ namespace aemb {
      @return true if is Thread 0
   */
   
-  inline int isThread0()
+  inline int aembIsThread0()
   {
-    int rmsr = getMSR();
-    return ((rmsr & MSR_HTX) && (!(rmsr & MSR_PHA)));
+    int rmsr = aembGetMSR();
+    return ((rmsr & AEMB_MSR_HTX) && (!(rmsr & AEMB_MSR_PHA)));
   }
   
   /**
      Checks to see if it is multi-threaded or not.
      @return true if thread capable
   */
-  inline int isThreaded()
+  inline int aembIsThreaded()
   {
-    int rmsr = getMSR();
-    return (rmsr & MSR_HTX);
+    int rmsr = aembGetMSR();
+    return (rmsr & AEMB_MSR_HTX);
   }
 
   /**
      Hardware Mutex Signal.  
      Unlock the hardware mutex, which is unlocked on reset.
    */
-  inline void _mtx_free()
+  inline void _aembFreeMTX()
   {
     int tmp;
-    asm volatile ("msrclr %0, %1":"=r"(tmp):"K"(MSR_MTX));
+    asm volatile ("msrclr %0, %1":"=r"(tmp):"K"(AEMB_MSR_MTX));
   }
 
   /**
@@ -84,74 +84,16 @@ namespace aemb {
      Waits until the hardware mutex is unlocked. This should be used
      as part of a larger software mutex mechanism.
    */
-  inline void _mtx_lock()
+  inline void _aembLockMTX()
   {
     int rmsr;
     do 
       {
-	asm volatile ("msrset %0, %1":"=r"(rmsr):"K"(MSR_MTX));	
+	asm volatile ("msrset %0, %1":"=r"(rmsr):"K"(AEMB_MSR_MTX));	
       }
-    while (rmsr & MSR_MTX);    
+    while (rmsr & AEMB_MSR_MTX);    
   }
     
-  // TODO: Extend this library to include threading mechanisms such as
-  // semaphores, mutexes and such.
-
-  /**
-     Semaphore struct.     
-     Presently implemented as software solution but a hardware one may be
-     required as the threads are hardware.
-  */
-  
-  typedef int semaphore;
-
-  /**
-     Software Semaphore Signal.
-
-     Increment the semaphore and run. This is a software mechanism.
-  */
-  inline void signal(volatile semaphore _sem) 
-  { 
-    _mtx_lock();
-    _sem++; 
-    _mtx_free();
-  }
-    
-  /**
-     Software Semaphore Wait.
-
-     Decrement the semaphore and block if < 0. This is a software
-     mechanism.
-  */
-  inline void wait(volatile semaphore _sem) 
-  {
-    _mtx_lock();
-    _sem--; 
-    _mtx_free();
-    while (_sem < 0); 
-  }
-
-  semaphore __mutex_rendezvous0 = 0; ///< internal rendezvous mutex
-  semaphore __mutex_rendezvous1 = 1; ///< internal rendezvous mutex
-
-  /**
-     Implements a simple rendezvous mechanism
-   */
-
-  inline void rendezvous()
-  {
-    if (isThread1())
-      {
-	wait(__mutex_rendezvous0);
-	signal(__mutex_rendezvous1);
-      }
-    else
-      {
-	signal(__mutex_rendezvous0);
-	wait(__mutex_rendezvous1);
-      }
-  }
-
 #ifdef __cplusplus
 }
 #endif
@@ -160,6 +102,9 @@ namespace aemb {
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.9  2008/04/27 16:33:42  sybreon
+  License change to GPL3.
+
   Revision 1.8  2008/04/26 19:31:35  sybreon
   Made headers C compatible.
 

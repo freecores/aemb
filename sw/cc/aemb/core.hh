@@ -1,4 +1,4 @@
-/* $Id: core.hh,v 1.3 2008-04-27 16:33:42 sybreon Exp $
+/* $Id: core.hh,v 1.4 2008-04-28 20:29:15 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -30,22 +30,18 @@
 #include "aemb/thread.hh"
 #include "aemb/hook.hh"
 #include "aemb/stdio.hh"
+#include "aemb/semaphore.hh"
 
-#ifndef AEMB_CORE_HH
-#define AEMB_CORE_HH
-
-/**
-Unique namespace for all aemb library functions
-*/
-#ifdef __cplusplus
-namespace aemb {
-}
-#endif
+#ifndef _AEMB_CORE_HH
+#define _AEMB_CORE_HH
 
 #endif
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.3  2008/04/27 16:33:42  sybreon
+  License change to GPL3.
+
   Revision 1.2  2008/04/26 19:31:35  sybreon
   Made headers C compatible.
 

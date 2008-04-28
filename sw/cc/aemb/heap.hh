@@ -1,4 +1,4 @@
-/* $Id: heap.hh,v 1.5 2008-04-27 16:33:42 sybreon Exp $
+/* $Id: heap.hh,v 1.6 2008-04-28 20:29:15 sybreon Exp $
 ** 
 ** AEMB2 HI-PERFORMANCE CPU 
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -24,11 +24,11 @@
    @file heap.hh  
  */
 
-#ifndef AEMB_HEAP_HH
-#define AEMB_HEAP_HH
+#ifndef _AEMB_HEAP_HH
+#define _AEMB_HEAP_HH
 
 #ifdef __cplusplus
-namespace aemb {
+extern "C" {
 #endif
 
   /**
@@ -36,7 +36,7 @@ namespace aemb {
   @return heap size
   */
   
-  inline int getHeapSize()
+  inline int aembGetHeapSize()
   {
     int tmp;
     asm ("la %0, r0, _HEAP_SIZE":"=r"(tmp));
@@ -48,7 +48,7 @@ namespace aemb {
   @return heap end
   */
   
-  inline int getHeapEnd()
+  inline int aembGetHeapEnd()
   {
     int tmp;
     asm ("la %0, r0, _heap_end":"=r"(tmp));
@@ -60,7 +60,7 @@ namespace aemb {
   @return heap top
   */
   
-  inline int getHeapTop()
+  inline int aembGetHeapTop()
   {
     int tmp;
     asm ("la %0, r0, _heap":"=r"(tmp));
@@ -75,6 +75,9 @@ namespace aemb {
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.5  2008/04/27 16:33:42  sybreon
+  License change to GPL3.
+
   Revision 1.4  2008/04/26 19:31:35  sybreon
   Made headers C compatible.
 
