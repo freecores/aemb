@@ -1,4 +1,4 @@
-/* $Id: corefunc.hh,v 1.1 2008-04-27 16:04:42 sybreon Exp $
+/* $Id: corefunc.hh,v 1.2 2008-04-28 20:30:24 sybreon Exp $
 ** 
 ** AEMB Function Verification C++ Testbench
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -29,7 +29,7 @@ that cannot be tested through numerical algorithms.
 #ifndef COREFUNC_HH
 #define COREFUNC_HH
 
-#define MAGIC 0xAE63AE63 // magic number
+#define MAGIC 0xAE62AE62 // magic number
 
 volatile int intr = -1;
 
@@ -38,12 +38,16 @@ void __attribute__ ((interrupt_handler)) interruptHandler()
   intr = 0; // flag the interrupt service routine
 }
 
+/**
+INTERRUPT TEST ROUTINE
+*/
+
 int interruptTest(int timeout)
 {
-  enableInterrupts();
+  aembEnableInterrupts();
   int timer;
   for (timer=0; (timer < timeout * 100) && (intr == -1); ++timer); // delay loop
-  disableInterrupts();
+  aembDisableInterrupts();
   return (intr == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
@@ -94,4 +98,7 @@ int memoryTest(int size)
 
 /*
 $Log: not supported by cvs2svn $
+Revision 1.1  2008/04/27 16:04:42  sybreon
+Minor cosmetic changes.
+
 */
