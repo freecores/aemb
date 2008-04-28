@@ -1,4 +1,4 @@
-/* $Id: aeMB2_iche.v,v 1.4 2008-04-26 17:57:43 sybreon Exp $
+/* $Id: aeMB2_iche.v,v 1.5 2008-04-28 00:54:31 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -102,31 +102,29 @@ module aeMB2_iche (/*AUTOARG*/
    wire [VAL:1] 	wDEC = rDEC[VAL:1]; // resize decoder   
 
    // explode the address bits
+   wire [VAL:1] 	oVAL, iVAL;   
    wire [SIZ:1] 	aLNE = ich_adr[AEMB_ICH-1:2]; // line address
    wire [BLK:1] 	aTAG = ich_adr[AEMB_ICH-1:AEMB_IDX]; // block address   
    wire [TAG:1] 	iTAG = ich_adr[AEMB_IWB-1:AEMB_ICH]; // current TAG value
-
-   wire [VAL:1] 	oVAL, iVAL;   
    wire [TAG:1] 	oTAG; 		
 
-   wire [31:0] 		wIREG;   
-   
    // HIT CHECKS
-   wire 		hTAG = ~|(iTAG ^ oTAG);   
-			//(iTAG == oTAG);   
-			//((iTAG ^ oTAG) == {(TAG){1'b0}});			
-   wire 		hVAL = |(oVAL & wDEC);   
-			//((oVAL & wDEC) != {(VAL){1'b0}});
+   wire 		hTAG = ((iTAG ^ oTAG) == {(TAG){1'b0}}); // 100.0
+			//~|(iTAG ^ oTAG); // 98
+			//(iTAG == oTAG); // 85
+   wire 		hVAL = //|(oVAL & wDEC);   
+			((oVAL & wDEC) != {(VAL){1'b0}});
    
    assign 		ich_hit = hTAG & hVAL;
    assign 		iVAL = (hTAG) ? // BLOCK/LINE fill check
 			       oVAL | wDEC : // LINE fill
 			       wDEC; // BLOCK replace
-
-   assign 		ich_dat = wIREG;   
    
    /* 
     aeMB2_tpsram AUTO_TEMPLATE (
+    .AW(SIZ), 
+    .DW(6'd32),
+    
     .dat_o(),
     .dat_i(iwb_dat_i[31:0]),
     .adr_i(aLNE[SIZ:1]),
@@ -135,7 +133,7 @@ module aeMB2_iche (/*AUTOARG*/
     .clk_i(gclk),
     .wre_i(iwb_ack_i),
     
-    .xdat_o(wIREG[31:0]),
+    .xdat_o(ich_dat[31:0]),
     .xdat_i(),    
     .xadr_i(aLNE[SIZ:1]),
     .xrst_i(grst),
@@ -145,6 +143,9 @@ module aeMB2_iche (/*AUTOARG*/
     ) 
     
     aeMB2_sparam AUTO_TEMPLATE (
+    .AW(BLK), 
+    .DW(VAL+TAG),
+    
     .dat_o({oVAL, oTAG}),
     .dat_i({iVAL, iTAG}),
     .adr_i(aTAG[BLK:1]),
@@ -156,7 +157,10 @@ module aeMB2_iche (/*AUTOARG*/
 
    // CACHE TAG BLOCK
    aeMB2_sparam
-     #(.AW(BLK), .DW(VAL+TAG))
+     #(/*AUTOINSTPARAM*/
+       // Parameters
+       .AW				(BLK),			 // Templated
+       .DW				(VAL+TAG))		 // Templated
    tag0
      (/*AUTOINST*/
       // Outputs
@@ -172,12 +176,15 @@ module aeMB2_iche (/*AUTOARG*/
    // Writes on successful IWB bus transfers.
    // Reads on pipeline enable.
    aeMB2_tpsram
-     #(.AW(SIZ), .DW(32))
+     #(/*AUTOINSTPARAM*/
+       // Parameters
+       .AW				(SIZ),			 // Templated
+       .DW				(6'd32))		 // Templated
    data0
      (/*AUTOINST*/
       // Outputs
       .dat_o				(),			 // Templated
-      .xdat_o				(wIREG[31:0]),		 // Templated
+      .xdat_o				(ich_dat[31:0]),	 // Templated
       // Inputs
       .adr_i				(aLNE[SIZ:1]),		 // Templated
       .dat_i				(iwb_dat_i[31:0]),	 // Templated
@@ -196,6 +203,9 @@ endmodule // aeMB2_iche
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.4  2008/04/26 17:57:43  sybreon
+ Minor performance improvements.
+
  Revision 1.3  2008/04/26 01:09:06  sybreon
  Passes basic tests. Minor documentation changes to make it compatible with iverilog pre-processor.
 
