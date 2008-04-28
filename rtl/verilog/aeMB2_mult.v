@@ -1,4 +1,4 @@
-/* $Id: aeMB2_mult.v,v 1.4 2008-04-26 17:57:43 sybreon Exp $
+/* $Id: aeMB2_mult.v,v 1.5 2008-04-28 08:15:25 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -27,6 +27,8 @@
    to instantiate specific multipliers.
  
  */
+
+// 30 LUTS @ 20 MHZ
 
 module aeMB2_mult (/*AUTOARG*/
    // Outputs
@@ -71,12 +73,15 @@ module aeMB2_mult (/*AUTOARG*/
 	rOPB <= #1 opb_of;	
      end
 
-   assign 	 mul_mx = rMUL1;
+   assign 	 mul_mx = (AEMB_MUL[0]) ? rMUL1 : 32'hX;
       
 endmodule // aeMB2_mult
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.4  2008/04/26 17:57:43  sybreon
+ Minor performance improvements.
+
  Revision 1.3  2008/04/26 01:09:06  sybreon
  Passes basic tests. Minor documentation changes to make it compatible with iverilog pre-processor.
 

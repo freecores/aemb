@@ -1,4 +1,4 @@
-/* $Id: aeMB2_intu.v,v 1.5 2008-04-26 17:57:43 sybreon Exp $
+/* $Id: aeMB2_intu.v,v 1.6 2008-04-28 08:15:25 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -44,6 +44,7 @@ module aeMB2_intu (/*AUTOARG*/
    output [31:0] alu_ex,
 		 alu_mx;   
    
+   //input [2:0] 	 mux_of;   
    input [5:0] 	 opc_of;
    input [31:0]  opa_of;
    input [31:0]  opb_of;
@@ -69,21 +70,26 @@ module aeMB2_intu (/*AUTOARG*/
    reg [31:0]		sfr_mx;
    // End of automatics
 
+   localparam [2:0] 	MUX_SFR = 3'o7,
+			MUX_BSF = 3'o6,
+			MUX_MUL = 3'o5,
+			MUX_MEM = 3'o4,
+			
+			MUX_RPC = 3'o2,
+			MUX_ALU = 3'o1,
+			MUX_NOP = 3'o0;   
+      
    reg 			rMSR_C,
 			rMSR_CC,
-			rMSR_C0, rMSR_C1,
 			rMSR_MTX,
-			rMSR_DCE, 
-			rMSR_ICE,
+			rMSR_DTE, 
+			rMSR_ITE,
 			rMSR_BIP, 
 			rMSR_IE,
 			rMSR_BE;   
       
-   // ADDER   
-   /* Infer a ADD cell because ADD/SUB cannot be inferred cross
-    technologies. */
-   
-   // FIXME: Redesign this critical path
+   // Infer a ADD with carry cell because ADDSUB cannot be inferred
+   // across technologies.
    
    reg [31:0] 		add_ex;
    reg 			add_c;
@@ -91,26 +97,25 @@ module aeMB2_intu (/*AUTOARG*/
    wire [31:0] 		wADD;
    wire 		wADC;
 
-   wire 		fCCC = !opc_of[5] & !opc_of[4] & opc_of[1];
-   wire 		fSUB = !opc_of[5] & !opc_of[4] & opc_of[0];
-   wire 		fCMP = !opc_of[3] & imm_of[1] & imm_of[0]; // unsigned
+   wire 		fCCC = !opc_of[5] & opc_of[1]; // & !opc_of[4]
+   wire 		fSUB = !opc_of[5] & opc_of[0]; // & !opc_of[4]
+   wire 		fCMP = !opc_of[3] & imm_of[1]; // & imm_of[0]; // unsigned
    wire 		wCMP = (fCMP) ? (opa_of > opb_of) : wADD[31];   
    
    wire [31:0] 		wOPA = (fSUB) ? ~opa_of : opa_of;
    wire 		wOPC = (fCCC) ? rMSR_CC : fSUB;
    
-   assign 		{wADC, wADD} = (opb_of + wOPA) + wOPC;   
+   assign 		{wADC, wADD} = (opb_of + wOPA) + wOPC; // add carry
    
-   always @(/*AUTOSENSE*/imm_of or opc_of or wADC or wADD or wCMP) begin
-      {add_c, add_ex} <= #1 
-			 (!opc_of[3] & imm_of[0]) ? 
-			 {wADC, wCMP , wADD[30:0]} : // add with carry
-			 {wADC, wADD[31:0]} ; // add with carry
+   always @(/*AUTOSENSE*/wADC or wADD or wCMP) begin
+      {add_c, add_ex} <= #1 {wADC, wCMP, wADD[30:0]}; // add with carry
+			 //(!opc_of[3] & imm_of[0]) ? 
+			 //{wADC, wCMP , wADD[30:0]} : // add with carry
+			 //{wADC, wADD[31:0]} ; // add with carry
    end
       
    // SHIFT/LOGIC/MOVE
    reg [31:0] 		slm_ex;
-   reg 			slm_c;
 
    always @(/*AUTOSENSE*/imm_of or opa_of or opb_of or opc_of
 	    or rMSR_CC)
@@ -135,9 +140,6 @@ module aeMB2_intu (/*AUTOARG*/
        //3'o6: slm_ex <= #1 sfr_of;
        default: slm_ex <= #1 32'hX;       
      endcase // case (opc_of[2:0])
-   
-   always @(/*AUTOSENSE*/imm_of or opa_of or rMSR_CC)
-     slm_c <= #1 (&imm_of[6:5]) ? rMSR_CC : opa_of[0];
    
    // ALU RESULT
    always @(posedge gclk)
@@ -172,8 +174,8 @@ module aeMB2_intu (/*AUTOARG*/
     30 - HTE (hardware thread enabled)
     29 - PHA (current phase)
     
-    7  - DCE (data cache enable)       
-    5  - ICE (instruction cache enable)    
+    7  - DTE (data cache enable)       
+    5  - ITE (instruction cache enable)    
     4  - MTX (hardware mutex bit)
     3  - BIP (break in progress)
     2  - C (carry flag)
@@ -182,9 +184,9 @@ module aeMB2_intu (/*AUTOARG*/
     */
 
    assign msr_ex = {
-		    rMSR_DCE,
+		    rMSR_DTE,
 		    1'b0,
-		    rMSR_ICE,
+		    rMSR_ITE,
 		    rMSR_MTX,
 		    rMSR_BIP,
 		    rMSR_C,
@@ -194,25 +196,26 @@ module aeMB2_intu (/*AUTOARG*/
       
    // MSRSET/MSRCLR (small ALU)
    wire [7:0] wRES = (ra_of[0]) ? 
-	       (msr_ex[7:0]) & ~imm_of[7:0] : // MSRCLR
-	       (msr_ex[7:0]) | imm_of[7:0]; // MSRSET      
+	      (msr_ex[7:0]) & ~imm_of[7:0] : // MSRCLR
+	      (msr_ex[7:0]) | imm_of[7:0]; // MSRSET      
    
    // 0 - Break
    // 1 - Interrupt
    // 2 - Exception
    // 3 - Reserved
-   wire 	    fRTID = (opc_of == 6'o55) & rd_of[0];
-   wire 	    fRTBD = (opc_of == 6'o55) & rd_of[1];
+   wire       fRTID = (opc_of == 6'o55) & rd_of[0];
+   wire       fRTBD = (opc_of == 6'o55) & rd_of[1];
    
-   wire 	    fBRKI = (opc_of == 6'o56) & (ra_of[4:0] == 5'hD);
-   wire 	    fBRKB = ((opc_of == 6'o46) | (opc_of == 6'o56)) & (ra_of[4:0] == 5'hC);
+   wire       fBRKI = (opc_of == 6'o56) & (ra_of[4:0] == 5'hD);
+   wire       fBRKB = ((opc_of == 6'o46) | (opc_of == 6'o56)) & (ra_of[4:0] == 5'hC);
    
-   //wire 	    fMOV = (opc_of == 6'o45);
-   wire 	    fMOV = opc_of[5] & !opc_of[4] & !opc_of[3] & opc_of[2] & !opc_of[1] & opc_of[0];
-   wire 	    fMTS = fMOV & &imm_of[15:14];
-   wire 	    fMOP = fMOV & ~|imm_of[15:14];   
-
-   reg [31:0] 	    sfr_ex;
+   wire       fMOV = (opc_of == 6'o45);
+   //wire       fMOV = opc_of[5] & !opc_of[4] & !opc_of[3] & opc_of[2] & !opc_of[1] & opc_of[0];
+   //wire 	    fMOV = ({!opc_of[5], opc_of[4:3], !opc_of[2], opc_of[1], !opc_of[0]} == 6'd0);   
+   wire       fMTS = fMOV & &imm_of[15:14];
+   wire       fMOP = fMOV & ~|imm_of[15:14];   
+   
+   reg [31:0] sfr_ex;
    
    always @(posedge gclk)
      if (grst) begin
@@ -220,9 +223,9 @@ module aeMB2_intu (/*AUTOARG*/
 	// Beginning of autoreset for uninitialized flops
 	rMSR_BE <= 1'h0;
 	rMSR_BIP <= 1'h0;
-	rMSR_DCE <= 1'h0;
-	rMSR_ICE <= 1'h0;
+	rMSR_DTE <= 1'h0;
 	rMSR_IE <= 1'h0;
+	rMSR_ITE <= 1'h0;
 	rMSR_MTX <= 1'h0;
 	sfr_ex <= 32'h0;
 	sfr_mx <= 32'h0;
@@ -234,9 +237,9 @@ module aeMB2_intu (/*AUTOARG*/
 		   AEMB_HTX[0],
 		   gpha,
 		   21'd0,
-		   rMSR_DCE,
+		   rMSR_DTE,
 		   1'b0,
-		   rMSR_ICE,
+		   rMSR_ITE,
 		   rMSR_MTX,
 		   rMSR_BIP,
 		   rMSR_CC,
@@ -244,15 +247,15 @@ module aeMB2_intu (/*AUTOARG*/
 		   rMSR_BE 
 		   };
 	/*
-	rMSR_DCE <= #1
+	rMSR_DTE <= #1
 		   (fMTS) ? opa_of[7] :
 		   (fMOP) ? wRES[7] :
-		   rMSR_DCE;	
+		   rMSR_DTE;	
 
-	rMSR_ICE <= #1
+	rMSR_ITE <= #1
 		   (fMTS) ? opa_of[5] :
 		   (fMOP) ? wRES[5] :
-		   rMSR_ICE;
+		   rMSR_ITE;
 	
 	rMSR_MTX <= #1
 		   (fMTS) ? opa_of[4] :
@@ -266,25 +269,25 @@ module aeMB2_intu (/*AUTOARG*/
 	 */
 	
 	case ({fMTS, fMOP})
-	  2'o2: {rMSR_DCE,
-		 rMSR_ICE,
+	  2'o2: {rMSR_DTE,
+		 rMSR_ITE,
 		 rMSR_MTX,
 		 rMSR_BE} <= #1 {opa_of[7],
 				 opa_of[5],
 				 opa_of[4],
 				 opa_of[0]};	  
-	  2'o1: {rMSR_DCE,
-		 rMSR_ICE,
+	  2'o1: {rMSR_DTE,
+		 rMSR_ITE,
 		 rMSR_MTX,
 		 rMSR_BE} <= #1 {wRES[7],
 				 wRES[5],
 				 wRES[4],
 				 wRES[0]};	  
-	  default: {rMSR_DCE,
-		    rMSR_ICE,
+	  default: {rMSR_DTE,
+		    rMSR_ITE,
 		    rMSR_MTX,
-		    rMSR_BE} <= #1 {rMSR_DCE,
-				    rMSR_ICE,
+		    rMSR_BE} <= #1 {rMSR_DTE,
+				    rMSR_ITE,
 				    rMSR_MTX,
 				    rMSR_BE};	  
 	endcase // case ({fMTS, fMOP})
@@ -350,6 +353,9 @@ endmodule // aeMB2_intu
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.5  2008/04/26 17:57:43  sybreon
+ Minor performance improvements.
+
  Revision 1.4  2008/04/26 01:09:06  sybreon
  Passes basic tests. Minor documentation changes to make it compatible with iverilog pre-processor.
 

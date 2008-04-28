@@ -1,4 +1,4 @@
-/* $Id: aeMB2_ctrl.v,v 1.4 2008-04-26 17:57:43 sybreon Exp $
+/* $Id: aeMB2_ctrl.v,v 1.5 2008-04-28 08:15:25 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -100,28 +100,28 @@ module aeMB2_ctrl (/*AUTOARG*/
 
    // decode main opgroups
 
-   wire 		fSFT = (wOPC == 6'o44);
-   wire 		fLOG = ({wOPC[5:4],wOPC[2]} == 3'o4);      
+   //wire 		fSFT = (wOPC == 6'o44);
+   //wire 		fLOG = ({wOPC[5:4],wOPC[2]} == 3'o4);      
    wire 		fMUL = (wOPC == 6'o20) | (wOPC == 6'o30);
    wire 		fBSF = (wOPC == 6'o21) | (wOPC == 6'o31);
-   wire 		fDIV = (wOPC == 6'o22);   
+   //wire 		fDIV = (wOPC == 6'o22);   
    wire 		fRTD = (wOPC == 6'o55);
    wire 		fBCC = (wOPC == 6'o47) | (wOPC == 6'o57);
    wire 		fBRU = (wOPC == 6'o46) | (wOPC == 6'o56);
-   wire 		fBRA = fBRU & wRA[3];      
+   //wire 		fBRA = fBRU & wRA[3];      
    wire 		fIMM = (wOPC == 6'o54);
    wire 		fMOV = (wOPC == 6'o45);      
    wire 		fLOD = ({wOPC[5:4],wOPC[2]} == 3'o6);
    wire 		fSTR = ({wOPC[5:4],wOPC[2]} == 3'o7);
-   wire 		fLDST = (wOPC[5:4] == 2'o3);   
-   wire 		fPUT = (wOPC == 6'o33) & wRB[4];
+   //wire 		fLDST = (wOPC[5:4] == 2'o3);   
+   //wire 		fPUT = (wOPC == 6'o33) & wRB[4];
    wire 		fGET = (wOPC == 6'o33) & !wRB[4];   
 
 
    // control signals
-   wire [31:0] 		wXCEOP = 32'hBA2D0020; // Vector 0x20
-   wire [31:0] 		wINTOP = 32'hB9CE0010; // Vector 0x10   
-   wire [31:0] 		wNOPOP = 32'h88000000; // branch-no-delay/stall
+   //wire [31:0] 		wXCEOP = 32'hBA2D0020; // Vector 0x20
+   //wire [31:0] 		wINTOP = 32'hB9CE0010; // Vector 0x10   
+   //wire [31:0] 		wNOPOP = 32'h88000000; // branch-no-delay/stall
 
    localparam [2:0] 	MUX_SFR = 3'o7,
 			MUX_BSF = 3'o6,
@@ -130,7 +130,7 @@ module aeMB2_ctrl (/*AUTOARG*/
 			
 			MUX_RPC = 3'o2,
 			MUX_ALU = 3'o1,
-			MUX_NOP = 3'o0;   
+			MUX_NOP = 3'o0;   							  
    
    always @(posedge gclk)
      if (grst) begin
@@ -144,19 +144,17 @@ module aeMB2_ctrl (/*AUTOARG*/
 	// End of automatics
      end else if (dena) begin
 
-	mux_of <= #1 
-		  (hzd_bpc | hzd_fwd) ? MUX_NOP :
+	mux_of <= #1
+		  (hzd_bpc | hzd_fwd | fSTR | fRTD | fBCC) ? MUX_NOP :
+		  (fLOD | fGET) ? MUX_MEM :
 		  (fMOV) ? MUX_SFR :
 		  (fMUL) ? MUX_MUL :
 		  (fBSF) ? MUX_BSF :
-		  (fLOD | fGET) ? MUX_MEM :
-		  (fBRU) ? MUX_RPC :
-		  (fSTR | fRTD | fBCC) ? MUX_NOP :
-		  (|wRD) ? MUX_ALU :
-		  MUX_NOP;
+		  (fBRU) ? MUX_RPC :		  
+		  MUX_ALU;
 	
 	opc_of <= #1 
-		  (hzd_bpc | hzd_fwd) ? 6'o42 : 
+		  (hzd_bpc | hzd_fwd) ? 6'o42 : // XOR (SKIP) 
 		  wOPC;
 	
 	rd_of <= #1 wRD;	
@@ -201,16 +199,16 @@ module aeMB2_ctrl (/*AUTOARG*/
    wire 		opb_fwd, opa_fwd, opd_fwd;
    
    assign 		mux_opb = {wOPC[3], opb_fwd};
-   assign 		opb_fwd = ~|(wRB ^ rd_ex) & // RB forwarding needed
+   assign 		opb_fwd = ((wRB ^ rd_ex) == 5'd0) & // RB forwarding needed
 				  fwd_ex & wrb_ex;   
 
    assign 		mux_opa = {(fBRU|fBCC), opa_fwd};
-   assign 		opa_fwd = ~|(wRA ^ rd_ex) & // RA forwarding needed
+   assign 		opa_fwd = ((wRA ^ rd_ex) == 5'd0) & // RA forwarding needed
 				  fwd_ex & wrb_ex;
 
    assign 		mux_opd = {fBCC, opd_fwd};		
-   assign 		opd_fwd = (( ~|(wRA ^ rd_ex) & fBCC) |
-				   ( ~|(wRD ^ rd_ex) & fSTR)) &
+   assign 		opd_fwd = (( ((wRA ^ rd_ex) == 5'd0) & fBCC) | // RA forwarding
+				   ( ((wRD ^ rd_ex) == 5'd0) & fSTR)) & // RD forwarding
 				  fwd_ex & wrb_ex;   
 
    always @(posedge gclk)
@@ -267,10 +265,10 @@ module aeMB2_ctrl (/*AUTOARG*/
      end // if (dena)
    
    // Hazard Detection
-   wire 		wFMUL = (mux_ex == MUX_MUL);
-   wire 		wFBSF = (mux_ex == MUX_BSF);
-   wire 		wFMEM = (mux_ex == MUX_MEM);
-   wire 		wFMOV = (mux_ex == MUX_SFR);   
+   //wire 		wFMUL = (mux_ex == MUX_MUL);
+   //wire 		wFBSF = (mux_ex == MUX_BSF);
+   //wire 		wFMEM = (mux_ex == MUX_MEM);
+   //wire 		wFMOV = (mux_ex == MUX_SFR);   
    
    assign 		hzd_fwd = (opd_fwd | opa_fwd | opb_fwd) & mux_ex[2];   
 				  //(wFMUL | wFBSF | wFMEM | wFMOV);
@@ -280,6 +278,9 @@ endmodule // aeMB2_ctrl
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.4  2008/04/26 17:57:43  sybreon
+ Minor performance improvements.
+
  Revision 1.3  2008/04/26 01:09:05  sybreon
  Passes basic tests. Minor documentation changes to make it compatible with iverilog pre-processor.
 

@@ -1,4 +1,4 @@
-/* $Id: aeMB2_bsft.v,v 1.2 2008-04-26 01:09:05 sybreon Exp $
+/* $Id: aeMB2_bsft.v,v 1.3 2008-04-28 08:15:25 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -26,6 +26,8 @@
    optimised depending on architecture.
  
  */
+
+// 420 LUTS
 
 module aeMB2_bsft (/*AUTOARG*/
    // Outputs
@@ -57,8 +59,6 @@ module aeMB2_bsft (/*AUTOARG*/
    wire [31:0] 	 wOPB = opb_of;
    wire [31:0] 	 wOPA = opa_of;
 
-   assign 	 bsf_mx = (AEMB_BSF[0]) ? rBSR : 32'hX;   
-   
    // STAGE-1 SHIFTERS
    
    // logical
@@ -134,11 +134,16 @@ module aeMB2_bsft (/*AUTOARG*/
 	endcase // case (imm_ex)
 	imm_ex <= #1 imm_of[10:9]; // delay 1 cycle	
      end
-      
+
+   assign 	 bsf_mx = (AEMB_BSF[0]) ? rBSR : 32'hX;   
+         
 endmodule // aeMB2_bsft
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.2  2008/04/26 01:09:05  sybreon
+ Passes basic tests. Minor documentation changes to make it compatible with iverilog pre-processor.
+
  Revision 1.1  2008/04/18 00:21:52  sybreon
  Initial import.
 */
