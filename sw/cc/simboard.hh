@@ -1,4 +1,4 @@
-/* $Id: simboard.hh,v 1.6 2008-04-27 16:35:16 sybreon Exp $
+/* $Id: simboard.hh,v 1.7 2008-04-28 20:40:40 sybreon Exp $
 ** 
 ** AEMB Function Verification C++ Testbench
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -30,7 +30,7 @@
 #define CODE_PASS 0xCAFEF00D
 
 #ifdef __cplusplus
-using namespace aemb;
+extern "C" {
 #endif
 
 /*
@@ -47,10 +47,17 @@ char inbyte()
   return 0;
 }
 
+#ifdef __cplusplus
+}
+#endif
+
 #endif
 
 /*
 $Log: not supported by cvs2svn $
+Revision 1.6  2008/04/27 16:35:16  sybreon
+Minor code cleanup.
+
 Revision 1.5  2008/04/27 16:04:42  sybreon
 Minor cosmetic changes.
 
