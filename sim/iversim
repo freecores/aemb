@@ -1,6 +1,9 @@
 #!/bin/bash
-# $Id: iversim,v 1.6 2008-04-27 16:28:53 sybreon Exp $
+# $Id: iversim,v 1.7 2008-05-01 08:33:52 sybreon Exp $
 # $Log: not supported by cvs2svn $
+# Revision 1.6  2008/04/27 16:28:53  sybreon
+# Added VCD2LXT functions.
+#
 # Revision 1.5  2007/12/11 00:44:30  sybreon
 # Modified for AEMB2
 #
@@ -18,7 +21,7 @@
 #
 RANDOM=$(date +%s)
 echo "parameter randseed = $RANDOM;" > random.v
-iverilog $@ -DAEMBX_SIMULATION_KERNEL ../rtl/verilog/*.v && echo "VER=$?"
+iverilog $@  -y../rtl/verilog/ -y./verilog/ && echo "VER=$?"
 vvp -l iverilog.log a.out && echo "VVP=$?"
 vcd2lxt2 dump.vcd dump.lxt && echo "LXT=$?"
 rm *.vcd && rm a.out
