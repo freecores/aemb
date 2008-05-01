@@ -1,4 +1,4 @@
-/* $Id: aeMB2_intu.v,v 1.6 2008-04-28 08:15:25 sybreon Exp $
+/* $Id: aeMB2_intu.v,v 1.7 2008-05-01 12:00:18 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -99,8 +99,8 @@ module aeMB2_intu (/*AUTOARG*/
 
    wire 		fCCC = !opc_of[5] & opc_of[1]; // & !opc_of[4]
    wire 		fSUB = !opc_of[5] & opc_of[0]; // & !opc_of[4]
-   wire 		fCMP = !opc_of[3] & imm_of[1]; // & imm_of[0]; // unsigned
-   wire 		wCMP = (fCMP) ? (opa_of > opb_of) : wADD[31];   
+   wire 		fCMP = !opc_of[3] & imm_of[1]; // unsigned only
+   wire 		wCMP = (fCMP) ? !wADC : wADD[31]; // cmpu adjust
    
    wire [31:0] 		wOPA = (fSUB) ? ~opa_of : opa_of;
    wire 		wOPC = (fCCC) ? rMSR_CC : fSUB;
@@ -109,9 +109,6 @@ module aeMB2_intu (/*AUTOARG*/
    
    always @(/*AUTOSENSE*/wADC or wADD or wCMP) begin
       {add_c, add_ex} <= #1 {wADC, wCMP, wADD[30:0]}; // add with carry
-			 //(!opc_of[3] & imm_of[0]) ? 
-			 //{wADC, wCMP , wADD[30:0]} : // add with carry
-			 //{wADC, wADD[31:0]} ; // add with carry
    end
       
    // SHIFT/LOGIC/MOVE
@@ -210,8 +207,6 @@ module aeMB2_intu (/*AUTOARG*/
    wire       fBRKB = ((opc_of == 6'o46) | (opc_of == 6'o56)) & (ra_of[4:0] == 5'hC);
    
    wire       fMOV = (opc_of == 6'o45);
-   //wire       fMOV = opc_of[5] & !opc_of[4] & !opc_of[3] & opc_of[2] & !opc_of[1] & opc_of[0];
-   //wire 	    fMOV = ({!opc_of[5], opc_of[4:3], !opc_of[2], opc_of[1], !opc_of[0]} == 6'd0);   
    wire       fMTS = fMOV & &imm_of[15:14];
    wire       fMOP = fMOV & ~|imm_of[15:14];   
    
@@ -246,7 +241,7 @@ module aeMB2_intu (/*AUTOARG*/
 		   rMSR_IE,
 		   rMSR_BE 
 		   };
-	/*
+	
 	rMSR_DTE <= #1
 		   (fMTS) ? opa_of[7] :
 		   (fMOP) ? wRES[7] :
@@ -266,7 +261,21 @@ module aeMB2_intu (/*AUTOARG*/
 		   (fMTS) ? opa_of[0] :
 		   (fMOP) ? wRES[0] :
 		   rMSR_BE;	
-	 */
+	
+	rMSR_IE <= #1
+		   (fBRKI) ? 1'b0 :
+		   (fRTID) ? 1'b1 :
+		   (fMTS) ? opa_of[1] :
+		   (fMOP) ? wRES[1] :
+		   rMSR_IE;			
+
+	rMSR_BIP <= #1
+		    (fBRKB) ? 1'b1 :
+		    (fRTBD) ? 1'b0 :
+		    (fMTS) ? opa_of[3] :
+		    (fMOP) ? wRES[3] :
+		    rMSR_BIP;
+	/*
 	
 	case ({fMTS, fMOP})
 	  2'o2: {rMSR_DTE,
@@ -304,27 +313,13 @@ module aeMB2_intu (/*AUTOARG*/
 	     rMSR_IE <= #1 (fBRKI | fRTID) ? !rMSR_IE : rMSR_IE;
 	  end
 	endcase // case ({fMTS, fMOP})
-	
-	/*
-	rMSR_IE <= #1
-		   (fBRKI) ? 1'b0 :
-		   (fRTID) ? 1'b1 :
-		   (fMTS) ? opa_of[1] :
-		   (fMOP) ? wRES[1] :
-		   rMSR_IE;			
-
-	rMSR_BIP <= #1
-		    (fBRKB) ? 1'b1 :
-		    (fRTBD) ? 1'b0 :
-		    (fMTS) ? opa_of[3] :
-		    (fMOP) ? wRES[3] :
-		    rMSR_BIP;
-	*/
+	 */
      end // if (dena)
 
    // BARREL C
-   wire fADDSUB = (opc_of[5:2] == 4'h0) | (opc_of[5:2] == 4'h2);
-   wire fSHIFT  = (opc_of == 6'o44) & (imm_of[6:5] != 2'o3);
+   wire fADDSUB = !opc_of[5] & !opc_of[4] & !opc_of[2];
+   // (opc_of[5:2] == 4'h0) | (opc_of[5:2] == 4'h2);
+   wire fSHIFT  = (opc_of == 6'o44) & &imm_of[6:5];   
 
    always @(posedge gclk)
      if (grst) begin
@@ -341,18 +336,32 @@ module aeMB2_intu (/*AUTOARG*/
 	// End of automatics
      end else if (dena) begin
 	rMSR_CC <= #1 rMSR_C;
+	
 	rMSR_C <= #1
 		  (fMTS) ? opa_of[2] :
 		  (fMOP) ? wRES[2] :
 		  (fSHIFT) ? opa_of[0] : // SRA/SRL/SRC
 		  (fADDSUB) ? add_c : // ADD/SUB/ADDC/SUBC
 		  rMSR_CC;
+	 
+	/*
+	case ({fMTS,fMOP,fSHIFT,fADDSUB})
+	  4'h8: rMSR_C <= #1 opa_of[2];
+	  4'h4: rMSR_C <= #1 wRES[2];
+	  4'h2: rMSR_C <= #1 opa_of[0];
+	  4'h1: rMSR_C <= #1 add_c;	  
+	  default: rMSR_C <= #1 rMSR_CC;	  
+	endcase // case ({fMTS,fMOP,fSHIFT,fADDSUB})	
+	*/
      end
    
 endmodule // aeMB2_intu
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.6  2008/04/28 08:15:25  sybreon
+ Optimisations.
+
  Revision 1.5  2008/04/26 17:57:43  sybreon
  Minor performance improvements.
 
