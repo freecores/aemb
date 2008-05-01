@@ -1,4 +1,4 @@
-/* $Id: aeMB2_edk62.v,v 1.7 2008-04-27 19:52:46 sybreon Exp $
+/* $Id: aeMB2_edk62.v,v 1.8 2008-05-01 08:32:58 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -27,8 +27,6 @@
  
  */
 
-// 973@95
-
 module aeMB2_edk62 (/*AUTOARG*/
    // Outputs
    xwb_wre_o, xwb_tag_o, xwb_stb_o, xwb_sel_o, xwb_dat_o, xwb_cyc_o,
@@ -36,20 +34,27 @@ module aeMB2_edk62 (/*AUTOARG*/
    iwb_adr_o, dwb_wre_o, dwb_tag_o, dwb_stb_o, dwb_sel_o, dwb_dat_o,
    dwb_cyc_o, dwb_adr_o,
    // Inputs
-   xwb_dat_i, xwb_ack_i, sys_rst_i, sys_ena_i, sys_clk_i, iwb_dat_i,
-   iwb_ack_i, dwb_dat_i, dwb_ack_i
+   xwb_dat_i, xwb_ack_i, sys_rst_i, sys_int_i, sys_ena_i, sys_clk_i,
+   iwb_dat_i, iwb_ack_i, dwb_dat_i, dwb_ack_i
    );
+   // BUS WIDTHS
    parameter AEMB_IWB = 32; ///< INST bus width
    parameter AEMB_DWB = 32; ///< DATA bus width
-   parameter AEMB_XWB = 5; ///< XSEL bus width
-  
+   parameter AEMB_XWB = 7; ///< XCEL bus width
+
+   // CACHE PARAMETERS
    parameter AEMB_ICH = 11; ///< instruction cache size
    parameter AEMB_IDX = 6; ///< cache index size
-   
-   parameter AEMB_BSF = 1; ///< implement barrel shift
-   parameter AEMB_MUL = 1; ///< implement multiplier
-   parameter AEMB_XSL = 1; ///< implement XSL bus
-   parameter AEMB_HTX = 1; ///< hardware thread extension
+
+   // OPTIONAL HARDWARE
+   parameter AEMB_BSF = 1; ///< optional barrel shift
+   parameter AEMB_MUL = 1; ///< optional multiplier
+   parameter AEMB_DIV = 0; ///< optional divider (future)
+   parameter AEMB_FPU = 0; ///< optional floating point unit (future)
+
+   // DEPRECATED PARAMETERS
+   localparam AEMB_XSL = 1; ///< implement XSL bus
+   localparam AEMB_HTX = 1; ///< hardware thread extension
       
    /*AUTOOUTPUT*/
    // Beginning of automatic outputs (from unused autoinst outputs)
@@ -78,10 +83,11 @@ module aeMB2_edk62 (/*AUTOARG*/
    // Beginning of automatic inputs (from unused autoinst inputs)
    input		dwb_ack_i;		// To memif0 of aeMB2_memif.v
    input [31:0]		dwb_dat_i;		// To memif0 of aeMB2_memif.v
-   input		iwb_ack_i;		// To pip0 of aeMB2_pipe.v, ...
+   input		iwb_ack_i;		// To iche0 of aeMB2_iche.v, ...
    input [31:0]		iwb_dat_i;		// To iche0 of aeMB2_iche.v, ...
    input		sys_clk_i;		// To pip0 of aeMB2_pipe.v
    input		sys_ena_i;		// To pip0 of aeMB2_pipe.v
+   input		sys_int_i;		// To pip0 of aeMB2_pipe.v
    input		sys_rst_i;		// To pip0 of aeMB2_pipe.v
    input		xwb_ack_i;		// To memif0 of aeMB2_memif.v
    input [31:0]		xwb_dat_i;		// To memif0 of aeMB2_memif.v
@@ -92,6 +98,7 @@ module aeMB2_edk62 (/*AUTOARG*/
    wire [31:0]		alu_mx;			// From exec0 of aeMB2_exec.v
    wire [31:2]		bpc_ex;			// From exec0 of aeMB2_exec.v
    wire [1:0]		bra_ex;			// From brcc0 of aeMB2_brcc.v
+   wire [1:0]		brk_if;			// From pip0 of aeMB2_pipe.v
    wire [31:0]		bsf_mx;			// From exec0 of aeMB2_exec.v
    wire			dena;			// From pip0 of aeMB2_pipe.v
    wire			dwb_fb;			// From memif0 of aeMB2_memif.v
@@ -136,6 +143,7 @@ module aeMB2_edk62 (/*AUTOARG*/
      pip0
        (/*AUTOINST*/
 	// Outputs
+	.brk_if				(brk_if[1:0]),
 	.gpha				(gpha),
 	.gclk				(gclk),
 	.grst				(grst),
@@ -147,8 +155,9 @@ module aeMB2_edk62 (/*AUTOARG*/
 	.xwb_fb				(xwb_fb),
 	.ich_fb				(ich_fb),
 	.fet_fb				(fet_fb),
-	.iwb_ack_i			(iwb_ack_i),
+	.msr_ex				(msr_ex[3:0]),
 	.sys_clk_i			(sys_clk_i),
+	.sys_int_i			(sys_int_i),
 	.sys_rst_i			(sys_rst_i),
 	.sys_ena_i			(sys_ena_i));   
    
@@ -230,6 +239,7 @@ module aeMB2_edk62 (/*AUTOARG*/
       .opa_if				(opa_if[31:0]),
       .opb_if				(opb_if[31:0]),
       .opd_if				(opd_if[31:0]),
+      .brk_if				(brk_if[1:0]),
       .bra_ex				(bra_ex[1:0]),
       .rpc_if				(rpc_if[31:2]),
       .alu_ex				(alu_ex[31:0]),
@@ -370,6 +380,9 @@ endmodule // aeMB2_edk62
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.7  2008/04/27 19:52:46  sybreon
+ added iwb_tag_o signal tied to MSR_ICE.
+
  Revision 1.6  2008/04/26 17:57:43  sybreon
  Minor performance improvements.
 

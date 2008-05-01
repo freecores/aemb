@@ -1,4 +1,4 @@
-/* $Id: aeMB2_pipe.v,v 1.3 2008-04-26 01:09:06 sybreon Exp $
+/* $Id: aeMB2_pipe.v,v 1.4 2008-05-01 08:32:58 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -29,32 +29,35 @@
 
 module aeMB2_pipe (/*AUTOARG*/
    // Outputs
-   gpha, gclk, grst, dena, iena,
+   brk_if, gpha, gclk, grst, dena, iena,
    // Inputs
-   bra_ex, dwb_fb, xwb_fb, ich_fb, fet_fb, iwb_ack_i, sys_clk_i,
-   sys_rst_i, sys_ena_i
+   bra_ex, dwb_fb, xwb_fb, ich_fb, fet_fb, msr_ex, sys_clk_i,
+   sys_int_i, sys_rst_i, sys_ena_i
    );
    parameter AEMB_HTX = 1;   
 
-   input [1:0] bra_ex;
-   input       dwb_fb;
-   input       xwb_fb;   
-   input       ich_fb;
-   input       fet_fb;
-   input       iwb_ack_i;
+   output [1:0] brk_if; 
+   input [1:0] 	bra_ex;
+   input 	dwb_fb;
+   input 	xwb_fb;   
+   input 	ich_fb;
+   input 	fet_fb;
+   input [3:0] 	msr_ex;   
    
-   output      gpha,
-	       gclk,
-	       grst,
-	       dena,
-	       iena;   
-     
-   input       sys_clk_i,
-	       sys_rst_i,
-	       sys_ena_i;
+   output 	gpha,
+		gclk,
+		grst,
+		dena,
+		iena;   
+   
+   input 	sys_clk_i,
+		sys_int_i,
+		sys_rst_i,
+		sys_ena_i;
    
    /*AUTOREG*/
    // Beginning of automatic regs (for this module's undeclared outputs)
+   reg [1:0]		brk_if;
    reg			gpha;
    // End of automatics
    reg [1:0] 		rst;   
@@ -72,11 +75,31 @@ module aeMB2_pipe (/*AUTOARG*/
 			       dwb_fb & 
 			       sys_ena_i;
    // run data side pipeline
-   assign 		dena = dwb_fb & 
-			       xwb_fb & 
-			       ich_fb &
-			       sys_ena_i;
+   assign 		dena = iena;
 
+   // interrupt process
+   reg 			int_lat; ///< interrupt latch
+   
+   always @(posedge sys_clk_i)
+     if (sys_rst_i) begin
+	/*AUTORESET*/
+	// Beginning of autoreset for uninitialized flops
+	int_lat <= 1'h0;
+	// End of automatics
+     end else begin	
+	int_lat <= #1 msr_ex[1] & (int_lat | sys_int_i);	
+     end
+
+   always @(posedge gclk)
+     if (grst) begin
+	/*AUTORESET*/
+	// Beginning of autoreset for uninitialized flops
+	brk_if <= 2'h0;
+	// End of automatics
+     end else if (dena) begin	
+	brk_if[0] <= #1 !msr_ex[3] & int_lat; // interrupt & not BIP	
+     end
+   
    // RESET DELAY
    always @(posedge sys_clk_i)
      if (sys_rst_i) begin
@@ -86,7 +109,6 @@ module aeMB2_pipe (/*AUTOARG*/
 	// End of automatics
      end else begin
 	rst <= #1 {rst[0], !sys_rst_i};
-	//hit <= #1 ich_fb;	
      end
 
    // PHASE TOGGLE
@@ -104,6 +126,9 @@ endmodule // aeMB2_pipe
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.3  2008/04/26 01:09:06  sybreon
+ Passes basic tests. Minor documentation changes to make it compatible with iverilog pre-processor.
+
  Revision 1.2  2008/04/20 16:34:32  sybreon
  Basic version with some features left out.
 

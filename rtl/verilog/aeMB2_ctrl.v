@@ -1,4 +1,4 @@
-/* $Id: aeMB2_ctrl.v,v 1.5 2008-04-28 08:15:25 sybreon Exp $
+/* $Id: aeMB2_ctrl.v,v 1.6 2008-05-01 08:32:58 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -32,8 +32,8 @@ module aeMB2_ctrl (/*AUTOARG*/
    opa_of, opb_of, opd_of, opc_of, ra_of, rd_of, imm_of, rd_ex,
    mux_of, mux_ex, hzd_bpc, hzd_fwd,
    // Inputs
-   opa_if, opb_if, opd_if, bra_ex, rpc_if, alu_ex, ich_dat, gclk,
-   grst, dena, iena, gpha
+   opa_if, opb_if, opd_if, brk_if, bra_ex, rpc_if, alu_ex, ich_dat,
+   gclk, grst, dena, iena, gpha
    );
    parameter AEMB_HTX = 1;   
    
@@ -58,6 +58,7 @@ module aeMB2_ctrl (/*AUTOARG*/
 		 mux_ex;   
    
    // INTERNAL
+   input [1:0] 	 brk_if;   
    input [1:0] 	 bra_ex;   
    input [31:2]  rpc_if;   
    input [31:0]  alu_ex;   
@@ -72,7 +73,7 @@ module aeMB2_ctrl (/*AUTOARG*/
 		 dena,
 		 iena,
 		 gpha;   
-
+   
    /*AUTOREG*/
    // Beginning of automatic regs (for this module's undeclared outputs)
    reg [15:0]		imm_of;
@@ -87,6 +88,11 @@ module aeMB2_ctrl (/*AUTOARG*/
    reg [4:0]		rd_of;
    // End of automatics
 
+   wire 		fINT;   
+   //wire [31:0] 		wXCEOP = 32'hBA2D0020; // Vector 0x20
+   wire [31:0] 		wINTOP = 32'hB9CD0010; // Vector 0x10   
+   //wire [31:0] 		wNOPOP = 32'h88000000; // branch-no-delay/stall
+   
    wire [1:0] 		mux_opa, mux_opb, mux_opd;   
    
    // translate signals
@@ -95,7 +101,7 @@ module aeMB2_ctrl (/*AUTOARG*/
    wire [15:0] 		wIMM;
    wire [31:0] 		imm_if;
    
-   assign 		{wOPC, wRD, wRA, wIMM} = ich_dat;
+   assign 		{wOPC, wRD, wRA, wIMM} = (fINT) ? wINTOP : ich_dat;
    assign 		wRB = wIMM[15:11];
 
    // decode main opgroups
@@ -119,10 +125,6 @@ module aeMB2_ctrl (/*AUTOARG*/
 
 
    // control signals
-   //wire [31:0] 		wXCEOP = 32'hBA2D0020; // Vector 0x20
-   //wire [31:0] 		wINTOP = 32'hB9CE0010; // Vector 0x10   
-   //wire [31:0] 		wNOPOP = 32'h88000000; // branch-no-delay/stall
-
    localparam [2:0] 	MUX_SFR = 3'o7,
 			MUX_BSF = 3'o6,
 			MUX_MUL = 3'o5,
@@ -153,7 +155,7 @@ module aeMB2_ctrl (/*AUTOARG*/
 		  (fBRU) ? MUX_RPC :		  
 		  MUX_ALU;
 	
-	opc_of <= #1 
+	opc_of <= #1		  
 		  (hzd_bpc | hzd_fwd) ? 6'o42 : // XOR (SKIP) 
 		  wOPC;
 	
@@ -190,6 +192,8 @@ module aeMB2_ctrl (/*AUTOARG*/
 	rIMM1 <= #1 rIMM0;
 	rIMM0 <= #1 wIMM;	
      end
+
+   assign fINT = brk_if[0] & !gpha & !rFIM1;   
    
    // operand latch   
    reg 			wrb_ex;
@@ -278,6 +282,9 @@ endmodule // aeMB2_ctrl
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.5  2008/04/28 08:15:25  sybreon
+ Optimisations.
+
  Revision 1.4  2008/04/26 17:57:43  sybreon
  Minor performance improvements.
 

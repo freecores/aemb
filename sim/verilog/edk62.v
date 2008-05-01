@@ -1,4 +1,4 @@
-/* $Id: edk62.v,v 1.2 2008-04-27 16:28:19 sybreon Exp $
+/* $Id: edk62.v,v 1.3 2008-05-01 08:33:20 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -35,13 +35,16 @@ module edk62();
    localparam AEMB_BSF = 1;
    localparam AEMB_MUL = 1;
    localparam AEMB_XSL = 1;   
-
+   localparam AEMB_DIV = 0;
+   localparam AEMB_FPU = 0;
+   
    /*AUTOREGINPUT*/
    // Beginning of automatic reg inputs (for undeclared instantiated-module inputs)
    reg			dwb_ack_i;		// To uut of aeMB2_edk62.v
    reg			iwb_ack_i;		// To uut of aeMB2_edk62.v
    reg			sys_clk_i;		// To uut of aeMB2_edk62.v
    reg			sys_ena_i;		// To uut of aeMB2_edk62.v
+   reg			sys_int_i;		// To uut of aeMB2_edk62.v
    reg			sys_rst_i;		// To uut of aeMB2_edk62.v
    reg			xwb_ack_i;		// To uut of aeMB2_edk62.v
    // End of automatics
@@ -57,6 +60,8 @@ module edk62();
       sys_clk_i = 0;
       sys_rst_i = 1;
       sys_ena_i = 1;
+      sys_int_i = 1;
+      
       xwb_ack_i = 0;      
       
       #50 sys_rst_i = 0;      
@@ -77,6 +82,7 @@ module edk62();
    wire			iwb_cyc_o;		// From uut of aeMB2_edk62.v
    wire [3:0]		iwb_sel_o;		// From uut of aeMB2_edk62.v
    wire			iwb_stb_o;		// From uut of aeMB2_edk62.v
+   wire			iwb_tag_o;		// From uut of aeMB2_edk62.v
    wire			iwb_wre_o;		// From uut of aeMB2_edk62.v
    wire [AEMB_XWB-1:2]	xwb_adr_o;		// From uut of aeMB2_edk62.v
    wire			xwb_cyc_o;		// From uut of aeMB2_edk62.v
@@ -89,16 +95,16 @@ module edk62();
 
    // FAKE MEMORY ////////////////////////////////////////////////////////
 
-   reg [31:0]  rom[0:65535];
-   reg [31:0]  ram[0:65535];
-   reg [31:0]  dwblat;
-   reg [31:0]  xwblat;   
-   reg [31:2] dadr, iadr;
-
-   wire [31:0] dwb_dat_t = ram[dwb_adr_o];   
-   wire [31:0] iwb_dat_i = rom[iadr]; 
-   wire [31:0] dwb_dat_i = ram[dadr];     
-   wire [31:0] xwb_dat_i = xwblat;   
+   reg [31:0] 		rom[0:65535];
+   reg [31:0] 		ram[0:65535];
+   reg [31:0] 		dwblat;
+   reg [31:0] 		xwblat;   
+   reg [31:2] 		dadr, iadr;
+   
+   wire [31:0] 		dwb_dat_t = ram[dwb_adr_o];   
+   wire [31:0] 		iwb_dat_i = rom[iadr]; 
+   wire [31:0] 		dwb_dat_i = ram[dadr];     
+   wire [31:0] 		xwb_dat_i = xwblat;   
    
    always @(posedge sys_clk_i) 
      if (sys_rst_i) begin
@@ -126,7 +132,8 @@ module edk62();
       if (dwb_wre_o & dwb_stb_o & dwb_ack_i) begin
 	 case ({dwb_adr_o,2'o0})
 	   32'hFFFFFFD0: $displayh(dwb_dat_o);
-	   32'hFFFFFFC0: $write("%c",dwb_dat_o[31:24]);	   
+	   32'hFFFFFFC0: $write("%c",dwb_dat_o[31:24]);
+	   32'hFFFFFFE0: sys_int_i <= #1 !sys_int_i;	   
 	 endcase // case ({dwb_adr_o,2'o0})
 	 
 	 case (dwb_sel_o)
@@ -213,8 +220,8 @@ module edk62();
        .AEMB_IDX			(AEMB_IDX),
        .AEMB_BSF			(AEMB_BSF),
        .AEMB_MUL			(AEMB_MUL),
-       .AEMB_XSL			(AEMB_XSL),
-       .AEMB_HTX			(AEMB_HTX))
+       .AEMB_DIV			(AEMB_DIV),
+       .AEMB_FPU			(AEMB_FPU))
    uut
      (/*AUTOINST*/
       // Outputs
@@ -229,6 +236,7 @@ module edk62();
       .iwb_cyc_o			(iwb_cyc_o),
       .iwb_sel_o			(iwb_sel_o[3:0]),
       .iwb_stb_o			(iwb_stb_o),
+      .iwb_tag_o			(iwb_tag_o),
       .iwb_wre_o			(iwb_wre_o),
       .xwb_adr_o			(xwb_adr_o[AEMB_XWB-1:2]),
       .xwb_cyc_o			(xwb_cyc_o),
@@ -244,6 +252,7 @@ module edk62();
       .iwb_dat_i			(iwb_dat_i[31:0]),
       .sys_clk_i			(sys_clk_i),
       .sys_ena_i			(sys_ena_i),
+      .sys_int_i			(sys_int_i),
       .sys_rst_i			(sys_rst_i),
       .xwb_ack_i			(xwb_ack_i),
       .xwb_dat_i			(xwb_dat_i[31:0]));   
@@ -251,6 +260,9 @@ module edk62();
 endmodule // edk62
 
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2008/04/27 16:28:19  sybreon
+// Fixed minor typos.
+//
 // Revision 1.1  2008/04/26 18:09:16  sybreon
 // initial import
 //
