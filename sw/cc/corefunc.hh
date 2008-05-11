@@ -1,4 +1,4 @@
-/* $Id: corefunc.hh,v 1.3 2008-05-01 08:37:37 sybreon Exp $
+/* $Id: corefunc.hh,v 1.4 2008-05-11 13:51:50 sybreon Exp $
 ** 
 ** AEMB Function Verification C++ Testbench
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -46,9 +46,9 @@ INTERRUPT TEST ROUTINE
 
 int interruptTest(int timeout)
 {
-  aembEnableInterrupts();
-  int timer;
-  for (timer=0; (timer < timeout * 100) && (intr == -1); ++timer); // delay loop
+  aembEnableInterrupts(); 
+  for (int timer=0; (timer < timeout * 100); ++timer)
+    asm volatile ("nop"); // delay loop
   aembDisableInterrupts();
   return (intr == 0) ? EXIT_FAILURE : EXIT_SUCCESS;
 }
@@ -100,6 +100,9 @@ int memoryTest(int size)
 
 /*
 $Log: not supported by cvs2svn $
+Revision 1.3  2008/05/01 08:37:37  sybreon
+Added interrupt capability.
+
 Revision 1.2  2008/04/28 20:30:24  sybreon
 Changed to new headers.
 
