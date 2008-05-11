@@ -1,4 +1,4 @@
-/* $Id: aeMB_xecu.v,v 1.11 2008-01-19 15:57:36 sybreon Exp $
+/* $Id: aeMB_xecu.v,v 1.12 2008-05-11 13:48:46 sybreon Exp $
 **
 ** AEMB MAIN EXECUTION ALU
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -90,33 +90,26 @@ module aeMB_xecu (/*AUTOARG*/
      endcase // case (rMXTGT)
 
    // --- ADD/SUB SELECTOR ----
-   // FIXME: Redesign
-   // TODO: Refactor
-   // TODO: Verify signed compare
- 
-   wire 	    wADDC, wSUBC, wRES_AC, wCMPC, wOPC;
-   wire [31:0] 	    wADD, wSUB, wRES_A, wCMP, wOPX;
-   
-   wire 	    wCMPU = (rOPA > rOPB);         
-   wire 	    wCMPF = (rIMM[1]) ? wCMPU :
-			    ((wCMPU & ~(rOPB[31] ^ rOPA[31])) | (rOPB[31] & ~rOPA[31]));
-   
-   assign 	    {wCMPC,wCMP} = {wSUBC,wCMPF,wSUB[30:0]};  
-   assign 	    wOPX = (rOPC[0] & !rOPC[5]) ? ~rOPA : rOPA ;
-   assign 	    wOPC = ((rMSR_C & rOPC[1]) | (rOPC[0] & !rOPC[1])) & (!rOPC[5] & ~&rOPC[5:4]);
-   
-   assign 	    {wSUBC,wSUB} = {wADDC,wADD}; 
-   assign 	    {wADDC,wADD} = (rOPB + wOPX) + wOPC; 
-      
+
    reg 		    rRES_ADDC;
    reg [31:0] 	    rRES_ADD;
-   always @(rIMM or rOPC or wADD or wADDC or wCMP
-	    or wCMPC or wSUB or wSUBC)
-     case ({rOPC[3],rOPC[0],rIMM[0]})
-       4'h2, 4'h6, 4'h7: {rRES_ADDC,rRES_ADD} <= #1 {~wSUBC,wSUB}; // SUB
-       4'h3: {rRES_ADDC,rRES_ADD} <= #1 {~wCMPC,wCMP}; // CMP
-       default: {rRES_ADDC,rRES_ADD} <= #1 {wADDC,wADD};       
-     endcase // case ({rOPC[3],rOPC[0],rIMM[0]})
+   
+   wire [31:0] 		wADD;
+   wire 		wADC;
+
+   wire 		fCCC = !rOPC[5] & rOPC[1]; // & !rOPC[4]
+   wire 		fSUB = !rOPC[5] & rOPC[0]; // & !rOPC[4]
+   wire 		fCMP = !rOPC[3] & rIMM[1]; // unsigned only
+   wire 		wCMP = (fCMP) ? !wADC : wADD[31]; // cmpu adjust
+   
+   wire [31:0] 		wOPA = (fSUB) ? ~rOPA : rOPA;
+   wire 		wOPC = (fCCC) ? rMSR_C : fSUB;
+   
+   assign 		{wADC, wADD} = (rOPB + wOPA) + wOPC; // add carry
+   
+   always @(/*AUTOSENSE*/wADC or wADD or wCMP) begin
+      {rRES_ADDC, rRES_ADD} <= #1 {wADC, wCMP, wADD[30:0]}; // add with carry
+   end
    
    // --- LOGIC SELECTOR --------------------------------------
 
@@ -375,6 +368,9 @@ endmodule // aeMB_xecu
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.11  2008/01/19 15:57:36  sybreon
+ Fix MTS during interrupt vectoring bug (reported by M. Ettus).
+
  Revision 1.10  2007/12/25 22:15:09  sybreon
  Stalls pipeline on MUL/BSF instructions results in minor speed improvements.
 
