@@ -1,4 +1,4 @@
-/* $Id: aeMB2_ctrl.v,v 1.6 2008-05-01 08:32:58 sybreon Exp $
+/* $Id: aeMB2_ctrl.v,v 1.7 2008-05-11 13:50:50 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -193,7 +193,7 @@ module aeMB2_ctrl (/*AUTOARG*/
 	rIMM0 <= #1 wIMM;	
      end
 
-   assign fINT = brk_if[0] & !gpha & !rFIM1;   
+   assign fINT = brk_if[0] & gpha & !rFIM1;   
    
    // operand latch   
    reg 			wrb_ex;
@@ -282,6 +282,9 @@ endmodule // aeMB2_ctrl
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.6  2008/05/01 08:32:58  sybreon
+ Added interrupt capability.
+
  Revision 1.5  2008/04/28 08:15:25  sybreon
  Optimisations.
 
