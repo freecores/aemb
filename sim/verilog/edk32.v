@@ -1,4 +1,4 @@
-/* $Id: edk32.v,v 1.12 2007-12-23 20:40:51 sybreon Exp $
+/* $Id: edk32.v,v 1.13 2008-05-30 14:02:49 sybreon Exp $
 **
 ** AEMB EDK 3.2 Compatible Core TEST
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -19,12 +19,10 @@
 ** License along with AEMB. If not, see <http://www.gnu.org/licenses/>.
 */
 
-`define AEMB_SIMULATION_KERNEL   
-
-module edk32 ();
-
 `include "random.v"
   
+module edk32 ();
+
    // INITIAL SETUP //////////////////////////////////////////////////////
    
    reg 	     sys_clk_i, sys_rst_i, sys_int_i, sys_exc_i;
@@ -36,29 +34,22 @@ module edk32 ();
    always #5 sys_clk_i = ~sys_clk_i;   
 
    initial begin
-      //$dumpfile("dump.vcd");
-      //$dumpvars(1,dut);
-   end
-   
-   initial begin
-      seed = randseed;
+      `ifdef VCD_DUMP
+      $dumpfile("dump.vcd");
+      $dumpvars(1,dut);
+      `endif
+      
+      //seed = `randseed;
       theend = 0;      
       svc = 0;      
-      sys_clk_i = $random(seed);
+      sys_clk_i = $random(`randseed);
       sys_rst_i = 1;
       sys_int_i = 0;
       sys_exc_i = 0;      
       #50 sys_rst_i = 0;
+      #40000000 $displayh("\n*** TIMEOUT ",$stime," ***"); $finish;
+       
    end
-
-   initial fork
-      //inttime $display("FSADFASDFSDAF");      
-      //#10000 sys_int_i = 1;
-      //#1100 sys_int_i = 0;
-      //#100000 $displayh("\nTest Completed."); 
-      //#4000 $finish;
-   join   
-
    
    // FAKE MEMORY ////////////////////////////////////////////////////////
 
@@ -246,6 +237,9 @@ endmodule // edk32
 
 /*
  $Log: not supported by cvs2svn $
+ Revision 1.12  2007/12/23 20:40:51  sybreon
+ Abstracted simulation kernel (aeMB_sim) to split simulation models from synthesis models.
+
  Revision 1.11  2007/12/11 00:44:31  sybreon
  Modified for AEMB2
 
