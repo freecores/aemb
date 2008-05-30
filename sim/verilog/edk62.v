@@ -1,4 +1,4 @@
-/* $Id: edk62.v,v 1.3 2008-05-01 08:33:20 sybreon Exp $
+/* $Id: edk62.v,v 1.4 2008-05-30 14:02:59 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -25,6 +25,8 @@
  
 */
 
+`include "random.v"
+  
 module edk62();
    localparam AEMB_DWB = 18;
    localparam AEMB_XWB = 5;   
@@ -57,7 +59,7 @@ module edk62();
       $dumpvars (1,uut);           
       `endif
       
-      sys_clk_i = 0;
+      sys_clk_i = $random(`randseed);
       sys_rst_i = 1;
       sys_ena_i = 1;
       sys_int_i = 1;
@@ -260,6 +262,9 @@ module edk62();
 endmodule // edk62
 
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2008/05/01 08:33:20  sybreon
+// Added interrupt capability.
+//
 // Revision 1.2  2008/04/27 16:28:19  sybreon
 // Fixed minor typos.
 //
