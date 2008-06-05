@@ -1,4 +1,4 @@
-/* $Id: fasm_tparam.v,v 1.1 2008-06-05 20:51:56 sybreon Exp $
+/* $Id: fasm_tparam.v,v 1.2 2008-06-05 20:53:36 sybreon Exp $
 **
 ** FASM MEMORY LIBRARY
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -69,7 +69,7 @@ module fasm_tparam (/*AUTOARG*/
       for (i=0; i<(1<<AW); i=i+1) begin
 	 lram[i] <= $random;	 
       end
-   end   
+   end
    // synopsys translate_on
    
 endmodule // fasm_tparam
