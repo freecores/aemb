@@ -1,4 +1,4 @@
-/* $Id: aeMB_gprf.v,v 1.1 2008-06-05 21:40:57 sybreon Exp $
+/* $Id: aeMB_gprf.v,v 1.2 2008-06-05 21:41:20 sybreon Exp $
 **
 ** AEMB EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -101,8 +101,8 @@ module aeMB_gprf (/*AUTOARG*/
    assign 	 d_dd = ((w_rw == d_rd) & w_wre) ? w_dat : wDD;
       
    /* fasm_dparam AUTO_TEMPLATE "_\([a-z,0-9]+\)" (    
-    .AW(6'd5),
-    .DW(6'd32),
+    .AW(5),
+    .DW(32),
     
     .dat_o(wD@[31:0]),
     .wre_i(),
@@ -125,8 +125,8 @@ module aeMB_gprf (/*AUTOARG*/
    fasm_dparam
      #(/*AUTOINSTPARAM*/
        // Parameters
-       .AW				(6'd5),			 // Templated
-       .DW				(6'd32))		 // Templated
+       .AW				(5),			 // Templated
+       .DW				(32))			 // Templated
    bank_A
      (/*AUTOINST*/
       // Outputs
@@ -149,8 +149,8 @@ module aeMB_gprf (/*AUTOARG*/
    fasm_dparam
      #(/*AUTOINSTPARAM*/
        // Parameters
-       .AW				(6'd5),			 // Templated
-       .DW				(6'd32))		 // Templated
+       .AW				(5),			 // Templated
+       .DW				(32))			 // Templated
    bank_B
      (/*AUTOINST*/
       // Outputs
@@ -173,8 +173,8 @@ module aeMB_gprf (/*AUTOARG*/
    fasm_dparam
      #(/*AUTOINSTPARAM*/
        // Parameters
-       .AW				(6'd5),			 // Templated
-       .DW				(6'd32))		 // Templated
+       .AW				(5),			 // Templated
+       .DW				(32))			 // Templated
    bank_D
      (/*AUTOINST*/
       // Outputs
