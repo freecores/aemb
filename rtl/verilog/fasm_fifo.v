@@ -1,4 +1,4 @@
-/* $Id: fasm_fifo.v,v 1.1 2008-06-05 21:05:03 sybreon Exp $
+/* $Id: fasm_fifo.v,v 1.2 2008-06-05 21:07:13 sybreon Exp $
 **
 ** FASM MEMORY LIBRARY
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -52,14 +52,14 @@ module fasm_fifo (/*AUTOARG*/
    reg			wok_o;
    // End of automatics
    
-   reg [FIFO_SIZ:1] 	rRADR, 
+   reg [AW:1] 	rRADR, 
 			rWADR;
    
    wire 		wWRE = wre_i & wok_o;
    wire 		wRDE = rde_i & rok_o;   
 
-   wire [FIFO_SIZ:1] 	wRNXT = {~^rRADR[2:1],rRADR[FIFO_SIZ:2]};
-   wire [FIFO_SIZ:1] 	wWNXT = {~^rWADR[2:1],rWADR[FIFO_SIZ:2]};
+   wire [AW:1] 	wRNXT = {~^rRADR[2:1],rRADR[AW:2]};
+   wire [AW:1] 	wWNXT = {~^rWADR[2:1],rWADR[AW:2]};
    
    always @(posedge clk_i)
      if (rst_i | clr_i) begin
@@ -67,8 +67,8 @@ module fasm_fifo (/*AUTOARG*/
 	wok_o <= 1'b1;	
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
-	rRADR <= {(1+(FIFO_SIZ)-(1)){1'b0}};
-	rWADR <= {(1+(FIFO_SIZ)-(1)){1'b0}};
+	rRADR <= {(1+(AW)-(1)){1'b0}};
+	rWADR <= {(1+(AW)-(1)){1'b0}};
 	// End of automatics
      end else if (ena_i) begin
 
@@ -105,6 +105,7 @@ module fasm_fifo (/*AUTOARG*/
     .xwre_i(wWRE),
     .xadr_i(rWADR),
     .xdat_i(dat_i),
+    .xdat_o(),
     ); */
    
    fasm_tparam
@@ -116,7 +117,7 @@ module fasm_fifo (/*AUTOARG*/
      (/*AUTOINST*/
       // Outputs
       .dat_o				(dat_o),		 // Templated
-      .xdat_o				(xdat_o[DW-1:0]),
+      .xdat_o				(),			 // Templated
       // Inputs
       .dat_i				(dat_i[DW-1:0]),
       .adr_i				(rRADR),		 // Templated
@@ -136,8 +137,8 @@ module fasm_fifo (/*AUTOARG*/
    initial begin
       // This depends on target technology. All regular FPGAs have a
       // 16x1 dual port asynchronous RAM block.
-      if (FIFO_SIZ > 4) $display("Warning: FIFO too large!");
-      if (FIFO_SIZ < 2) $display("Warning: FIFO too small!");      
+      if (AW > 4) $display("Warning: FIFO too large!");
+      if (AW < 2) $display("Warning: FIFO too small!");      
    end
    // synopsys translate_off
    
