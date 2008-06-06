@@ -1,4 +1,4 @@
-/* $Id: aeMB_gprf.v,v 1.2 2008-06-05 21:41:20 sybreon Exp $
+/* $Id: aeMB_gprf.v,v 1.3 2008-06-06 09:36:02 sybreon Exp $
 **
 ** AEMB EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2007 Shawn Tan Ser Ngiap <shawn.tan@aeste.net>
@@ -34,8 +34,8 @@ module aeMB_gprf (/*AUTOARG*/
    // Outputs
    d_da, d_db, d_dd,
    // Inputs
-   d_ra, d_rb, d_rd, w_rw, w_sel, w_wre, m_dat, m_sel, gclk, grst,
-   gena
+   d_ra, d_rb, d_rd, w_rw, w_sel, w_wre, m_sel, m_dwb, m_xwb, m_bsf,
+   m_mul, m_alu, gclk, grst, gena
    );
    // D STAGE
    output [31:0] d_da,
@@ -51,9 +51,13 @@ module aeMB_gprf (/*AUTOARG*/
    input 	 w_wre; ///< write back enable
 
    // M STAGE
-   input [31:0]  m_dat; ///< loaded data
    input [3:0] 	 m_sel; ///< loaded selector
-
+   input [31:0]  m_dwb, ///< loaded data
+		 m_xwb, ///< loaded accelerator
+		 m_bsf, ///< barrel shifter
+		 m_mul, ///< multiplier
+		 m_alu; ///< integer unit
+   
    // SYSTEM
    input 	 gclk,
 		 grst,
@@ -61,20 +65,20 @@ module aeMB_gprf (/*AUTOARG*/
 
    // LOAD SIZER
    reg [31:0] 	 rmem;   
-   always @(/*AUTOSENSE*/m_dat or m_sel)
+   always @(/*AUTOSENSE*/m_dwb or m_sel)
      case (m_sel)
        // 8'bits
-       4'h8: rmem <= #1 {24'd0, m_dat[31:24]};
-       4'h4: rmem <= #1 {24'd0, m_dat[23:16]};
-       4'h2: rmem <= #1 {24'd0, m_dat[15:8]};
-       4'h1: rmem <= #1 {24'd0, m_dat[7:0]};
+       4'h8: rmem <= #1 {24'd0, m_dwb[31:24]};
+       4'h4: rmem <= #1 {24'd0, m_dwb[23:16]};
+       4'h2: rmem <= #1 {24'd0, m_dwb[15:8]};
+       4'h1: rmem <= #1 {24'd0, m_dwb[7:0]};
        // 16'bits
-       4'hC: rmem <= #1 {16'd0, m_dat[31:16]};
-       4'h3: rmem <= #1 {16'd0, m_dat[15:0]};
+       4'hC: rmem <= #1 {16'd0, m_dwb[31:16]};
+       4'h3: rmem <= #1 {16'd0, m_dwb[15:0]};
        // 32'bits
-       4'hF: rmem <= #1 m_dat;
+       4'hF: rmem <= #1 m_dwb;
        // XSL bus
-       4'h0: rmem <= #1 m_dat;
+       4'h0: rmem <= #1 m_dwb;
        default: rmem <= 32'hX;	
      endcase // case (sel_mx)
 
