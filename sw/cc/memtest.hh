@@ -1,4 +1,4 @@
-/* $Id: memtest.hh,v 1.1 2008-06-20 17:51:23 sybreon Exp $
+/* $Id: memtest.hh,v 1.2 2008-06-21 10:01:35 sybreon Exp $
 ** 
 ** MEMORY TEST FUNCTIONS
 ** Copyright (C) 2008 Shawn Tan <shawn.tan@aeste.net>
@@ -85,6 +85,7 @@ inline int memtestAddressBus(volatile int *ram, int len)
    Checks the entire memory device
    http://www.embedded.com/2000/0007/0007feat1list1.htm
  */
+
 inline int memtestDeviceMem(volatile int *ram, int len)
 {
   // prefill the memory
@@ -116,4 +117,7 @@ inline int memtestDeviceMem(volatile int *ram, int len)
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.1  2008/06/20 17:51:23  sybreon
+  initial import
+
  */
