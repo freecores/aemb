@@ -1,4 +1,4 @@
-/* $Id: memtest.hh,v 1.3 2008-06-23 22:05:14 sybreon Exp $
+/* $Id: memtest.hh,v 1.4 2008-06-23 22:08:39 sybreon Exp $
 ** 
 ** MEMORY TEST FUNCTIONS
 ** Copyright (C) 2008 Shawn Tan <shawn.tan@aeste.net>
@@ -22,13 +22,17 @@
 #ifndef MEMTEST_HH
 #define MEMTEST_HH
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
    WALKING ONES TEST
    Checks individual bit lines in O(1)
    http://www.embedded.com/2000/0007/0007feat1list1.htm
 */
 
-inline int memtestDataBus(volatile int *ram)
+inline int memTestDataBus(volatile int *ram)
 {
   for (int i=1; i!=0; i<<=1)
     {
@@ -45,7 +49,7 @@ inline int memtestDataBus(volatile int *ram)
    http://www.embedded.com/2000/0007/0007feat1list2.htm
  */
 
-inline int memtestAddressBus(volatile int *ram, int len)
+inline int memTestAddrBus(volatile int *ram, int len)
 {  
   const int p = 0xAAAAAAAA;
   const int q = 0x55555555;
@@ -87,7 +91,7 @@ inline int memtestAddressBus(volatile int *ram, int len)
    http://www.embedded.com/2000/0007/0007feat1list1.htm
  */
 
-inline int memtestDeviceMem(volatile int *ram, int len)
+inline int memTestFullDev(volatile int *ram, int len)
 {
   // prefill the memory
   for (int p=1, i=0; i<len; ++p, ++i)
@@ -114,10 +118,17 @@ inline int memtestDeviceMem(volatile int *ram, int len)
   return 0;  
 }
 
+#ifdef __cplusplus
+}
+#endif
+
 #endif
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.3  2008/06/23 22:05:14  sybreon
+  *** empty log message ***
+
   Revision 1.2  2008/06/21 10:01:35  sybreon
   *** empty log message ***
 
