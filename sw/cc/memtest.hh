@@ -1,4 +1,4 @@
-/* $Id: memtest.hh,v 1.5 2008-06-23 22:28:00 sybreon Exp $
+/* $Id: memtest.hh,v 1.6 2008-06-23 23:40:28 sybreon Exp $
 ** 
 ** MEMORY TEST FUNCTIONS
 ** Copyright (C) 2008 Shawn Tan <shawn.tan@aeste.net>
@@ -32,7 +32,7 @@ extern "C" {
    http://www.embedded.com/2000/0007/0007feat1list1.htm
 */
 
-inline int memTestDataBus(volatile int *ram)
+static inline int memTestDataBus(volatile int *ram)
 {
   for (int i=1; i!=0; i<<=1)
     {
@@ -49,11 +49,11 @@ inline int memTestDataBus(volatile int *ram)
    http://www.embedded.com/2000/0007/0007feat1list2.htm
  */
 
-inline int memTestAddrBus(volatile int *ram, int len)
+static inline int memTestAddrBus(volatile int *ram, int len)
 {  
   const int p = 0xAAAAAAAA;
   const int q = 0x55555555;
-  int nlen = (len >> 2) - 1;
+  int nlen = (len / sizeof(int)) - 1;
 
   // prefill memory
   for (int i=1; (i & nlen)!=0 ; i<<=1)
@@ -66,18 +66,18 @@ inline int memTestAddrBus(volatile int *ram, int len)
   for (int i=1; (i & nlen)!=0 ; i<<=1)
     {
       if (ram[i] != p)
-	return ram[i];
+	return i;
     }
-  ram[0] = p;
 
   // check 2 - stuck low
+  ram[0] = p;
   for (int j=1; (j & nlen)!=0 ; j<<=1)
     {
       ram[j] = q;
       for (int i=1; (i & nlen)!=0 ; i<<=1)
 	{
 	  if ((ram[i] != p) && (i != j))
-	    return ram[i];
+	    return i;
 	}
       ram[j] = p;
     }
@@ -91,9 +91,9 @@ inline int memTestAddrBus(volatile int *ram, int len)
    http://www.embedded.com/2000/0007/0007feat1list1.htm
  */
 
-inline int memTestFullDev(volatile int *ram, int len)
+static inline int memTestFullDev(volatile int *ram, int len)
 {
-  int nlen = len >> 2;
+  int nlen = len / sizeof(int);
   
   // prefill the memory
   for (int p=1, i=0; i<nlen; ++p, ++i)
@@ -105,7 +105,7 @@ inline int memTestFullDev(volatile int *ram, int len)
   for (int p=1, i=0; i<nlen; ++p, ++i)
     {
       if (ram[i] != p)
-	return ram[i];      
+	return p;      
       ram[i] = ~p;      
     }
   
@@ -113,7 +113,7 @@ inline int memTestFullDev(volatile int *ram, int len)
   for (int p=1, i=0; i<nlen; ++p, ++i)
     {
       if (ram[i] != ~p)
-	return ram[i];      
+	return p;      
       ram[i] = 0;      
     }  
 
@@ -128,6 +128,9 @@ inline int memTestFullDev(volatile int *ram, int len)
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.5  2008/06/23 22:28:00  sybreon
+  resized fulldev test
+
   Revision 1.4  2008/06/23 22:08:39  sybreon
   Renamed functions
 
