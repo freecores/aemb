@@ -1,4 +1,4 @@
-/* $Id: memtest.hh,v 1.2 2008-06-21 10:01:35 sybreon Exp $
+/* $Id: memtest.hh,v 1.3 2008-06-23 22:05:14 sybreon Exp $
 ** 
 ** MEMORY TEST FUNCTIONS
 ** Copyright (C) 2008 Shawn Tan <shawn.tan@aeste.net>
@@ -49,16 +49,17 @@ inline int memtestAddressBus(volatile int *ram, int len)
 {  
   const int p = 0xAAAAAAAA;
   const int q = 0x55555555;
-  
+  int nlen = (len >> 2) - 1;
+
   // prefill memory
-  for (int i=1; (i & (len-1))!=0 ; i<<=1)
+  for (int i=1; (i & nlen)!=0 ; i<<=1)
     {
       ram[i] = p;
     }
 
   // check 1 - stuck high
   ram[0] = q;
-  for (int i=1; (i & (len-1))!=0 ; i<<=1)
+  for (int i=1; (i & nlen)!=0 ; i<<=1)
     {
       if (ram[i] != p)
 	return ram[i];
@@ -66,10 +67,10 @@ inline int memtestAddressBus(volatile int *ram, int len)
   ram[0] = p;
 
   // check 2 - stuck low
-  for (int j=1; (j & (len-1))!=0 ; j<<=1)
+  for (int j=1; (j & nlen)!=0 ; j<<=1)
     {
       ram[j] = q;
-      for (int i=1; (i & (len-1))!=0 ; i<<=1)
+      for (int i=1; (i & nlen)!=0 ; i<<=1)
 	{
 	  if ((ram[i] != p) && (i != j))
 	    return ram[i];
@@ -117,6 +118,9 @@ inline int memtestDeviceMem(volatile int *ram, int len)
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.2  2008/06/21 10:01:35  sybreon
+  *** empty log message ***
+
   Revision 1.1  2008/06/20 17:51:23  sybreon
   initial import
 
