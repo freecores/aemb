@@ -1,4 +1,4 @@
-/* $Id: memtest.hh,v 1.4 2008-06-23 22:08:39 sybreon Exp $
+/* $Id: memtest.hh,v 1.5 2008-06-23 22:28:00 sybreon Exp $
 ** 
 ** MEMORY TEST FUNCTIONS
 ** Copyright (C) 2008 Shawn Tan <shawn.tan@aeste.net>
@@ -93,14 +93,16 @@ inline int memTestAddrBus(volatile int *ram, int len)
 
 inline int memTestFullDev(volatile int *ram, int len)
 {
+  int nlen = len >> 2;
+  
   // prefill the memory
-  for (int p=1, i=0; i<len; ++p, ++i)
+  for (int p=1, i=0; i<nlen; ++p, ++i)
     {
       ram[i] = p;      
     }  
 
   // pass 1 - check and invert
-  for (int p=1, i=0; i<len; ++p, ++i)
+  for (int p=1, i=0; i<nlen; ++p, ++i)
     {
       if (ram[i] != p)
 	return ram[i];      
@@ -108,7 +110,7 @@ inline int memTestFullDev(volatile int *ram, int len)
     }
   
   // pass 2 - check and zero
-  for (int p=1, i=0; i<len; ++p, ++i)
+  for (int p=1, i=0; i<nlen; ++p, ++i)
     {
       if (ram[i] != ~p)
 	return ram[i];      
@@ -126,6 +128,9 @@ inline int memTestFullDev(volatile int *ram, int len)
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.4  2008/06/23 22:08:39  sybreon
+  Renamed functions
+
   Revision 1.3  2008/06/23 22:05:14  sybreon
   *** empty log message ***
 
