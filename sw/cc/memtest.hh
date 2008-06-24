@@ -1,4 +1,4 @@
-/* $Id: memtest.hh,v 1.7 2008-06-24 00:20:13 sybreon Exp $
+/* $Id: memtest.hh,v 1.8 2008-06-24 10:03:41 sybreon Exp $
 ** 
 ** MEMORY TEST FUNCTIONS
 ** Copyright (C) 2008 Shawn Tan <shawn.tan@aeste.net>
@@ -28,7 +28,7 @@ extern "C" {
 
   /**
      WALKING ONES TEST
-     Checks individual bit lines in O(1)
+     Checks individual bit lines in O(1). Based on code at
      http://www.embedded.com/2000/0007/0007feat1list1.htm
   */
   
@@ -46,7 +46,7 @@ extern "C" {
   
   /**
      POWERS OF TWO TEST
-     Checks the address lines
+     Checks the address lines. Based on code at
      http://www.embedded.com/2000/0007/0007feat1list2.htm
   */
   
@@ -56,6 +56,7 @@ extern "C" {
     const int p = 0xAAAAAAAA;
     const int q = 0x55555555;
     int nlen = (len / sizeof(int)) - 1;
+    //int nlen = (SRAM_SIZE / 4) - 1;
     
     // prefill memory
     for (int i=1; (i & nlen)!=0 ; i<<=1)
@@ -89,15 +90,16 @@ extern "C" {
   
   /**
      INCREMENT TEST
-     Checks the entire memory device
-     http://www.embedded.com/2000/0007/0007feat1list1.htm
+     Checks the entire memory device. Based on code at
+     http://www.embedded.com/2000/0007/0007feat1list3.htm
   */
   
   static inline int memTestFullDev(int base, int len)
   {
     volatile int *ram = (int *) base;
     int nlen = len / sizeof(int);
-    
+    //int nlen = (SRAM_SIZE / 4);
+
     // prefill the memory
     for (int p=1, i=0; i<nlen; ++p, ++i)
       {
@@ -131,6 +133,9 @@ extern "C" {
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.7  2008/06/24 00:20:13  sybreon
+  changed parameters passed
+
   Revision 1.6  2008/06/23 23:40:28  sybreon
   *** empty log message ***
 
