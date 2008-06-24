@@ -1,4 +1,4 @@
-/* $Id: memtest.hh,v 1.6 2008-06-23 23:40:28 sybreon Exp $
+/* $Id: memtest.hh,v 1.7 2008-06-24 00:20:13 sybreon Exp $
 ** 
 ** MEMORY TEST FUNCTIONS
 ** Copyright (C) 2008 Shawn Tan <shawn.tan@aeste.net>
@@ -26,100 +26,103 @@
 extern "C" {
 #endif
 
-/**
-   WALKING ONES TEST
-   Checks individual bit lines in O(1)
-   http://www.embedded.com/2000/0007/0007feat1list1.htm
-*/
-
-static inline int memTestDataBus(volatile int *ram)
-{
-  for (int i=1; i!=0; i<<=1)
-    {
-      *ram = i; // write test value
-      if (*ram != i) // read back test
-	return i;      
-    }
-  return 0; // 0 if success  
-}
-
-/**
-   POWERS OF TWO TEST
-   Checks the address lines
-   http://www.embedded.com/2000/0007/0007feat1list2.htm
- */
-
-static inline int memTestAddrBus(volatile int *ram, int len)
-{  
-  const int p = 0xAAAAAAAA;
-  const int q = 0x55555555;
-  int nlen = (len / sizeof(int)) - 1;
-
-  // prefill memory
-  for (int i=1; (i & nlen)!=0 ; i<<=1)
-    {
-      ram[i] = p;
-    }
-
-  // check 1 - stuck high
-  ram[0] = q;
-  for (int i=1; (i & nlen)!=0 ; i<<=1)
-    {
-      if (ram[i] != p)
-	return i;
-    }
-
-  // check 2 - stuck low
-  ram[0] = p;
-  for (int j=1; (j & nlen)!=0 ; j<<=1)
-    {
-      ram[j] = q;
-      for (int i=1; (i & nlen)!=0 ; i<<=1)
-	{
-	  if ((ram[i] != p) && (i != j))
-	    return i;
-	}
-      ram[j] = p;
-    }
-
-  return 0;
-}
-
-/**
-   INCREMENT TEST
-   Checks the entire memory device
-   http://www.embedded.com/2000/0007/0007feat1list1.htm
- */
-
-static inline int memTestFullDev(volatile int *ram, int len)
-{
-  int nlen = len / sizeof(int);
+  /**
+     WALKING ONES TEST
+     Checks individual bit lines in O(1)
+     http://www.embedded.com/2000/0007/0007feat1list1.htm
+  */
   
-  // prefill the memory
-  for (int p=1, i=0; i<nlen; ++p, ++i)
-    {
-      ram[i] = p;      
-    }  
-
-  // pass 1 - check and invert
-  for (int p=1, i=0; i<nlen; ++p, ++i)
-    {
-      if (ram[i] != p)
-	return p;      
-      ram[i] = ~p;      
-    }
+  static inline int memTestDataBus(int base)
+  {
+    volatile int *ram = (int *) base;
+    for (int i=1; i!=0; i<<=1)
+      {
+	*ram = i; // write test value
+	if (*ram != i) // read back test
+	  return i;      
+      }
+    return 0; // 0 if success  
+  }
   
-  // pass 2 - check and zero
-  for (int p=1, i=0; i<nlen; ++p, ++i)
-    {
-      if (ram[i] != ~p)
-	return p;      
-      ram[i] = 0;      
-    }  
-
-  return 0;  
-}
-
+  /**
+     POWERS OF TWO TEST
+     Checks the address lines
+     http://www.embedded.com/2000/0007/0007feat1list2.htm
+  */
+  
+  static inline int memTestAddrBus(int base, int len)
+  {  
+    volatile int *ram = (int *) base;
+    const int p = 0xAAAAAAAA;
+    const int q = 0x55555555;
+    int nlen = (len / sizeof(int)) - 1;
+    
+    // prefill memory
+    for (int i=1; (i & nlen)!=0 ; i<<=1)
+      {
+	ram[i] = p;
+      }
+    
+    // check 1 - stuck high
+    ram[0] = q;
+    for (int i=1; (i & nlen)!=0 ; i<<=1)
+      {
+	if (ram[i] != p)
+	  return i;
+      }
+    
+    // check 2 - stuck low
+    ram[0] = p;
+    for (int j=1; (j & nlen)!=0 ; j<<=1)
+      {
+	ram[j] = q;
+	for (int i=1; (i & nlen)!=0 ; i<<=1)
+	  {
+	    if ((ram[i] != p) && (i != j))
+	      return i;
+	  }
+	ram[j] = p;
+      }
+    
+    return 0;
+  }
+  
+  /**
+     INCREMENT TEST
+     Checks the entire memory device
+     http://www.embedded.com/2000/0007/0007feat1list1.htm
+  */
+  
+  static inline int memTestFullDev(int base, int len)
+  {
+    volatile int *ram = (int *) base;
+    int nlen = len / sizeof(int);
+    
+    // prefill the memory
+    for (int p=1, i=0; i<nlen; ++p, ++i)
+      {
+	ram[i] = p;      
+      }  
+    
+    // pass 1 - check and invert
+    for (int p=1, i=0; i<nlen; ++p, ++i)
+      {
+	if (ram[i] != p)
+	  return p;      
+	ram[i] = ~p;      
+      }
+    
+    // pass 2 - check and zero
+    for (int p=1, i=0; i<nlen; ++p, ++i)
+      {
+	if (ram[i] != ~p)
+	  return p;      
+	ram[i] = 0;      
+      }  
+    
+    return 0;  
+  }
+  
 #ifdef __cplusplus
 }
 #endif
@@ -128,6 +131,9 @@ static inline int memTestFullDev(volatile int *ram, int len)
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.6  2008/06/23 23:40:28  sybreon
+  *** empty log message ***
+
   Revision 1.5  2008/06/23 22:28:00  sybreon
   resized fulldev test
 
