@@ -1,4 +1,4 @@
-/* $Id: bootstrap.c,v 1.1 2008-06-23 22:18:04 sybreon Exp $
+/* $Id: bootstrap.c,v 1.2 2008-06-24 00:45:36 sybreon Exp $
 ** 
 ** BOOTSTRAP
 ** Copyright (C) 2008 Shawn Tan <shawn.tan@aeste.net>
@@ -21,16 +21,44 @@
 
 #include "memtest.hh"
 
-#define SRAM_BASE (int *)0x80000000
-#define SRAM_SIZE 0x10000
+#define SRAM_BASE 0x00008000
+#define SRAM_SIZE 0x8000
+#define BOOT_BASE 0x00004000
 
-int memtest () 
+/**
+   MEMORY TEST
+ */
+
+static inline int memtest (int base, int len) 
 {
-  memTestDataBus(SRAM_BASE);
-  memTestAddrBus(SRAM_BASE, SRAM_SIZE);  
-  memTestFullDev(SRAM_BASE, SRAM_SIZE);  
+  return ( 
+#ifdef TEST_LONG
+	  (memTestDataBus(base) != 0) ||
+	  (memTestAddrBus(base, len) != 0) ||
+	  (memTestFullDev(base, len) != 0) // takes long time
+#else
+	  (memTestDataBus(base) != 0) ||
+	  (memTestAddrBus(base, len) != 0)
+#endif
+	   ) ? 0 : -1;
+}
+
+static inline void runboot(int base)
+{
+  asm volatile ("brai %0"::"i"(base));
+}
+
+int main ()
+{
+  if (memtest(SRAM_BASE, SRAM_SIZE) == 0)
+    runboot(BOOT_BASE);
+  else
+    while (1) asm volatile ("");  
 }
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.1  2008/06/23 22:18:04  sybreon
+  initial import
+
  */
