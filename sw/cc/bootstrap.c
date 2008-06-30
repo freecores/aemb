@@ -1,4 +1,4 @@
-/* $Id: bootstrap.c,v 1.3 2008-06-24 10:34:40 sybreon Exp $
+/* $Id: bootstrap.c,v 1.4 2008-06-30 10:14:59 sybreon Exp $
 ** 
 ** BOOTSTRAP
 ** Copyright (C) 2008 Shawn Tan <shawn.tan@aeste.net>
@@ -18,11 +18,16 @@
 ** You should have received a copy of the GNU General Public License
 ** along with AEMB.  If not, see <http://www.gnu.org/licenses/>.
 */
+/*
+#define SRAM_BASE 0x00008000
+The base address of the RAM block
 
+#define SRAM_SIZE 0x8000
+The size of the RAM block
 
-//#define SRAM_BASE 0x00008000
-//#define SRAM_SIZE 0x8000
-//#define BOOT_BASE 0x00004000
+#define BOOT_BASE 0x00004000
+The base address of the boot loader
+*/
 
 #include "memtest.hh"
 
@@ -50,19 +55,29 @@ static inline int memtest (int base, int len)
 
 static inline void runboot(int base)
 {
-  asm volatile ("brai %0"::"i"(base));
+  asm volatile ("brai %0"::"i"(base));  
+  //void *fsboot = (void *) base;
+  //fsboot = (void *) base;
+  //goto *fsboot;  
 }
+
+/**
+   STRING IT ALL TOGETHER
+ */
 
 int main ()
 {
   if (memtest(SRAM_BASE, SRAM_SIZE) == 0)
     runboot(BOOT_BASE);
   else
-    while (1) asm volatile ("");  
+    while (1); // asm volatile ("");  
 }
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.3  2008/06/24 10:34:40  sybreon
+  updated
+
   Revision 1.2  2008/06/24 00:45:36  sybreon
   basic version
 
