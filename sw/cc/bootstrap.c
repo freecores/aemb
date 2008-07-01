@@ -1,4 +1,4 @@
-/* $Id: bootstrap.c,v 1.4 2008-06-30 10:14:59 sybreon Exp $
+/* $Id: bootstrap.c,v 1.5 2008-07-01 00:08:34 sybreon Exp $
 ** 
 ** BOOTSTRAP
 ** Copyright (C) 2008 Shawn Tan <shawn.tan@aeste.net>
@@ -18,63 +18,45 @@
 ** You should have received a copy of the GNU General Public License
 ** along with AEMB.  If not, see <http://www.gnu.org/licenses/>.
 */
-/*
-#define SRAM_BASE 0x00008000
-The base address of the RAM block
 
-#define SRAM_SIZE 0x8000
-The size of the RAM block
-
-#define BOOT_BASE 0x00004000
-The base address of the boot loader
-*/
-
+#include <stdlib.h>
 #include "memtest.hh"
 
-/**
-   MEMORY TEST
- */
+/*
+  BOOTSTRAP CODE
 
-static inline int memtest (int base, int len) 
+  #define SRAM_BASE - The base address of the memory block to test.
+  #define SRAM_SIZE - The size of the memory block to test.
+  #define BOOT_BASE - The base address of the next stage boot loader.
+*/
+
+int bootstrap ()
 {
-  return ( 
-#ifdef TEST_LONG
-	  (memTestDataBus(base) != 0) ||
-	  (memTestAddrBus(base, len) != 0) ||
-	  (memTestFullDev(base, len) != 0) // takes long time
-#else
-	  (memTestDataBus(base) != 0) ||
-	  (memTestAddrBus(base, len) != 0)
+  void *fsboot = (void *) BOOT_BASE; 
+
+  // Memory Test
+  if ((memTestDataBus(SRAM_BASE) == 0) &&            // test data
+      (memTestAddrBus(SRAM_BASE, SRAM_SIZE) == 0) && // test address      
+#ifdef LONGTEST // 1.86kb
+      (memTestFullDev(SRAM_BASE, SRAM_SIZE) == 0)    // test device
+#else // 1.3kb
+      true
 #endif
-	   ) ? 0 : -1;
-}
-
-/**
-   START BOOT LOADER
- */
-
-static inline void runboot(int base)
-{
-  asm volatile ("brai %0"::"i"(base));  
-  //void *fsboot = (void *) base;
-  //fsboot = (void *) base;
-  //goto *fsboot;  
-}
-
-/**
-   STRING IT ALL TOGETHER
- */
-
-int main ()
-{
-  if (memtest(SRAM_BASE, SRAM_SIZE) == 0)
-    runboot(BOOT_BASE);
+      )    
+    {      
+      goto *fsboot; // on PASS: branch to boot loader
+    }  
   else
-    while (1); // asm volatile ("");  
+    {     
+      while (1); // on FAIL: lock the system
+    }  
 }
 
 /*
   $Log: not supported by cvs2svn $
+  Revision 1.4  2008/06/30 10:14:59  sybreon
+  added some comments
+
   Revision 1.3  2008/06/24 10:34:40  sybreon
   updated
 
