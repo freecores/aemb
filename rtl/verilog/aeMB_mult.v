@@ -1,4 +1,4 @@
-/* $Id: aeMB_mult.v,v 1.4 2008-06-06 09:36:02 sybreon Exp $
+/* $Id: aeMB_mult.v,v 1.5 2008-07-15 21:15:04 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -20,51 +20,58 @@
 */
 /*
  * 2-STAGE MULTIPLIER
+ * The implementation is tool dependent. The code used is based on
+ * examples from the tool vendors.   
  */
 
 module aeMB_mult (/*AUTOARG*/
    // Outputs
-   m_mul,
+   dat_mul,
    // Inputs
-   x_opa, x_opb, x_opc, gclk, grst, gena
+   reg_opa, reg_opb, sys_clk, sys_rst, sys_ena
    );      
    parameter MUL = 1; ///< implement multiplier  
-   
-   output [31:0] m_mul;   
-   
-   input [31:0]  x_opa;
-   input [31:0]  x_opb;
-   input [5:0] 	 x_opc;   
+    
+   output [31:0] dat_mul;      
+   input [31:0]  reg_opa;
+   input [31:0]  reg_opb;
 
    // SYS signals
-   input 	 gclk,
-		 grst,
-		 gena;      
+   input 	 sys_clk,
+		 sys_rst,
+		 sys_ena;      
 
    /*AUTOREG*/
+   reg [31:0] 	 rALT0, rALT1, rALT2;   
+   reg [31:0] 	 rXIL0, rXIL1;
 
-   reg [31:0] 	 rOPA, rOPB;   
-   reg [31:0] 	 rMUL0, 
-		 rMUL1;
-
-   always @(posedge gclk)
-     if (grst) begin
+`ifdef QUARTUS
+   assign 	 dat_mul = (MUL[0]) ? wALT2 : 32'hX;
+`else
+   assign 	 dat_mul = (MUL[0]) ? rXIL1 : 32'hX;
+`endif   
+      
+   always @(posedge sys_clk)
+     if (sys_rst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
-	rMUL0 <= 32'h0;
-	rMUL1 <= 32'h0;
-	rOPA <= 32'h0;
-	rOPB <= 32'h0;
+	rALT0 <= 32'h0;
+	rALT1 <= 32'h0;
+	rALT2 <= 32'h0;
+	rXIL0 <= 32'h0;
+	rXIL1 <= 32'h0;
 	// End of automatics
-     end else if (gena) begin
-	//rMUL1 <= #1 rMUL0;
-	rMUL1 <= #1 rMUL0; //rOPA * rOPB;	
-	rMUL0 <= #1 (x_opa * x_opb);
-	rOPA <= #1 x_opa;
-	rOPB <= #1 x_opb;	
+     end else if (sys_ena) begin	       
+	rXIL1 <= #1 rXIL0;
+	rXIL0 <= #1 (reg_opa * reg_opb);
+	
+	rALT2 <= #1 (rALT0 * rALT1);	
+	rALT0 <= #1 reg_opa;
+	rALT1 <= #1 reg_opb;	
      end
 
-   assign 	 m_mul = (MUL[0]) ? rMUL1 : 32'hX;
-      
 endmodule // aeMB2_mult
 
+/*
+ $Log: not supported by cvs2svn $
+ */
