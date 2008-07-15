@@ -1,4 +1,4 @@
-/* $Id: aeMB_bsft.v,v 1.4 2008-06-06 09:36:02 sybreon Exp $
+/* $Id: aeMB_bsft.v,v 1.5 2008-07-15 21:17:28 sybreon Exp $
 **
 ** AEMB2 EDK 6.2 COMPATIBLE CORE
 ** Copyright (C) 2004-2008 Shawn Tan <shawn.tan@aeste.net>
@@ -24,24 +24,22 @@
 
 module aeMB_bsft (/*AUTOARG*/
    // Outputs
-   m_bsf,
+   dat_bsf,
    // Inputs
-   x_opa, x_opb, x_opc, x_imm, gclk, grst, dena, gpha
+   reg_opa, reg_opb, opc_imm, sys_clk, sys_rst, sys_ena
    );
    parameter BSF = 1; ///< implement barrel shift  
 
-   output [31:0] m_bsf;   
+   output [31:0] dat_bsf;   
    
-   input [31:0]  x_opa;
-   input [31:0]  x_opb;
-   input [5:0] 	 x_opc;   
-   input [10:9]  x_imm;
+   input [31:0]  reg_opa;
+   input [31:0]  reg_opb;
+   input [10:9]  opc_imm;
    
    // SYS signals
-   input 	 gclk,
-		 grst,
-		 dena,
-		 gpha;   
+   input 	 sys_clk,
+		 sys_rst,
+		 sys_ena;   
 
    /*AUTOREG*/
    
@@ -49,32 +47,33 @@ module aeMB_bsft (/*AUTOARG*/
    reg [31:0] 	 rBSR;
    reg [10:9] 	 imm_ex;
    
-   wire [31:0] 	 wOPB = x_opb;
-   wire [31:0] 	 wOPA = x_opa;
+   wire [31:0] 	 wOPB = reg_opb;
+   wire [31:0] 	 wOPA = reg_opa;
 
    // STAGE-1 SHIFTERS
-   
+   assign 	 dat_bsf = (BSF[0]) ? rBSR : 32'hX;   
+            
    // logical
-   always @(posedge gclk)
-     if (grst) begin
+   always @(posedge sys_clk)
+     if (sys_rst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	rBSLL <= 32'h0;
 	rBSRL <= 32'h0;
 	// End of automatics
-     end else if (dena) begin
+     end else if (sys_ena) begin
 	rBSLL <= #1 wOPA << wOPB[4:0];
 	rBSRL <= #1 wOPA >> wOPB[4:0];	
      end
    
    // arithmetic
-   always @(posedge gclk)
-     if (grst) begin
+   always @(posedge sys_clk)
+     if (sys_rst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	rBSRA <= 32'h0;
 	// End of automatics
-     end else if (dena)
+     end else if (sys_ena)
        case (wOPB[4:0])
 	 5'd00: rBSRA <= wOPA;
 	 5'd01: rBSRA <= {{(1){wOPA[31]}}, wOPA[31:1]};
@@ -111,24 +110,25 @@ module aeMB_bsft (/*AUTOARG*/
        endcase // case (wOPB[4:0])
 
    // STAGE-2 SHIFT
-   always @(posedge gclk)
-     if (grst) begin
+   always @(posedge sys_clk)
+     if (sys_rst) begin
 	/*AUTORESET*/
 	// Beginning of autoreset for uninitialized flops
 	imm_ex <= 2'h0;
 	rBSR <= 32'h0;
 	// End of automatics
-     end else if (dena) begin
+     end else if (sys_ena) begin
 	case (imm_ex)
 	  2'o0: rBSR <= #1 rBSRL;
 	  2'o1: rBSR <= #1 rBSRA;       
 	  2'o2: rBSR <= #1 rBSLL;
 	  default: rBSR <= #1 32'hX;       
 	endcase // case (imm_ex)
-	imm_ex <= #1 x_imm[10:9]; // delay 1 cycle	
+	imm_ex <= #1 opc_imm[10:9]; // delay 1 cycle	
      end
 
-   assign 	 m_bsf = (BSF[0]) ? rBSR : 32'hX;   
-         
 endmodule // aeMB2_bsft
 
+/*
+ $Log: not supported by cvs2svn $
+ */
